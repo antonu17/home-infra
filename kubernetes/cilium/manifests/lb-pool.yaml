@@ -1,0 +1,7 @@
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: home-cloud
+spec:
+  blocks:
+    - cidr: 10.40.0.0/24

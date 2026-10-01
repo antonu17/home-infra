@@ -5,6 +5,7 @@ resources:
   - vendor/csi-driver.yml
   - vendor/node.yml
   - vendor/controller.yml
+  - storageclass.yaml
 
 patches:
   - patch: |

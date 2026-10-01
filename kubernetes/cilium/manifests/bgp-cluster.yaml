@@ -1,0 +1,21 @@
+apiVersion: cilium.io/v2
+kind: CiliumBGPClusterConfig
+metadata:
+  name: home-cloud
+spec:
+  nodeSelector:
+    matchExpressions:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+          - linux
+
+  bgpInstances:
+    - name: home-cloud
+      localASN: 65001
+      peers:
+        - name: rb5009
+          peerASN: 65000
+          peerAddress: 192.168.40.1
+          peerConfigRef:
+            name: rb5009
