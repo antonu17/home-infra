@@ -1,0 +1,68 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - vendor/csi-driver.yml
+  - vendor/node.yml
+  - vendor/controller.yml
+
+patches:
+  - patch: |
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: synology-csi-node
+        namespace: synology-csi
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: talos-worker-01
+            dnsPolicy: ClusterFirstWithHostNet
+            containers:
+              - name: csi-plugin
+                securityContext:
+                  runAsUser: 0
+                args:
+                  - --nodeid=$(KUBE_NODE_NAME)
+                  - --endpoint=$(CSI_ENDPOINT)
+                  - --client-info
+                  - /etc/synology/client-info.yml
+                  - --log-level=info
+                  - --chroot-dir=/host
+                  - --iscsiadm-path=/usr/local/sbin/iscsiadm
+                  - --multipath=false
+                env:
+                  - name: CSI_ENDPOINT
+                    value: unix:///csi/csi.sock
+
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: synology-csi-controller
+        namespace: synology-csi
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: talos-worker-01
+            dnsPolicy: ClusterFirstWithHostNet
+
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: synology-csi-node-role
+    patch: |
+      - op: remove
+        path: /rules/0
+
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: synology-csi-controller-role
+    patch: |
+      - op: remove
+        path: /rules/12

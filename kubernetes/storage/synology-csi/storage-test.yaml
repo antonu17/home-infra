@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-test
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: iscsi-test
+  namespace: storage-test
+spec:
+  storageClassName: synology-block
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsi-test
+  namespace: storage-test
+spec:
+  automountServiceAccountToken: false
+  nodeSelector:
+    kubernetes.io/hostname: talos-worker-01
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: test
+      image: busybox:1.37.0
+      command:
+        - sh
+        - -ec
+        - |
+          if [ ! -f /data/proof.txt ]; then
+            date -u > /data/proof.txt
+            sync
+          fi
+          echo "Persisted contents:"
+          cat /data/proof.txt
+          df -h /data
+          sleep 86400
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: iscsi-test

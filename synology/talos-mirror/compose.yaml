@@ -1,0 +1,23 @@
+services:
+  talos-mirror:
+    image: nginxinc/nginx-unprivileged:1.30.5-alpine3.24
+    container_name: talos-mirror
+    restart: unless-stopped
+    read_only: true
+    ports:
+      - "18080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./assets:/srv/talos:ro
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

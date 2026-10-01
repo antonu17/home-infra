@@ -1,0 +1,10 @@
+#!ipxe
+
+dhcp
+chain --replace tftp://${next-server}/boot.ipxe || goto failed
+
+:failed
+echo Unable to load boot.ipxe from ${next-server}.
+echo Check the RouterOS TFTP rules and files.
+shell
+

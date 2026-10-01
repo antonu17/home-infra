@@ -1,0 +1,62 @@
+#!ipxe
+
+:menu
+menu Home Cloud Network Boot
+item --gap -- ---------------- Operating systems ------------
+item talos_local    Talos v1.14.1 maintenance (Synology mirror)
+item talos_factory  Talos v1.14.1 maintenance (factory fallback)
+item --gap -- ---------------- Diagnostics ----------------
+item identity  Show client identity
+item shell     Open iPXE shell
+item --gap -- ---------------- Boot control ---------------
+item local     Continue to local boot
+item reboot    Reboot
+item poweroff  Power off
+choose --default local --timeout 10000 target || goto local
+goto ${target}
+
+:talos_local
+echo Starting Talos v1.14.1 from the Synology mirror...
+kernel http://talos.home.antonu.org/v1.14.1/kernel-amd64 talos.platform=metal console=tty0 slab_nomerge pti=on consoleblank=0 printk.devkmsg=on selinux=1 module.sig_enforce=1 proc_mem.force_override=never || goto talos_failed
+initrd http://talos.home.antonu.org/v1.14.1/initramfs-amd64.xz || goto talos_failed
+boot || goto talos_failed
+
+:talos_factory
+echo Starting Talos v1.14.1 from the public Image Factory...
+chain --replace https://factory.talos.dev/pxe/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.14.1/metal-amd64 || goto talos_failed
+
+:talos_failed
+echo
+echo Unable to download Talos from the Image Factory.
+echo Check VLAN 400 DNS, Internet access, and the URL in boot.ipxe.
+echo
+prompt Press any key to return to the menu
+goto menu
+
+:identity
+echo
+echo MAC:      ${net0/mac}
+echo IPv4:     ${net0/ip}
+echo Gateway:  ${net0/gateway}
+echo DNS:      ${net0/dns}
+echo Platform: ${platform}
+echo Build:    ${buildarch}
+echo Product:  ${manufacturer} ${product}
+echo Serial:   ${serial}
+echo UUID:     ${uuid}
+echo
+prompt Press any key to return to the menu
+goto menu
+
+:shell
+shell
+goto menu
+
+:local
+exit
+
+:reboot
+reboot
+
+:poweroff
+poweroff

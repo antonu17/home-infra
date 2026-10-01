@@ -1,0 +1,4 @@
+.DS_Store
+
+# Generated Talos machine configurations contain cluster credentials.
+/talos/generated/
