@@ -3,32 +3,39 @@
 :menu
 menu Home Cloud Network Boot
 item --gap -- ---------------- Operating systems ------------
-item talos_local    Talos v1.14.1 maintenance (Synology mirror)
-item talos_factory  Talos v1.14.1 maintenance (factory fallback)
+item talos    Talos v1.14.2 maintenance (Image Factory)
+item talos_wipe  Talos v1.14.2 WIPE SYSTEM DISK
 item --gap -- ---------------- Diagnostics ----------------
-item identity  Show client identity
-item shell     Open iPXE shell
+item identity Show client identity
+item shell    Open iPXE shell
 item --gap -- ---------------- Boot control ---------------
-item local     Continue to local boot
-item reboot    Reboot
-item poweroff  Power off
+item local    Continue to local boot
+item reboot   Reboot
+item poweroff Power off
 choose --default local --timeout 10000 target || goto local
 goto ${target}
 
-:talos_local
-echo Starting Talos v1.14.1 from the Synology mirror...
-kernel http://talos.home.antonu.org/v1.14.1/kernel-amd64 talos.platform=metal console=tty0 slab_nomerge pti=on consoleblank=0 printk.devkmsg=on selinux=1 module.sig_enforce=1 proc_mem.force_override=never || goto talos_failed
-initrd http://talos.home.antonu.org/v1.14.1/initramfs-amd64.xz || goto talos_failed
-boot || goto talos_failed
+:talos
+set talos_factory http://talos.home.antonu.org
+set talos_version v1.14.2
+set talos_schematic 376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
 
-:talos_factory
-echo Starting Talos v1.14.1 from the public Image Factory...
-chain --replace https://factory.talos.dev/pxe/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.14.1/metal-amd64 || goto talos_failed
+echo Starting Talos ${talos_version} from Image Factory...
+chain ${talos_factory}/pxe/${talos_schematic}/${talos_version}/metal-amd64 || goto talos_failed
+
+:talos_wipe
+set talos_factory http://talos.home.antonu.org
+set talos_version v1.14.2
+set talos_wipe_schematic 9acd4f2454d4969f5351e85d824eb5d27f8124b56d281d8a03c924fa1a7cfd2f
+
+echo WARNING: wiping Talos system disk!
+chain ${talos_factory}/pxe/${talos_wipe_schematic}/${talos_version}/metal-amd64 || goto talos_failed
+
 
 :talos_failed
 echo
-echo Unable to download Talos from the Image Factory.
-echo Check VLAN 400 DNS, Internet access, and the URL in boot.ipxe.
+echo Unable to boot Talos from the Image Factory.
+echo Check VLAN 400 connectivity, DNS, TLS, and Image Factory availability.
 echo
 prompt Press any key to return to the menu
 goto menu
