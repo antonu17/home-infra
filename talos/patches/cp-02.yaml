@@ -9,4 +9,4 @@ machine:
 apiVersion: v1alpha1
 kind: HostnameConfig
 auto: off
-hostname: talos-cp-01
+hostname: talos-cp-02

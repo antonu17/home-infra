@@ -1,0 +1,5 @@
+customization:
+  extraKernelArgs:
+    - talos.experimental.wipe=system
+  systemExtensions:
+    officialExtensions: []
