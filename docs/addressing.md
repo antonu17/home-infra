@@ -1,8 +1,9 @@
 # Network addressing plan
 
-This document records the intended IPv4 allocation. Device discovery and the
-desired-state inventory will become authoritative once the network reconciler
-is implemented.
+This document records current allocations and explicitly reserved space.
+The Home Cloud implementation was reconciled with the repository and operator
+handoff on 2026-10-01; no live router discovery was performed. Inventory/API
+automation remains planned, not an existing source of truth.
 
 ## VLAN summary
 
@@ -27,11 +28,35 @@ is implemented.
 | `192.168.40.22` | Second Talos control-plane node (`talos-cp-02`) |
 | `192.168.40.23` | Third Talos control-plane node (`talos-cp-03`) |
 | `192.168.40.24-29` | Additional Talos control-plane reservations |
-| `192.168.40.30-39` | Reserved load-balancer virtual IPs |
-| `192.168.40.40-99` | Static or DHCP-reserved physical nodes |
+| `192.168.40.30-39` | Previously reserved LB space; no LB-IPAM pool or BGP advertisement configured |
+| `192.168.40.40` | `talos-worker-01`, Synology VMM worker, DHCP reservation |
+| `192.168.40.41-99` | Reserved additional VM or physical nodes |
 | `192.168.40.100-199` | Dynamic DHCP and machine discovery pool |
 | `192.168.40.200-254` | Unallocated expansion space |
 
 RouterOS is the sole DHCP authority. Its native TFTP server supplies only the
-small iPXE bootstrap and scripts. Large operating-system artifacts are loaded
-from version-pinned HTTPS sources.
+small iPXE bootstrap and scripts. Large operating-system artifacts are served
+by the local Image Factory and registry, not stored on the router.
+
+The checked-in iPXE menu still uses HTTP to the local factory; see the explicit
+configuration drift in [PXE](pxe.md). VLAN 400 is implemented; Raspberry Pi
+migration to it remains future work. Aruba/ether7 does not need VLAN 400.
+
+## Service names
+
+| Name | Address | Current purpose |
+|---|---|---|
+| `pulsar.home.antonu.org` | `192.168.100.5` | Synology DSM; CSI API access over hostname-based HTTPS/443 |
+| `talos.home.antonu.org` | `192.168.100.5` | Self-hosted Image Factory, HTTPS |
+| `registry.home.antonu.org` | `192.168.100.5` | OCI registry for promoted Talos installers, HTTPS |
+| `k8s.home.antonu.org` | `192.168.40.20` | Kubernetes API VIP, TCP/6443 |
+
+The NAS services remain on VLAN 100, reached by routing from VLAN 400. Only
+the VMM guests are on the tagged Home Cloud network. Ensure each client DNS
+resolver serves these names; do not assume one RouterOS static record also
+updates Pi-hole. The registry DNS deployment is operator-reported, not captured
+in the existing RouterOS DNS scripts.
+
+Talos management uses the real control-plane endpoints `.21`, `.22`, `.23`
+(TCP/50000), not the Kubernetes VIP. Cilium LB-IPAM and eBGP to MikroTik are
+planned; the final service address pool still needs an explicit decision.

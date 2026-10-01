@@ -1,102 +1,123 @@
-# Talos mirror on Synology
+# Talos Image Factory and installer registry on Synology
 
-The Synology NAS serves versioned Talos kernel and initramfs assets over HTTP.
-The RB5009 remains the sole DHCP authority and serves only the small iPXE
-bootstrap files over TFTP.
+## Current deployment
 
-## Address and flow
+The 2026-10-01 implementation handoff reports Image Factory
+`ghcr.io/siderolabs/image-factory:v1.7.0` and a generic OCI registry running
+in Synology Container Manager, published through Web Station/nginx with valid TLS.
 
-Web Station publishes the container through this name-based portal:
+| Service | Endpoint | Purpose |
+|---|---|---|
+| Image Factory | `https://talos.home.antonu.org` | Schematic-derived kernel, initramfs, PXE script and installer archive |
+| OCI registry | `https://registry.home.antonu.org` | Promoted Talos installer images |
+| NAS | `192.168.100.5` | VLAN 100, routed access from Home Cloud VLAN 400 |
 
-```text
-http://talos.home.antonu.org
-```
+The historical `synology/talos-mirror/compose.yaml`, `nginx.conf`, `sync.sh`
+and `assets/` described the **legacy static nginx mirror**, not the deployed
+Image Factory or registry. Those files are deleted in the current working tree;
+do not restore/redeploy that Compose project over the current service.
+Factory/registry deployment manifests and certificate renewal hooks
+have not yet been captured here. Backend ports, volumes and registry image
+version must be obtained from the Synology deployment, not inferred.
 
-Add the mirror name to RouterOS DNS:
+The old static mirror's `/healthz` and version-directory asset URLs are not
+the current factory API contract.
 
-```routeros
-/ip dns static add address=192.168.100.5 comment="Synology Talos mirror" name=talos.home.antonu.org type=A
-```
-
-The same command is stored in `mikrotik/talos-mirror-dns.rsc` for review.
-
-VLAN 100 clients use Pi-hole at `192.168.100.2`; add the same name and address
-there as a local DNS record so trusted-network workstations resolve the mirror.
-
-VLAN 400 currently has routed access to the trusted network. If inter-VLAN
-policy is tightened later, allow TCP port 80 from `192.168.40.0/24` to
-`192.168.100.5`.
-
-## Synology Container Manager deployment
-
-Copy the complete `synology/talos-mirror` directory to the Synology project
-directory:
+## Local artifact pipeline
 
 ```text
-/volume3/labs/talos-mirror
+schematic-amd64.yaml -> local Image Factory -> kernel/initramfs/PXE -> iPXE
+                              |
+                              +-> installer-amd64.tar -> skopeo -> OCI registry
+                                                                     |
+                                                         Talos install / upgrade
 ```
 
-The directory must include the downloaded `assets` tree. In Container Manager:
+The source is `talos/image-factory/schematic-amd64.yaml`; its derived ID is
+recorded in `schematic-amd64.id`. It includes `siderolabs/iscsi-tools`:
 
-1. Open **Project** and create a new project named `talos-mirror`.
-2. Select `/volume3/labs/talos-mirror` as its path.
-3. Use the existing `compose.yaml` file.
-4. Enable **Set up web portal via Web Station** for the project.
-5. Build and start the project.
+```text
+c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac
+```
 
-In Web Station, create or edit the project portal:
+The separate `schematic-amd64-wipe.yaml` and `.id` are for destructive clean
+reprovisioning, not normal installs or upgrades. See [PXE](pxe.md).
 
-1. Select the `talos-mirror` project service and its exposed port `8080`.
-2. Choose a **Name-based** portal.
-3. Set the hostname to `talos.home.antonu.org`.
-4. Enable HTTP on port 80. HTTPS can be added later with a certificate trusted
-   by the iPXE build.
+Current installer:
 
-The container uses NGINX's verified, version-pinned unprivileged Alpine image.
-Compose explicitly publishes NAS port 18080 to container port 8080 so Container
-Manager can offer the service in the Web Station portal picker. Nginx runs
-without root, writes temporary state only under an in-memory `/tmp`, has a
-read-only root filesystem and asset mount, and drops all Linux capabilities.
-Web Station remains the normal client-facing endpoint on TCP port 80.
+```text
+registry.home.antonu.org/talos/metal-installer/c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac:v1.14.2
+```
 
-If the portal picker shows **No match found**, confirm that the project has
-been recreated after adding the `18080:8080` port mapping. Stopping and starting
-an existing container is insufficient because Docker port mappings are fixed
-when the container is created.
+Registry digest verified during implementation (operator-reported):
 
-If DSM Firewall is enabled, permit TCP 80 from `192.168.40.0/24`. Port 18080 is
-only a Web Station backend and should not be allowed from client networks.
+```text
+sha256:f3f9ee5846a54ebef99c98f5070bd821fe5042155f043bd5aa19e0f902d5418e
+```
 
-## Verify before changing iPXE
+This is **not air-gapped Kubernetes**. The factory may fetch upstream build
+inputs; workload/CSI images and the Cilium OCI Helm chart still use public
+registries. Local installers avoid the slow public-factory pull experienced
+during initial provisioning, not every external dependency.
 
-From a client with access to the NAS:
+## Artifact generation and promotion
+
+Run from the repository root. Register a changed schematic with the local
+factory, verify the returned ID, then update its corresponding `.id` file:
 
 ```sh
-curl --fail http://talos.home.antonu.org/healthz
-curl --fail --output /dev/null http://talos.home.antonu.org/v1.14.1/kernel-amd64
-curl --fail --output /dev/null http://talos.home.antonu.org/v1.14.1/initramfs-amd64.xz
+curl --fail --silent --show-error \
+  --header 'Content-Type: application/yaml' \
+  --data-binary @talos/image-factory/schematic-amd64.yaml \
+  https://talos.home.antonu.org/schematics
 ```
 
-Expected health response:
-
-```text
-ok
-```
-
-Only after these checks pass, upload the repository's updated `boot.ipxe` to
-`flash/pxe/boot.ipxe` on the RB5009. The menu retains a public Image Factory
-fallback for recovery.
-
-## Mirror another Talos release
-
-Run the supplied script from the Synology directory or another Unix host with
-write access to the assets directory:
+Download and promote a versioned installer without a Docker daemon:
 
 ```sh
-./sync.sh v1.14.1
+SCHEMATIC=$(tr -d '\r\n' < talos/image-factory/schematic-amd64.id)
+TALOS_VERSION=v1.14.2
+INSTALLER="registry.home.antonu.org/talos/metal-installer/${SCHEMATIC}:${TALOS_VERSION}"
+mkdir -p talos/generated/artifacts
+curl --fail --location \
+  --output "talos/generated/artifacts/installer-amd64-${TALOS_VERSION}.tar" \
+  "https://talos.home.antonu.org/image/${SCHEMATIC}/${TALOS_VERSION}/installer-amd64.tar"
+skopeo copy \
+  "docker-archive:talos/generated/artifacts/installer-amd64-${TALOS_VERSION}.tar" \
+  "docker://${INSTALLER}"
+skopeo inspect --format '{{.Digest}}' "docker://${INSTALLER}"
 ```
 
-The script downloads into temporary files, atomically moves completed assets
-into place and records local SHA-256 checksums. Updating the mirror does not
-change what machines boot: the version in `boot.ipxe` must be changed and
-reviewed separately.
+Promotion writes to the registry. Review the tag before running; do not silently
+replace an existing tag with different contents. Keep registry credentials in a
+private authentication store, not Git. Record the resulting digest and retain
+TLS verification. A rebuilt artifact may have a different digest.
+API reference: [Image Factory v1.7.0](https://github.com/siderolabs/image-factory/blob/v1.7.0/docs/api.md).
+
+## TLS and connectivity
+
+Wildcard TLS covers `home.antonu.org` and `*.home.antonu.org`.
+`acme.sh` on Synology uses Route53 DNS validation for issuance/renewal.
+AWS credentials, certificate private keys and sensitive renewal configuration
+must not enter plaintext Git.
+
+Clients need DNS for both service names and routed TCP/443 access to the NAS.
+The registry `/v2/` endpoint was verified during implementation:
+
+```sh
+curl --fail --silent --show-error https://registry.home.antonu.org/v2/
+```
+
+The repository's iPXE menu still uses HTTP; see the explicit discrepancy in
+[PXE](pxe.md). Do not disable certificate verification to hide TLS failures.
+
+## Troubleshooting
+
+- **First artifact request returns HTTP 504:** Web Station/nginx can time out
+  while the factory generates a new artifact. Check backend progress, then
+  retry after generation completes. The cached installer succeeded on retry
+  during implementation; not every 504 has this cause.
+- **PXE works but installer pulls remain slow:** these are separate transfers.
+  Check that the install/upgrade reference uses the local registry.
+- **Schematic changed but extension absent:** regenerating configuration does
+  not upgrade the installed image. Follow [Talos operations](talos-cluster.md).

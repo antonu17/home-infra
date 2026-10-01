@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1900" viewBox="0 0 1800 1900" role="img" aria-labelledby="title desc">
   <title id="title">Home infrastructure network topology</title>
   <desc id="desc">Current physical links and planned VLAN migrations for the RB5009 router, FRITZ!Box, Synology NAS, Aruba access point, wired clients, Raspberry Pis, Wi-Fi networks, IoT devices, and home-cloud virtual machines.</desc>
 
@@ -49,11 +49,11 @@
     </style>
   </defs>
 
-  <rect width="1800" height="1260" fill="#f5f7fb"/>
+  <rect width="1800" height="1900" fill="#f5f7fb"/>
 
   <!-- Header -->
   <text x="46" y="48" class="title">Home infrastructure · network topology</text>
-  <text x="46" y="75" class="subtitle">Current production wiring with planned IoT and home-cloud segmentation · RouterOS 7.24.4 · 2026-09-29</text>
+  <text x="46" y="75" class="subtitle">Implemented Home Cloud + retained physical wiring · planned migrations dashed · reconciled 2026-10-01</text>
   <g transform="translate(1420,30)">
     <line x1="0" y1="10" x2="48" y2="10" class="physical"/>
     <text x="58" y="15" class="small">Current link</text>
@@ -117,42 +117,42 @@
     <text x="24" y="57" class="small">NAS, storage appliance and VMM host · Bond 1 / syno1</text>
 
     <rect x="24" y="77" width="238" height="30" class="pill p100"/>
-    <text x="143" y="97" text-anchor="middle" class="pill-text">Native VLAN 100 · DSM / NAS · Talos mirror</text>
+    <text x="143" y="97" text-anchor="middle" class="pill-text">Native VLAN 100 · NAS services</text>
     <rect x="274" y="77" width="260" height="30" class="pill p400"/>
-    <text x="404" y="97" text-anchor="middle" class="pill-text">Target tagged VLAN 400 · VMM</text>
+    <text x="404" y="97" text-anchor="middle" class="pill-text">Current tagged VLAN 400 · VMM</text>
 
     <line x1="24" y1="126" x2="536" y2="126" class="divider"/>
-    <text x="24" y="153" class="node-title">VMM home-cloud</text>
-    <text x="24" y="174" class="small">External virtual switch · VLAN ID 400</text>
+    <text x="24" y="153" class="node-title">Containers + VMM home-cloud</text>
+    <text x="24" y="174" class="small">Services on VLAN 100 · VMM external switch VLAN 400</text>
 
     <g transform="translate(24,194)">
       <rect width="244" height="74" class="node"/>
-      <text x="14" y="27" class="node-title">Future inventory/API</text>
-      <text x="14" y="49" class="small mono">192.168.40.10</text>
-      <text x="14" y="66" class="tiny">Reserved · not deployed</text>
+      <text x="14" y="27" class="node-title">Image Factory 1.7.0</text>
+      <text x="14" y="49" class="small mono">talos.home.antonu.org</text>
+      <text x="14" y="66" class="tiny">HTTPS · kernel / initramfs / PXE</text>
     </g>
     <g transform="translate(280,194)">
       <rect width="254" height="74" class="node"/>
-      <text x="14" y="27" class="node-title">Synology CSI</text>
-      <text x="14" y="49" class="small">iSCSI / NFS-backed storage</text>
-      <text x="14" y="66" class="tiny">Initial Kubernetes storage tier</text>
+      <text x="14" y="27" class="node-title">Local OCI registry</text>
+      <text x="14" y="49" class="small">registry.home.antonu.org</text>
+      <text x="14" y="66" class="tiny">HTTPS · promoted Talos installers</text>
     </g>
 
-    <text x="24" y="302" class="small">Planned Talos control plane · etcd quorum</text>
+    <text x="24" y="302" class="small">Current control planes · etcd quorum 2 of 3</text>
     <g transform="translate(24,316)">
       <rect width="158" height="60" class="node"/>
-      <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-1</text>
-      <text x="79" y="45" text-anchor="middle" class="tiny">2 vCPU · 2–4 GB</text>
+      <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-01</text>
+      <text x="79" y="45" text-anchor="middle" class="tiny">192.168.40.21</text>
     </g>
     <g transform="translate(190,316)">
       <rect width="158" height="60" class="node"/>
-      <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-2</text>
-      <text x="79" y="45" text-anchor="middle" class="tiny">2 vCPU · 2–4 GB</text>
+      <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-02</text>
+      <text x="79" y="45" text-anchor="middle" class="tiny">192.168.40.22</text>
     </g>
     <g transform="translate(356,316)">
       <rect width="178" height="60" class="node"/>
-      <text x="89" y="25" text-anchor="middle" class="node-title">talos-cp-3</text>
-      <text x="89" y="45" text-anchor="middle" class="tiny">2 vCPU · 2–4 GB</text>
+      <text x="89" y="25" text-anchor="middle" class="node-title">talos-cp-03</text>
+      <text x="89" y="45" text-anchor="middle" class="tiny">192.168.40.23</text>
     </g>
   </g>
 
@@ -290,7 +290,7 @@
       <rect x="14" y="14" width="88" height="25" class="pill p400"/><text x="58" y="31" text-anchor="middle" class="pill-text">VLAN 400</text>
       <text x="114" y="31" class="node-title">Home Cloud</text>
       <text x="14" y="58" class="small mono">192.168.40.0/24</text>
-      <text x="14" y="77" class="tiny">GW/DHCP/TFTP .1 · future API .10 · pool .100–199</text>
+      <text x="14" y="77" class="tiny">GW/DHCP/TFTP .1 · API VIP .20 · worker .40</text>
     </g>
   </g>
 
@@ -304,5 +304,103 @@
     <text x="20" y="158" class="tiny">are reserved ideas, not active architecture.</text>
   </g>
 
-  <text x="45" y="1244" class="tiny">Documentation view only. Desired inventory and device discovery remain authoritative. Solid paths are current; dashed purple paths are planned migrations.</text>
+  <text x="45" y="1244" class="tiny">Physical wiring retained from existing documentation; not rediscovered. VLAN 400 is implemented. Aruba has no Home Cloud VLAN requirement.</text>
+
+  <!-- Implemented logical architecture: services stay on VLAN 100, guests on VLAN 400 -->
+  <g transform="translate(45,1275)">
+    <rect width="1710" height="560" class="panel"/>
+    <text x="24" y="34" class="section-title">Implemented Home Cloud · Talos 1.14.2 / Kubernetes 1.37.1 / Cilium 1.20.2</text>
+    <text x="24" y="57" class="small">All four VMs and their persistent storage share Synology DS923+ — one physical failure domain, not independent hardware HA.</text>
+
+    <g transform="translate(24,80)">
+      <rect width="280" height="90" class="node"/>
+      <text x="16" y="27" class="node-title">RB5009 · DHCP / TFTP</text>
+      <text x="16" y="49" class="small">VLAN 400 · 192.168.40.1</text>
+      <text x="16" y="70" class="small">UEFI → iPXE · scripts only</text>
+    </g>
+    <path d="M304 125 H350" class="physical v400"/>
+    <text x="311" y="114" class="tiny">boot</text>
+    <g transform="translate(350,80)">
+      <rect width="360" height="90" class="node"/>
+      <text x="16" y="27" class="node-title">Image Factory · Synology container</text>
+      <text x="16" y="49" class="small">talos.home.antonu.org · HTTPS</text>
+      <text x="16" y="70" class="small">Kernel / initramfs / PXE / installer archive</text>
+    </g>
+    <path d="M710 125 H840" class="physical"/>
+    <text x="728" y="111" class="small">skopeo copy</text>
+    <g transform="translate(840,80)">
+      <rect width="360" height="90" class="node"/>
+      <text x="16" y="27" class="node-title">Local installer OCI registry</text>
+      <text x="16" y="49" class="small">registry.home.antonu.org · HTTPS</text>
+      <text x="16" y="70" class="small">v1.14.2 · iscsi-tools schematic</text>
+    </g>
+    <g transform="translate(1250,80)">
+      <rect width="430" height="90" class="node"/>
+      <text x="16" y="27" class="node-title">Synology services · 192.168.100.5</text>
+      <text x="16" y="49" class="small">Web Station/nginx · wildcard TLS</text>
+      <text x="16" y="70" class="small">acme.sh + Route53 · Internet still required</text>
+    </g>
+
+    <path d="M520 170 V203 H550 V220" class="physical v400"/>
+    <text x="275" y="198" class="tiny">boot assets (repo menu still HTTP / old ID)</text>
+    <path d="M1020 170 V205 H1080 V220" class="physical v400"/>
+    <text x="1090" y="198" class="tiny">install / upgrade</text>
+
+    <g transform="translate(24,220)">
+      <rect width="265" height="75" class="node"/>
+      <text x="16" y="27" class="node-title">talos-cp-01 · .40.21</text>
+      <text x="16" y="51" class="small">control plane / etcd member</text>
+    </g>
+    <g transform="translate(309,220)">
+      <rect width="265" height="75" class="node"/>
+      <text x="16" y="27" class="node-title">talos-cp-02 · .40.22</text>
+      <text x="16" y="51" class="small">control plane / etcd member</text>
+    </g>
+    <g transform="translate(594,220)">
+      <rect width="265" height="75" class="node"/>
+      <text x="16" y="27" class="node-title">talos-cp-03 · .40.23</text>
+      <text x="16" y="51" class="small">control plane / etcd member</text>
+    </g>
+    <g transform="translate(899,220)">
+      <rect width="330" height="75" class="node"/>
+      <text x="16" y="27" class="node-title">talos-worker-01 · .40.40</text>
+      <text x="16" y="51" class="small">8 GiB RAM · current CSI placement</text>
+    </g>
+    <text x="24" y="464" class="small">All node IPs: 192.168.40.x · VMM VLAN 400 · DHCP reservations · iscsi-tools installed on all four nodes</text>
+
+    <path d="M150 295 V340 H729 V295 M442 295 V340" class="physical v400"/>
+    <g transform="translate(24,357)">
+      <rect width="400" height="88" class="node"/>
+      <text x="16" y="26" class="node-title">API VIP · 192.168.40.20:6443</text>
+      <text x="16" y="48" class="small">k8s.home.antonu.org · one elected CP owner</text>
+      <text x="16" y="69" class="small">Talos API endpoints: .21 / .22 / .23, not VIP</text>
+    </g>
+    <path d="M224 340 V357" class="physical v400"/>
+    <g transform="translate(454,357)">
+      <rect width="405" height="88" class="node"/>
+      <text x="16" y="26" class="node-title">Cilium · all nodes</text>
+      <text x="16" y="48" class="small">CNI / eBPF / kube-proxy replacement</text>
+      <text x="16" y="69" class="small">KubePrism localhost:7445 · no Flannel/proxy</text>
+    </g>
+    <g transform="translate(899,357)">
+      <rect width="330" height="88" class="node"/>
+      <text x="16" y="26" class="node-title">Pod → PVC → Synology CSI</text>
+      <text x="16" y="48" class="small">synology-block · ext4 · Retain</text>
+      <text x="16" y="69" class="small">Controller + node plugin on worker-01</text>
+    </g>
+    <path d="M1064 295 V357" class="physical v400"/>
+    <path d="M1229 401 H1290" class="physical"/>
+    <g transform="translate(1290,357)">
+      <rect width="390" height="88" class="node"/>
+      <text x="16" y="26" class="node-title">SAN Manager · Volume 3</text>
+      <text x="16" y="48" class="small">DSM API HTTPS/443 · iSCSI TCP/3260</text>
+      <text x="16" y="69" class="small">RAID10 / Btrfs backing · tested persistent LUN</text>
+    </g>
+    <text x="24" y="482" class="small">Validated storage: provision → attach → write → pod replacement → controlled worker reboot + remount; backup restore still untested.</text>
+    <path d="M470 514 H530" class="planned"/>
+    <text x="24" y="519" class="node-title">Future / not deployed</text>
+    <text x="550" y="519" class="small">Cilium LB-IPAM + BGP ↔ MikroTik · HA / quantum migration · Pi workers · independent-disk Ceph only later</text>
+    <text x="24" y="542" class="tiny">Source YAML + persistent private PKI → generated Talos configs. Ordinary container images and Cilium OCI chart still come from public registries.</text>
+  </g>
+  <text x="45" y="1870" class="tiny">Reported implementation + checked-in configuration, 2026-10-01. Drift and operational caveats: docs/pxe.md, docs/talos-mirror.md, docs/talos-cluster.md.</text>
 </svg>
