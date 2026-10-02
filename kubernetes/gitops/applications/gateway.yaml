@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-cloud-gateway
+  namespace: argocd
+spec:
+  project: home-cloud
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/gateway
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gateway

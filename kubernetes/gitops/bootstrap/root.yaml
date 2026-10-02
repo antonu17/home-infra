@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-cloud
+  namespace: argocd
+# No cascade-deletion finalizer. All syncs are deliberate initially.
+spec:
+  project: home-cloud
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/gitops/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
