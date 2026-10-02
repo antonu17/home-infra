@@ -33,5 +33,5 @@ spec:
     - toCIDR: [192.168.40.1/32]
       toPorts:
         - ports:
-            - port: "443"
+            - port: "80"
               protocol: TCP
