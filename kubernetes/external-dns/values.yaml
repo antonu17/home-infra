@@ -29,10 +29,6 @@ resources:
     memory: 64Mi
   limits:
     memory: 192Mi
-extraVolumes:
-  - name: router-ca
-    configMap:
-      name: mikrotik-ca
 provider:
   name: webhook
   webhook:
@@ -54,8 +50,6 @@ provider:
         value: ExternalDNS home-cloud (ownership is TXT, not this comment)
       - name: MIKROTIK_SKIP_TLS_VERIFY
         value: "false"
-      - name: MIKROTIK_CA_CERT
-        value: /etc/router-ca/ca.crt
       - name: MIKROTIK_BASEURL
         valueFrom:
           secretKeyRef:
@@ -71,10 +65,6 @@ provider:
           secretKeyRef:
             name: mikrotik-credentials
             key: MIKROTIK_PASSWORD
-    extraVolumeMounts:
-      - name: router-ca
-        mountPath: /etc/router-ca
-        readOnly: true
     securityContext:
       runAsNonRoot: true
       runAsUser: 65532
