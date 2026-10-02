@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-acceptance
+  namespace: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dns-acceptance
+  template:
+    metadata:
+      labels:
+        app: dns-acceptance
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: http
+          image: busybox:1.37.0
+          command: [sh, -ec]
+          args:
+            - 'echo home-cloud-dns-acceptance > /www/index.html; exec httpd -f -p 8080 -h /www'
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              memory: 32Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          volumeMounts:
+            - name: www
+              mountPath: /www
+      volumes:
+        - name: www
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dns-acceptance
+  namespace: gateway
+spec:
+  selector:
+    app: dns-acceptance
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

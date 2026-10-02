@@ -1,0 +1,37 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: external-dns
+  namespace: external-dns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/instance: external-dns
+  ingress:
+    # Kubelet health probes only; mutation API listens on loopback:8888.
+    - fromEntities: [host, remote-node]
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+            - port: "7979"
+              protocol: TCP
+  egress:
+    - toEntities: [kube-apiserver]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s:k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toCIDR: [192.168.40.1/32]
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

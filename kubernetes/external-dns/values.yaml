@@ -1,0 +1,98 @@
+fullnameOverride: external-dns
+replicaCount: 1
+sources:
+  - gateway-httproute
+domainFilters:
+  - home.antonu.org
+registry: txt
+txtOwnerId: home-cloud
+txtPrefix: external-dns-
+policy: upsert-only
+interval: 1m
+logLevel: info
+managedRecordTypes:
+  - A
+service:
+  enabled: false
+extraArgs:
+  # First deployment observes only; change to false after reviewing the plan.
+  dry-run: true
+  gateway-name: home-cloud
+  gateway-namespace: gateway
+  # Regex overrides domainFilters; exact single-label application names only.
+  regex-domain-filter: '^[a-z0-9][a-z0-9-]*\.home\.antonu\.org\.?$'
+  # Infrastructure + existing legacy apps protected until deliberate migration.
+  regex-domain-exclusion: '(^|[-.])(adsb|anki-anton|fr24|grafana|grocy|ha|k8s|mealie|pihole|pulsar|quantum|talos|registry|printer|router)\.home\.antonu\.org\.?$'
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+extraVolumes:
+  - name: router-ca
+    configMap:
+      name: mikrotik-ca
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/mirceanton/external-dns-provider-mikrotik
+      tag: v1.6.3
+    env:
+      - name: SERVER_HOST
+        value: "127.0.0.1"
+      - name: SERVER_PORT
+        value: "8888"
+      - name: DOMAIN_FILTER
+        value: home.antonu.org
+      - name: LOG_LEVEL
+        value: info
+      - name: MIKROTIK_DEFAULT_TTL
+        value: "300"
+      - name: MIKROTIK_DEFAULT_COMMENT
+        value: ExternalDNS home-cloud (ownership is TXT, not this comment)
+      - name: MIKROTIK_SKIP_TLS_VERIFY
+        value: "false"
+      - name: MIKROTIK_CA_CERT
+        value: /etc/router-ca/ca.crt
+      - name: MIKROTIK_BASEURL
+        valueFrom:
+          secretKeyRef:
+            name: mikrotik-credentials
+            key: MIKROTIK_BASEURL
+      - name: MIKROTIK_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: mikrotik-credentials
+            key: MIKROTIK_USERNAME
+      - name: MIKROTIK_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: mikrotik-credentials
+            key: MIKROTIK_PASSWORD
+    extraVolumeMounts:
+      - name: router-ca
+        mountPath: /etc/router-ca
+        readOnly: true
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65532
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ALL]
+    resources:
+      requests:
+        cpu: 20m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http-webhook
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http-webhook
