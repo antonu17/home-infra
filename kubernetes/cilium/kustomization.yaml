@@ -6,3 +6,4 @@ resources:
   - manifests/bgp-cluster.yaml
   - manifests/bgp-peer.yaml
   - manifests/lb-pool.yaml
+  - ./gateway-api

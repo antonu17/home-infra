@@ -15,6 +15,13 @@ ipam:
 
 kubeProxyReplacement: true
 
+# Install the pinned Gateway API CRDs before upgrading this Helm release.
+l7Proxy: true
+gatewayAPI:
+  enabled: true
+  gatewayClass:
+    create: true
+
 k8sServiceHost: localhost
 k8sServicePort: 7445
 
@@ -22,9 +29,6 @@ cgroup:
   autoMount:
     enabled: false
   hostRoot: /sys/fs/cgroup
-
-bpf:
-  hostLegacyRouting: true
 
 securityContext:
   capabilities:
