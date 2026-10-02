@@ -9,7 +9,10 @@ dns = containers.find { |c| c['name'] == 'external-dns' }
 webhook = containers.find { |c| c['name'] == 'webhook' }
 args = dns.fetch('args')
 abort 'wrong Gateway namespace' unless args.include?('--gateway-namespace=gateway')
-%w[--source=gateway-httproute --policy=upsert-only --registry=txt --txt-owner-id=home-cloud --txt-prefix=external-dns- --dry-run].each do |arg|
+abort 'dry-run unexpectedly enabled' if args.any? { |a| a == '--dry-run' || a == '--dry-run=true' }
+abort 'wrong replica count' unless deployment.dig('spec', 'replicas') == 1
+abort 'wrong webhook URL' unless args.include?('--webhook-provider-url=http://127.0.0.1:8888')
+%w[--source=gateway-httproute --policy=upsert-only --registry=txt --txt-owner-id=home-cloud --txt-prefix=external-dns-].each do |arg|
   abort "missing safety flag #{arg}" unless args.include?(arg)
 end
 abort 'unexpected source' unless args.grep(/^--source=/) == ['--source=gateway-httproute']
@@ -38,4 +41,4 @@ roles.each do |role|
     abort 'secret RBAC' if rule['resources'].include?('secrets')
   end
 end
-puts "ExternalDNS: #{docs.size} objects; dry-run/upsert-only, TXT ownership, exact-name filters and loopback webhook verified"
+puts "ExternalDNS: #{docs.size} objects; write-enabled/upsert-only, one replica, TXT ownership, exact-name filters and loopback webhook verified"

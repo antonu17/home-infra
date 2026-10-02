@@ -15,8 +15,8 @@ managedRecordTypes:
 service:
   enabled: false
 extraArgs:
-  # First deployment observes only; change to false after reviewing the plan.
-  dry-run: true
+  # Normal write-enabled reconciliation. This webhook does not enforce dry-run.
+  dry-run: false
   gateway-name: home-cloud
   gateway-namespace: gateway
   # Regex overrides domainFilters; exact single-label application names only.
