@@ -1,0 +1,45 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: home-cloud
+  namespace: gateway
+spec:
+  gatewayClassName: cilium
+  # Stable DNS target from the existing pool; check for collision before sync.
+  addresses:
+    - type: IPAddress
+      value: 10.40.0.10
+  listeners:
+    - name: http
+      hostname: "*.home.antonu.org"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [argocd, gateway]
+        kinds:
+          - kind: HTTPRoute
+    - name: https
+      hostname: "*.home.antonu.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: home-antonu-org-tls
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [argocd, gateway]
+        kinds:
+          - kind: HTTPRoute
