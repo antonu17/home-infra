@@ -1,4 +1,8 @@
 # Official cert-manager chart version is pinned in kustomization.yaml.
+global:
+  leaderElection:
+    namespace: cert-manager
+
 crds:
   enabled: true
   keep: true
