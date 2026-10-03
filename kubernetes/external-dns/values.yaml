@@ -22,7 +22,7 @@ extraArgs:
   # Regex overrides domainFilters; exact single-label application names only.
   regex-domain-filter: '^[a-z0-9][a-z0-9-]*\.home\.antonu\.org\.?$'
   # Infrastructure + existing legacy apps protected until deliberate migration.
-  regex-domain-exclusion: '(^|[-.])(adsb|anki-anton|fr24|grafana|grocy|ha|k8s|mealie|pihole|pulsar|quantum|talos|registry|printer|router)\.home\.antonu\.org\.?$'
+  regex-domain-exclusion: '(^|[-.])(adsb|anki-anton|fr24|grafana|grocy|k8s|mealie|pihole|pulsar|quantum|talos|registry|printer|router)\.home\.antonu\.org\.?$'
   webhook-provider-url: http://127.0.0.1:8888
 resources:
   requests:

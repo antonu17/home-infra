@@ -25,13 +25,13 @@ abort 'TLS verification disabled' unless env.dig('MIKROTIK_SKIP_TLS_VERIFY', 'va
 end
 filter = Regexp.new(args.find { |a| a.start_with?('--regex-domain-filter=') }.split('=', 2).last)
 deny = Regexp.new(args.find { |a| a.start_with?('--regex-domain-exclusion=') }.split('=', 2).last)
-%w[test.home.antonu.org argocd.home.antonu.org external-dns-a-test.home.antonu.org].each do |name|
+%w[test.home.antonu.org argocd.home.antonu.org ha.home.antonu.org external-dns-a-test.home.antonu.org].each do |name|
   abort "expected permitted #{name}" unless filter.match?(name) && !deny.match?(name)
 end
 %w[*.home.antonu.org home.antonu.org test.example.org].each do |name|
   abort "unexpected allowed #{name}" if filter.match?(name)
 end
-%w[pulsar ha mealie grafana router printer k8s].each do |name|
+%w[pulsar mealie grafana router printer k8s].each do |name|
   abort "missing exclusion #{name}" unless deny.match?("#{name}.home.antonu.org")
 end
 roles = docs.select { |d| d['kind'] == 'ClusterRole' }
