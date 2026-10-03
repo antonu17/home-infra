@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: cert-manager chart installation and certificate configuration.
+  sourceRepos:
+    - https://github.com/antonu17/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: cert-manager.io
+      kind: ClusterIssuer
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: cert-manager
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true

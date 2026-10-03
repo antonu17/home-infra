@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: home-assistant
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Home Assistant
+  sourceRepos:
+    - https://github.com/antonu17/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: home-assistant
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-assistant
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: home-assistant
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/apps/home-assistant
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: home-assistant

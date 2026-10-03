@@ -1,0 +1,10 @@
+# Official cert-manager chart version is pinned in kustomization.yaml.
+crds:
+  enabled: true
+  keep: true
+
+config:
+  apiVersion: controller.config.cert-manager.io/v1alpha1
+  kind: ControllerConfiguration
+  gatewayAPI:
+    enabled: true

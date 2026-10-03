@@ -1,5 +1,4 @@
-# Official argo-cd chart version is pinned in chart-version and kustomization.yaml
-# (app v3.5.3).
+# Official argo-cd chart version is pinned in kustomization.yaml (app v3.5.3).
 crds:
   install: true
   keep: true
@@ -39,8 +38,6 @@ server:
 dex:
   enabled: false
 notifications:
-  enabled: false
-applicationSet:
   enabled: false
 redis-ha:
   enabled: false

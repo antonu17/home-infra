@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Gateway API
+  sourceRepos:
+    - https://github.com/antonu17/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: gateway
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: gateway
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/gateway
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gateway

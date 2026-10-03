@@ -20,3 +20,20 @@ spec:
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: external-dns
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/external-dns
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns

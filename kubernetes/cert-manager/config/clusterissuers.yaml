@@ -1,0 +1,27 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    email: noreply@antonu.org
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - selector:
+          dnsNames:
+            - home.antonu.org
+            - '*.home.antonu.org'
+        dns01:
+          route53:
+            region: us-east-1
+            hostedZoneID: Z02668401OR1LFJL9F7ZN
+            accessKeyIDSecretRef:
+              name: route53-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials
+              key: secret-access-key

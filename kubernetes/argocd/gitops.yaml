@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gitops
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Gitops root project. It is the parent of all other AppProjects and Applications in this repo.
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  sourceRepos:
+    - '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops
+  namespace: argocd
+spec:
+  project: gitops
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/gitops
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
