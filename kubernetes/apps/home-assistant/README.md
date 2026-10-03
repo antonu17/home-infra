@@ -92,8 +92,8 @@ VLANs or create missing IPv6 routes.
 
 An empty Matter PVC creates a new fabric. To keep already commissioned devices,
 restore the Matter Server app data from the HAOS backup into this PVC before using
-the server. The configured vendor ID `0x134b` and fabric ID `2` match this restored
-HAOS fabric; changing either creates or selects a different controller fabric.
+the server. The configured vendor ID `4939` (`0x134b`) and fabric ID `2` match
+this restored HAOS fabric; changing either creates or selects a different controller fabric.
 Matter.js can migrate Python Matter Server data on first start. Keep
 the HAOS backup and do not delete/recommission devices until that migration has
 been verified. If the existing fabric data cannot be recovered, devices must be

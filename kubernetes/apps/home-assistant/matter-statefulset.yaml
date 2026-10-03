@@ -42,7 +42,8 @@ spec:
             # Matter fabric. Without these values Matter.js creates a new,
             # empty 0xfff1/1 fabric instead of migrating the existing one.
             - name: VENDOR_ID
-              value: "0x134b"
+              # Environment parsing is decimal; 4939 is hexadecimal 0x134b.
+              value: "4939"
             - name: FABRIC_ID
               value: "2"
           ports:
