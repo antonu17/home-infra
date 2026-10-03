@@ -21,7 +21,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [argocd, gateway]
+                values: [argocd, gateway, home-assistant]
         kinds:
           - kind: HTTPRoute
     - name: https
@@ -40,6 +40,6 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [argocd, gateway]
+                values: [argocd, gateway, home-assistant]
         kinds:
           - kind: HTTPRoute

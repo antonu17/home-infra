@@ -12,19 +12,25 @@ spec:
       namespace: argocd
     - server: https://kubernetes.default.svc
       namespace: gateway
-  clusterResourceWhitelist: []
+    - server: https://kubernetes.default.svc
+      namespace: home-assistant
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
   namespaceResourceWhitelist:
     - group: ""
       kind: ConfigMap
     - group: ""
+      kind: PersistentVolumeClaim
+    - group: ""
       kind: Service
     - group: apps
       kind: Deployment
+    - group: apps
+      kind: StatefulSet
     - group: argoproj.io
       kind: Application
     - group: gateway.networking.k8s.io
       kind: Gateway
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-    - group: gateway.networking.k8s.io
-      kind: BackendTLSPolicy
