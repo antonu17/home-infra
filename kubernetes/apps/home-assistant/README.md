@@ -10,6 +10,8 @@ and it does not deploy Supervisor add-ons.
 Git -> Argo CD home-cloud root -> home-assistant Application
     -> HTTPRoute -> gateway/home-cloud (TLS) -> ClusterIP:8123
     -> StatefulSet (one replica) -> /config -> Synology iSCSI PVC
+    -> Home Assistant -> Matter Service:5580 -> Matter Server StatefulSet
+       -> host network for IPv6/mDNS -> /data -> separate Synology iSCSI PVC
 ```
 
 Argo CD owns the namespace and every resource in this directory. The application
@@ -60,10 +62,37 @@ This is documentation only and is intentionally not written into the new PVC.
 From Home Assistant 2026.8 it is imported into the UI and should then be removed
 from YAML.
 
-`hostNetwork` is intentionally disabled. mDNS, SSDP, multicast, Bluetooth, USB,
-Zigbee, Matter, hardware placement, and cross-VLAN discovery are deferred until
-this fresh instance is proven healthy. Existing HAOS configuration, state, and
-add-ons remain untouched; add-ons must later be assessed as separate workloads.
+`hostNetwork` remains disabled for Home Assistant itself. mDNS, SSDP, multicast,
+Bluetooth, USB, Zigbee, hardware placement, and general cross-VLAN discovery are
+still deferred. Matter Server is the narrow exception: upstream requires host
+networking for IPv6 and mDNS, so it runs as a separate singleton instead of
+broadening the Home Assistant pod. Existing HAOS state is not embedded in these
+manifests; other apps must still be assessed as separate workloads.
+
+## Matter Server
+
+The separate `matter-server` StatefulSet uses the current Matter.js implementation,
+pinned to `ghcr.io/matter-js/matterjs-server:1.4.0`. It exposes only an internal
+ClusterIP Service on TCP/5580, persists `/data` on a protected 2 GiB
+`synology-block` RWO claim, and uses `hostNetwork: true` with
+`ClusterFirstWithHostNet`. Home Assistant should connect to:
+
+```text
+ws://matter-server:5580/ws
+```
+
+The server binds port 5580 on whichever node runs it because its host network is
+needed for Matter IPv6/mDNS. Do not expose that port through Gateway, NodePort, or
+LoadBalancer. Network reachability from VLAN400 to Matter devices and Thread border
+routers still has to be verified; host networking does not relay multicast across
+VLANs or create missing IPv6 routes.
+
+An empty Matter PVC creates a new fabric. To keep already commissioned devices,
+restore the Matter Server app data from the HAOS backup into this PVC before using
+the server. Matter.js can migrate Python Matter Server data on first start. Keep
+the HAOS backup and do not delete/recommission devices until that migration has
+been verified. If the existing fabric data cannot be recovered, devices must be
+shared from another controller or recommissioned onto the new fabric.
 
 ## Manual GitOps flow
 
@@ -97,6 +126,8 @@ argocd app diff home-assistant
 kubectl -n home-assistant get pods,statefulset,pvc,svc,httproute
 kubectl -n home-assistant describe pod home-assistant-0
 kubectl -n home-assistant logs statefulset/home-assistant
+kubectl -n home-assistant describe pod matter-server-0
+kubectl -n home-assistant logs statefulset/matter-server
 kubectl -n home-assistant get httproute home-assistant \
   -o jsonpath='{range .status.parents[*].conditions[*]}{.type}{"="}{.status}{" reason="}{.reason}{"\n"}{end}'
 kubectl get gateway -A

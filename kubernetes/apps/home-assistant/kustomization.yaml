@@ -6,3 +6,6 @@ resources:
   - service.yaml
   - statefulset.yaml
   - httproute.yaml
+  - matter-pvc.yaml
+  - matter-service.yaml
+  - matter-statefulset.yaml
