@@ -18,9 +18,5 @@ spec:
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
   namespaceResourceWhitelist:
-    - group: ""
-      kind: ServiceAccount
-    - group: apps
-      kind: Deployment
-    - group: cilium.io
-      kind: CiliumNetworkPolicy
+    - group: "*"
+      kind: "*"

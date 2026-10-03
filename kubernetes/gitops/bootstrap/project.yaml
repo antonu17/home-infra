@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 spec:
-  description: Trusted single-cluster platform repository; expand permissions deliberately.
+  description: Trusted single-cluster platform repository; namespaces define isolation.
   sourceRepos:
     - https://github.com/antonu17/home-infra.git
   destinations:
@@ -20,19 +20,5 @@ spec:
     - group: ""
       kind: Namespace
   namespaceResourceWhitelist:
-    - group: ""
-      kind: ConfigMap
-    - group: ""
-      kind: PersistentVolumeClaim
-    - group: ""
-      kind: Service
-    - group: apps
-      kind: Deployment
-    - group: apps
-      kind: StatefulSet
-    - group: argoproj.io
-      kind: Application
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
+    - group: "*"
+      kind: "*"

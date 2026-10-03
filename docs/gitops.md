@@ -35,6 +35,10 @@ chart, its CRDs, and the built-in root Application. It is restricted to this
 repository and the `argocd` destination namespace, but it remains an
 administrative boundary. Protect `main`.
 
+All AppProjects permit every namespaced resource kind. Isolation is defined by
+each project's explicit destination namespaces. Cluster-scoped resources remain
+separately restricted, except for the administrative `argocd` project.
+
 Cilium's existing pool `10.40.0.0/24` and BGP CRs are unchanged. The Gateway requests
 `10.40.0.10` for stable DNS. This trades automatic address selection for predictable
 recreation; check it is unallocated before use. Only the allocated Service /32 is
