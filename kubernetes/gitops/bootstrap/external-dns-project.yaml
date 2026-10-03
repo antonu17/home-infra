@@ -3,6 +3,8 @@ kind: AppProject
 metadata:
   name: external-dns
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   sourceRepos:
     - https://github.com/antonu17/home-infra.git

@@ -3,6 +3,8 @@ kind: AppProject
 metadata:
   name: home-cloud
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   description: Trusted single-cluster platform repository; expand permissions deliberately.
   sourceRepos:

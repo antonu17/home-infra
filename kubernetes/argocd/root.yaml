@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-cloud
+  namespace: argocd
+# The root uses the built-in default project because it creates all custom
+# AppProjects itself. No cascade-deletion finalizer: deletion remains deliberate.
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/gitops/bootstrap
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+

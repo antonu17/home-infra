@@ -1,0 +1,46 @@
+# Official argo-cd chart version is pinned in chart-version and kustomization.yaml
+# (app v3.5.3).
+crds:
+  install: true
+  keep: true
+createClusterRoles: true
+global:
+  domain: argocd.home.antonu.org
+configs:
+  cm:
+    url: https://argocd.home.antonu.org
+    users.anonymous.enabled: "false"
+    exec.enabled: "false"
+    # Avoid Helm's app.kubernetes.io/instance label being used as ownership.
+    application.resourceTrackingMethod: annotation
+    # Argo must render its own Kustomize package with the upstream Helm chart.
+    kustomize.buildOptions: --enable-helm
+    # Do not inherit a restrictive discovery filter from an older installation.
+    # Pods and ReplicaSets are then available in each Application resource tree.
+    resource.inclusions: |
+      - apiGroups:
+          - "*"
+        kinds:
+          - "*"
+        clusters:
+          - "*"
+    ui.view.resources.disabled: "false"
+  params:
+    # TLS terminates at the shared Gateway; Argo serves HTTP inside the cluster.
+    server.insecure: true
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  certificate:
+    enabled: false
+# No Argo backend certificate is required for the intentional HTTP hop.
+dex:
+  enabled: false
+notifications:
+  enabled: false
+applicationSet:
+  enabled: false
+redis-ha:
+  enabled: false
