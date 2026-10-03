@@ -28,7 +28,7 @@ requires a separately reviewed manual namespace/PVC/PV action and an independent
 backup.
 
 The ClusterIP Service exposes TCP/8123. The HTTPRoute serves exactly
-`hass.home.antonu.org`, attaches to the `https` listener on
+`ha.home.antonu.org`, attaches to the `https` listener on
 `gateway/home-cloud`, and relies on `gateway/home-antonu-org-tls` for TLS
 termination. The shared Gateway must be synced with its accompanying namespace
 allow-list change. DNS must ultimately resolve the hostname to `10.40.0.10`;
@@ -109,7 +109,7 @@ Require Gateway `Accepted=True` and `Programmed=True`, and route
 `Accepted=True` and `ResolvedRefs=True`. Confirm the PVC is Bound, the StatefulSet
 has one Ready replica, and logs show no repeated startup failure. Use port-forward
 only for controlled onboarding or diagnostics; normal access is
-`https://hass.home.antonu.org` after proxy trust and DNS are correct.
+`https://ha.home.antonu.org` after proxy trust and DNS are correct.
 
 ## Evidence and missing information
 

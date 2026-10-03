@@ -9,7 +9,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - hass.home.antonu.org
+    - ha.home.antonu.org
   rules:
     - backendRefs:
         - name: home-assistant
