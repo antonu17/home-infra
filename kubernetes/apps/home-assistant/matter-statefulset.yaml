@@ -38,6 +38,13 @@ spec:
               value: 0.0.0.0
             - name: LOG_LEVEL
               value: info
+            # Preserve the controller identity recorded in the restored HAOS
+            # Matter fabric. Without these values Matter.js creates a new,
+            # empty 0xfff1/1 fabric instead of migrating the existing one.
+            - name: VENDOR_ID
+              value: "0x134b"
+            - name: FABRIC_ID
+              value: "2"
           ports:
             - name: websocket
               containerPort: 5580
