@@ -75,7 +75,10 @@ The separate `matter-server` StatefulSet uses the current Matter.js implementati
 pinned to `ghcr.io/matter-js/matterjs-server:1.4.0`. It exposes only an internal
 ClusterIP Service on TCP/5580, persists `/data` on a protected 2 GiB
 `synology-block` RWO claim, and uses `hostNetwork: true` with
-`ClusterFirstWithHostNet`. Home Assistant should connect to:
+`ClusterFirstWithHostNet`. The namespace permits this host-network exception at
+the Pod Security admission layer while retaining Baseline audit and warning
+labels; both containers keep their explicit security contexts. Home Assistant
+should connect to:
 
 ```text
 ws://matter-server:5580/ws
