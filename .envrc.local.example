@@ -1,8 +1,8 @@
 # Copy to .envrc.local only if that file does not already exist.
 # The existing local file may already contain valuable settings; edit it privately.
 # .envrc.local is ignored and should be mode 600. Do not commit it.
-export VAULT_TERRAFORM_ADDRESS='https://vault.home.antonu.org'
-export VAULT_TERRAFORM_TOKEN=''  # Fill with the provisioning token privately.
+# VAULT_ADDR and VAULT_TOKEN are already exported by your shell environment.
+# The project loader maps them to Terraform inputs; no duplicate credentials needed.
 export VAULT_KUBERNETES_HOST='https://k8s.home.antonu.org:6443'
 export VAULT_KUBERNETES_CA_FILE='.private/vault-kubernetes-ca.pem'
 export VAULT_KUBERNETES_REVIEWER_JWT_FILE='.private/vault-reviewer.jwt'

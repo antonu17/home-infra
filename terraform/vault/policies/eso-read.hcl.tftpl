@@ -1,0 +1,23 @@
+# Only values below this workload's prefix; no create/update/delete rights.
+path "${mount}/data/${prefix}/*" {
+  capabilities = ["read"]
+}
+
+# Metadata and discovery stay within the same workload prefix.
+path "${mount}/metadata/${prefix}" {
+  capabilities = ["read", "list"]
+}
+path "${mount}/metadata/${prefix}/*" {
+  capabilities = ["read", "list"]
+}
+
+# ESO validates and renews its own token; the generic default policy is omitted.
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+path "auth/token/revoke-self" {
+  capabilities = ["update"]
+}

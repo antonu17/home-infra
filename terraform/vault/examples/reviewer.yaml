@@ -1,0 +1,35 @@
+# Prepared only. Add to the ESO Argo source before syncing; do not apply separately.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-token-reviewer
+  namespace: external-secrets
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-token-reviewer
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+rules:
+  - apiGroups: [authentication.k8s.io]
+    resources: [tokenreviews]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-token-reviewer
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vault-token-reviewer
+subjects:
+  - kind: ServiceAccount
+    name: vault-token-reviewer
+    namespace: external-secrets
