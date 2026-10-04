@@ -1,6 +1,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Protect CNI, routing and shared CRDs without changing pod-template annotations.
+transformers:
+  - retention.yaml
+
 resources:
   - ./manifests
   - ./gateway-api
@@ -58,3 +62,15 @@ patches:
               - name: cilium-operator
                 readinessProbe:
                   initialDelaySeconds: null
+
+  - target:
+      group: apiextensions.k8s.io
+      version: v1
+      kind: CustomResourceDefinition
+    patch: |-
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: ignored
+        annotations:
+          argocd.argoproj.io/sync-wave: "-2"

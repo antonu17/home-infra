@@ -1,55 +1,110 @@
-# Cilium
+# Cilium — prepared Argo adoption
 
 The root package follows the repository's Kustomize + upstream Helm pattern:
-chart `cilium` 1.20.2, release `cilium`, namespace `kube-system`, and
-`values.yaml`, alongside local BGP/LB-IPAM/Hubble resources and pinned Gateway
-API CRDs. The Helm repository is the official `https://helm.cilium.io/`.
-Do not set a global Kustomize namespace: the package includes cluster-scoped
-resources and explicitly namespaced Hubble routes.
+chart `cilium` 1.20.2 from `https://helm.cilium.io/`, release `cilium`,
+namespace `kube-system`, and existing `values.yaml`, alongside BGP/LB-IPAM,
+Hubble HTTPRoutes and pinned Gateway API CRDs. No global namespace transformer
+is used: chart RBAC also targets `cilium-secrets` and custom resources are
+cluster-scoped.
 
-Local rendering (downloads the pinned chart and Gateway API CRDs):
+`kubernetes/gitops/cilium.yaml` adds AppProject/Application `cilium` to the
+existing directory-based `gitops` catalog. The child remains manually synced,
+without automatic prune or a cascade-deletion finalizer. Server-side apply
+adopts rendered fields into `argocd-controller`; client-side apply migration is
+disabled to avoid sweeping unrelated Helm fields into ownership. Shared-resource
+conflicts stop sync. Every rendered resource has `Prune=false,Delete=false`,
+and CRDs use wave `-2` before wave-0 resources. This is an administrative
+networking boundary, scoped to the rendered cluster kinds and namespaces.
 
-```sh
-kustomize build --enable-helm kubernetes/cilium
-```
+## TLS and existing fields
 
-Rendering does not transfer deployment ownership. The existing Cilium release
-remains Helm-managed, as documented in `docs/gitops.md`. Do not apply the combined
-render or add it to Argo without a separate adoption and rollback plan. Keep the
-existing Helm upgrade procedure for the CNI; never uninstall Cilium to migrate.
+Offline Helm cannot look up live certificates. The package excludes Secrets and
+ConfigMaps labeled `cilium.io/helm-template-non-idempotent=true`; existing
+`kube-system/cilium-ca`, `hubble-server-certs` and `hubble-relay-client-certs`
+remain outside Argo ownership. Do not prune or delete them. Their renewal and
+backup remain operator responsibilities until a separate certificate lifecycle
+is implemented. The 1.20.2 chart does not reference `hubble-ca-cert`.
 
-The local resource entry point excludes chart resources and Gateway API CRDs:
+The operator readiness `initialDelaySeconds` is omitted to retain its existing
+field management. Argo adopts only fields present in the render. Helm's historical
+release record and any omitted fields remain; this is not a fresh-cluster bootstrap.
+Use the documented Helm bootstrap only before adoption on a fresh cluster.
 
-```sh
-kubectl kustomize kubernetes/cilium/manifests
-```
+## Operator adoption — no live actions performed by the agent
 
-For operator deployment, review `kubectl diff -k kubernetes/cilium/manifests`
-(exit 1 means differences), then run `kubectl apply -k kubernetes/cilium/manifests`
-only if the diff contains intended changes. This includes BGP/LB-IPAM as well as
-Hubble routes. Follow `docs/gateway-bootstrap.md` for route acceptance checks.
-Install Gateway API CRDs separately before the Helm upgrade using
-`kubernetes/cilium/gateway-api`. Keep versions and values consistent between
-rendering and Helm maintenance. Existing CNI/BGP health checks and stop conditions
-remain mandatory; no deployment or ownership migration is performed by this edit.
+Run from `/Users/anton/projects/home-infra` with direnv loaded. Maintain Talos
+management/recovery access; Cilium carries cluster and Argo connectivity.
 
-## Existing TLS material
+1. Preflight: privately compare existing Helm values with Git and retain an
+   encrypted backup of Helm release history, existing TLS material, and the last
+   known-good sources outside Git. Do not print private keys. Confirm readiness:
 
-The root maintenance render excludes Secrets and ConfigMaps labeled
-`cilium.io/helm-template-non-idempotent=true`. Offline Helm cannot look up the
-live CA or leaf certificates and otherwise generates replacements on every
-render. This exclusion preserves existing Helm-generated TLS resources; it does
-not migrate their ownership or renew them. Never prune these excluded resources.
+   ```sh
+   kubectl get nodes
+   kubectl -n kube-system get daemonset cilium
+   kubectl -n kube-system get deployment cilium-operator hubble-relay hubble-ui
+   kubectl -n kube-system get secret cilium-ca hubble-server-certs hubble-relay-client-certs
+   kubectl get ciliumbgpclusterconfigs,ciliumbgppeerconfigs,ciliumbgpadvertisements,ciliumloadbalancerippools
+   kubectl -n argocd get configmap argocd-cm -o jsonpath='{.data.kustomize\.buildOptions}{"\n"}'
+   ```
 
-Before applying the root maintenance render, confirm that `cilium-ca`,
-`hubble-server-certs`, and `hubble-relay-client-certs` exist in
-`kube-system` (names only; do not display their contents). Stop if any are missing.
-This root package is now for an existing installation, not standalone fresh
-bootstrap; use the documented Helm bootstrap to establish TLS material first.
-Certificate renewal and a complete Helm ownership migration remain separate work.
+   Require `--enable-helm` in Argo's build options. Stop on unhealthy CNI/BGP,
+   missing TLS resources, or live overrides absent from Git.
+2. Check the local render with `kustomize build --enable-helm kubernetes/cilium`.
+   Rendering downloads pinned public charts/CRDs and does not contact the
+   Kubernetes API.
+3. Review and commit/push only intended files yourself. Manually sync `gitops`
+   to register the child (this does not sync Cilium):
 
-The maintenance render also omits the operator readiness probe's
-`initialDelaySeconds`, leaving its existing field management and value intact.
-The pinned chart explicitly renders zero; adopting that field is not needed for
-Hubble routing. This is a limited maintenance apply, not full Helm adoption.
-The 1.20.2 chart does not reference the older `hubble-ca-cert` ConfigMap.
+   ```sh
+   argocd app sync gitops --grpc-web
+   argocd app get cilium --hard-refresh --grpc-web
+   argocd app diff cilium --grpc-web
+   ```
+
+   Review all resource diffs and ownership. Stop on resources already tracked by
+   another Argo Application, any unexpected scheduling/configuration changes,
+   deletion, or certificate replacement. No Secret payloads should be rendered.
+4. Live change, operator-run, after review:
+
+   ```sh
+   argocd app sync cilium --grpc-web
+   argocd app wait cilium --sync --health --timeout 600 --grpc-web
+   ```
+
+   Argo's SSA uses force-conflicts to transfer desired fields from `helm` or
+   `cilium-kustomize` to `argocd-controller`. Do not select Force, Replace, or Prune
+   in the UI; Force/Replace can recreate CNI resources. Stop using separate Helm
+   upgrades and kubectl applies after adoption. Never uninstall the old release.
+5. Readiness and acceptance:
+
+   ```sh
+   kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
+   kubectl -n kube-system rollout status deployment/cilium-operator --timeout=300s
+   kubectl -n kube-system rollout status deployment/hubble-relay --timeout=300s
+   kubectl get nodes
+   kubectl get gatewayclass cilium
+   kubectl -n gateway get gateway home-cloud
+   kubectl -n kube-system get httproute hubble-ui hubble-ui-redirect -o yaml
+   ```
+
+   Require healthy nodes/CNI, working BGP/service reachability, Gateway
+   Accepted/Programmed, and current route Accepted/ResolvedRefs. Test Hubble at
+   `https://hubble.home.antonu.org`; DNS/TLS and actual flow visibility need live
+   verification. Local render success does not establish them.
+
+## Stop and rollback
+
+If sync or connectivity fails, stop further syncs. If Argo remains reachable,
+terminate an active operation with `argocd app terminate-op cilium --grpc-web`.
+Revert only the failed Cilium source change in Git, push and manually sync the
+last known-good revision without pruning. Do not delete the Application with
+cascade, CRDs, BGP resources, namespaces, or TLS Secrets, and do not uninstall Helm.
+If Argo cannot reach the API, use independent Talos recovery access and the saved
+known-good sources; do not regenerate cluster identity. Returning to Helm is a
+separate operator handoff requiring reviewed values/certificates and paused Argo
+management, not an automatic `helm rollback` against stale history.
+
+The `manifests/` and `gateway-api/` entry points remain useful for local inspection
+and pre-adoption bootstrap. After Argo adoption, sync the child instead of applying
+those directories independently.
