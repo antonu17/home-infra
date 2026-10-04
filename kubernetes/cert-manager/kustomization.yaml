@@ -5,6 +5,8 @@ kind: Kustomization
 # See docs/cert-manager.md before syncing on this cluster's 1.37.1.
 resources:
   - namespace.yaml
+  - config/vault-store.yaml
+  - config/route53-external-secret.yaml
   - config/clusterissuers.yaml
 
 helmCharts:
