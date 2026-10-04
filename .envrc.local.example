@@ -1,0 +1,19 @@
+# Copy to .envrc.local only if that file does not already exist.
+# The existing local file may already contain valuable settings; edit it privately.
+# .envrc.local is ignored and should be mode 600. Do not commit it.
+export VAULT_TERRAFORM_ADDRESS='https://vault.home.antonu.org'
+export VAULT_TERRAFORM_TOKEN=''  # Fill with the provisioning token privately.
+export VAULT_KUBERNETES_HOST='https://k8s.home.antonu.org:6443'
+export VAULT_KUBERNETES_CA_FILE='.private/vault-kubernetes-ca.pem'
+export VAULT_KUBERNETES_REVIEWER_JWT_FILE='.private/vault-reviewer.jwt'
+
+# Alternatively, place the PEM and JWT values directly here as shell strings:
+# export TF_VAR_kubernetes_ca_cert='-----BEGIN CERTIFICATE-----
+# ...your CA PEM...
+# -----END CERTIFICATE-----'
+# export TF_VAR_kubernetes_token_reviewer_jwt='...your reviewer JWT...'
+
+# Local backend: an already-mounted NAS share and a private state file inside it.
+# Replace these examples with the mount/path on this workstation.
+export TF_STATE_MOUNT='/Volumes/nas-share'
+export TF_STATE_PATH='/Volumes/nas-share/terraform/vault.tfstate'
