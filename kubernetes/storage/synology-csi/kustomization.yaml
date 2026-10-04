@@ -18,7 +18,7 @@ patches:
         template:
           spec:
             nodeSelector:
-              kubernetes.io/hostname: talos-worker-01
+              storage.home.antonu.org/synology-iscsi: "true"
             dnsPolicy: ClusterFirstWithHostNet
             containers:
               - name: csi-plugin

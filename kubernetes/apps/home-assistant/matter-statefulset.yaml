@@ -14,6 +14,15 @@ spec:
       labels:
         app.kubernetes.io/name: matter-server
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: workload.home.antonu.org/home-assistant
+                    operator: In
+                    values:
+                      - "true"
       # Upstream requires the host network for IPv6 and mDNS device reachability.
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

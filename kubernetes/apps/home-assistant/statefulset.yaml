@@ -14,6 +14,15 @@ spec:
       labels:
         app.kubernetes.io/name: home-assistant
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: workload.home.antonu.org/home-assistant
+                    operator: In
+                    values:
+                      - "true"
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
       securityContext:
