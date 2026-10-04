@@ -1,0 +1,43 @@
+fullnameOverride: external-secrets
+replicaCount: 1
+installCRDs: true
+# Only namespaced pull-based secrets are needed for this installation.
+processClusterExternalSecret: false
+processClusterStore: false
+processClusterGenerator: false
+processClusterPushSecret: false
+processPushSecret: false
+crds:
+  createClusterExternalSecret: false
+  createClusterSecretStore: false
+  createClusterGenerator: false
+  createClusterPushSecret: false
+  createPushSecret: false
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+rbac:
+  aggregateToView: false
+  aggregateToEdit: false
+  aggregateToAdmin: false
+  # Grant TokenRequest access per workload service account when adding Vault stores.
+  serviceAccountTokenCreate: false
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+webhook:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+certController:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
