@@ -79,6 +79,16 @@ variable "eso_roles" {
       service_account = "vault-eso"
       secret_prefix   = "cert-manager"
     }
+    external-dns = {
+      namespace       = "external-dns"
+      service_account = "vault-eso"
+      secret_prefix   = "external-dns"
+    }
+    synology-csi = {
+      namespace       = "synology-csi"
+      service_account = "vault-eso"
+      secret_prefix   = "synology-csi"
+    }
     home-assistant = {
       namespace       = "home-assistant"
       service_account = "vault-eso"

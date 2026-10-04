@@ -12,6 +12,8 @@ Kustomization.
 | Vault role / policy | Kubernetes identity | Readable KV paths |
 |---|---|---|
 | `eso-cert-manager` | `cert-manager/vault-eso` | `home-cloud/cert-manager/*` |
+| `eso-external-dns` | `external-dns/vault-eso` | `home-cloud/external-dns/*` |
+| `eso-synology-csi` | `synology-csi/vault-eso` | `home-cloud/synology-csi/*` |
 | `eso-home-assistant` | `home-assistant/vault-eso` | `home-cloud/home-assistant/*` |
 
 Both roles use login audience `vault`, a 15-minute token TTL, and a one-hour
@@ -161,6 +163,13 @@ kubectl -n cert-manager get secret route53-credentials
 Vault HTTPS verification stays enabled. If using a private CA, configure the
 store's `caProvider` or `caBundle`; the Kubernetes CA input verifies the Kubernetes
 API, not Vault. NAS Vault must reach the API, and ESO must reach Vault.
+
+ExternalDNS and Synology CSI credential values were copied into Vault and
+verified against the existing Kubernetes Secrets on 2026-10-04. Their scoped
+roles and ESO resources require operator Terraform apply and Argo sync; follow
+[the deployment secret guide](../../docs/secret-management.md). CSI's driver, StorageClass and credentials are now included in one `synology-csi`
+Argo Application, pending operator adoption. PVCs, PVs and NAS LUNs retain their
+existing owners; follow the [CSI guide](../../kubernetes/synology-csi/README.md).
 
 ## Reviewer token maintenance
 
