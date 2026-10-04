@@ -4,15 +4,24 @@ metadata:
   name: argocd-https
 spec:
   parentRefs:
-    - name: home-cloud
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: home-cloud
       namespace: gateway
       sectionName: https
   hostnames:
     - argocd.home.antonu.org
   rules:
     - backendRefs:
-        - name: argocd-server
+        - group: ""
+          kind: Service
+          name: argocd-server
           port: 80
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -20,7 +29,9 @@ metadata:
   name: argocd-redirect
 spec:
   parentRefs:
-    - name: home-cloud
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: home-cloud
       namespace: gateway
       sectionName: http
   hostnames:
@@ -31,3 +42,7 @@ spec:
           requestRedirect:
             scheme: https
             statusCode: 301
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
