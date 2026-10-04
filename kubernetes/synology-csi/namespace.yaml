@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synology-csi
+  labels:
+    # Existing driver requires host mounts, host networking and privileged pods.
+    pod-security.kubernetes.io/enforce: privileged
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"

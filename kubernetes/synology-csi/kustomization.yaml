@@ -2,12 +2,37 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - namespace.yaml
+  - external-secrets/vault-store.yaml
+  - external-secrets/client-info-external-secret.yaml
   - vendor/csi-driver.yml
   - vendor/node.yml
   - vendor/controller.yml
   - storageclass.yaml
 
+transformers:
+  - retention.yaml
+
 patches:
+  # Credential resources reconcile at wave 0 before driver workloads at wave 1.
+  - target:
+      group: apps
+      kind: StatefulSet
+      name: synology-csi-controller
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "1"
+  - target:
+      group: apps
+      kind: DaemonSet
+      name: synology-csi-node
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "1"
   - patch: |
       apiVersion: apps/v1
       kind: DaemonSet

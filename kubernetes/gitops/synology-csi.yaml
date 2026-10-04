@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: synology-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Synology CSI driver, retained StorageClass and Vault-backed credentials.
+  sourceRepos:
+    - https://github.com/antonu17/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: synology-csi
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: CSIDriver
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: StatefulSet
+    - group: apps
+      kind: DaemonSet
+    - group: ""
+      kind: ServiceAccount
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: external-secrets.io
+      kind: SecretStore
+    - group: external-secrets.io
+      kind: ExternalSecret
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: synology-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: synology-csi
+  source:
+    repoURL: https://github.com/antonu17/home-infra.git
+    targetRevision: main
+    path: kubernetes/synology-csi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: synology-csi
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - ClientSideApplyMigration=false
+      - ApplyOutOfSyncOnly=true
+      - FailOnSharedResource=true
+      - PruneLast=true
