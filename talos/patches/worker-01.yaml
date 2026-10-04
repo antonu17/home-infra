@@ -2,3 +2,8 @@ apiVersion: v1alpha1
 kind: HostnameConfig
 auto: off
 hostname: talos-worker-01
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  storage.home.antonu.org/synology-iscsi: "true"
