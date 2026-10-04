@@ -2,9 +2,59 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - manifests/bgp-advertisement.yaml
-  - manifests/bgp-cluster.yaml
-  - manifests/bgp-peer.yaml
-  - manifests/lb-pool.yaml
-  - manifests/hubble-ui-httproute.yaml
+  - ./manifests
   - ./gateway-api
+
+helmCharts:
+  - name: cilium
+    repo: https://helm.cilium.io/
+    version: 1.20.2
+    releaseName: cilium
+    namespace: kube-system
+    includeCRDs: true
+    valuesFile: values.yaml
+
+# Maintenance of an existing installation: retain live Helm-generated TLS data.
+# Offline Helm cannot look up existing certificates. See README.md for bootstrap.
+patches:
+  - target:
+      version: v1
+      kind: Secret
+      labelSelector: cilium.io/helm-template-non-idempotent=true
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ignored
+  - target:
+      version: v1
+      kind: ConfigMap
+      labelSelector: cilium.io/helm-template-non-idempotent=true
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ignored
+
+  # Retain the existing Helm-managed operator readiness delay during maintenance.
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: cilium-operator
+      namespace: kube-system
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cilium-operator
+        namespace: kube-system
+      spec:
+        template:
+          spec:
+            containers:
+              - name: cilium-operator
+                readinessProbe:
+                  initialDelaySeconds: null
