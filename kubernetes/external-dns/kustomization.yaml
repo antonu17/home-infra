@@ -3,6 +3,8 @@ kind: Kustomization
 
 resources:
   - resources/network-policy.yaml
+  - resources/vault-store.yaml
+  - resources/mikrotik-external-secret.yaml
 
 helmCharts:
   - name: external-dns

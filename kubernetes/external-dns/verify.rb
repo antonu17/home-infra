@@ -42,3 +42,15 @@ roles.each do |role|
   end
 end
 puts "ExternalDNS: #{docs.size} objects; write-enabled/upsert-only, one replica, TXT ownership, exact-name filters and loopback webhook verified"
+store = docs.find { |d| d['kind'] == 'SecretStore' && d.dig('metadata', 'name') == 'home-cloud-vault' }
+abort 'missing namespaced Vault store' unless store && store.dig('metadata', 'namespace') == 'external-dns'
+abort 'wrong Vault role' unless store.dig('spec', 'provider', 'vault', 'auth', 'kubernetes', 'role') == 'eso-external-dns'
+secret = docs.find { |d| d['kind'] == 'ExternalSecret' && d.dig('metadata', 'name') == 'mikrotik-credentials' }
+abort 'missing MikroTik ExternalSecret' unless secret && secret.dig('metadata', 'namespace') == 'external-dns'
+abort 'wrong Secret retention' unless secret.dig('spec', 'target', 'creationPolicy') == 'Orphan' && secret.dig('spec', 'target', 'deletionPolicy') == 'Retain'
+expected = %w[MIKROTIK_BASEURL MIKROTIK_USERNAME MIKROTIK_PASSWORD]
+abort 'wrong credential properties' unless secret.dig('spec', 'data').map { |d| d['secretKey'] }.sort == expected.sort
+abort 'wrong remote references' unless secret.dig('spec', 'data').all? { |d| d.dig('remoteRef', 'key') == 'external-dns/mikrotik-credentials' && d.dig('remoteRef', 'property') == d['secretKey'] }
+role = docs.find { |d| d['kind'] == 'Role' && d.dig('metadata', 'name') == 'external-secrets-vault-token' }
+abort 'unscoped ESO TokenRequest' unless role && role['rules'] == [{'apiGroups' => [''], 'resources' => ['serviceaccounts/token'], 'resourceNames' => ['vault-eso'], 'verbs' => ['create']}]
+puts 'ExternalDNS Vault/ESO credentials and scoped TokenRequest verified'
