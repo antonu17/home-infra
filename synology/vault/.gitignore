@@ -1,0 +1,19 @@
+# Track only the default config and empty-directory placeholders.
+/storage/*
+!/storage/config/
+/storage/config/*
+!/storage/config/vault.hcl
+!/storage/data/
+/storage/data/*
+!/storage/data/.gitkeep
+!/storage/secrets/
+/storage/secrets/*
+!/storage/secrets/.gitkeep
+
+# Protect legacy runtime locations too.
+/data/
+/secrets/
+/.env
+/*.snap
+/init.json
+/scripts/__pycache__/

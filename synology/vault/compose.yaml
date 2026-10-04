@@ -1,0 +1,54 @@
+services:
+  vault:
+    image: hashicorp/vault:2.1.1
+    user: "100:1000"
+    restart: unless-stopped
+    command: ["vault", "server", "-config=/vault/storage/config/vault.hcl"]
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+    depends_on:
+      unseal:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8200:8200"
+    volumes:
+      - ./storage:/vault/storage
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  unseal:
+    image: python:3.13.7-alpine
+    restart: unless-stopped
+    user: "0:0"
+    entrypoint: ["python3", "-B", "/app/unseal.py"]
+    read_only: true
+    cap_drop: [ALL]
+    # Limited to preparing ownership/modes in the shared bind mount.
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./scripts:/app:ro
+      - ./storage:/vault/storage
+    # Healthy means storage is prepared, not that Vault is already unsealed.
+    healthcheck:
+      test: ["CMD", "python3", "-B", "/app/unseal.py", "--ready"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "2"
