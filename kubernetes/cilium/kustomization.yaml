@@ -6,4 +6,5 @@ resources:
   - manifests/bgp-cluster.yaml
   - manifests/bgp-peer.yaml
   - manifests/lb-pool.yaml
+  - manifests/hubble-ui-httproute.yaml
   - ./gateway-api
