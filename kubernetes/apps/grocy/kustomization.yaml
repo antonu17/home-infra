@@ -5,5 +5,4 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  # Enable only after data import, acceptance testing, and DNS ownership review.
-  # - httproute.yaml
+  - httproute.yaml
