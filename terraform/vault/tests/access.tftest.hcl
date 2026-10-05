@@ -44,7 +44,7 @@ run "default_workload_scope" {
   }
   assert {
     condition = alltrue([
-      for name in ["external-dns", "synology-csi"] :
+      for name in ["adsb", "external-dns", "synology-csi"] :
       vault_kubernetes_auth_backend_role.eso[name].bound_service_account_names == toset(["vault-eso"]) &&
       vault_kubernetes_auth_backend_role.eso[name].bound_service_account_namespaces == toset([name]) &&
       vault_kubernetes_auth_backend_role.eso[name].token_policies == toset(["eso-${name}"]) &&
@@ -53,7 +53,7 @@ run "default_workload_scope" {
       strcontains(vault_policy.eso[name].policy, "home-cloud/data/${name}/*") &&
       !strcontains(vault_policy.eso[name].policy, "home-cloud/data/*")
     ])
-    error_message = "Migrated deployment identities must stay namespace-bound with their own scoped policy."
+    error_message = "Deployment identities must stay namespace-bound with their own scoped policy."
   }
   assert {
     condition = (

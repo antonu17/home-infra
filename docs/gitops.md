@@ -22,6 +22,7 @@ time, against the intended home-cloud kubeconfig.
 | Argo child `cert-manager` | cert-manager v1.21.2 Helm chart, CRDs and ClusterIssuers |
 | Argo child `home-cloud-gateway` | Frontend Certificate, Gateway and Argo HTTPRoutes |
 | Argo child `external-dns` | Official chart-rendered DNS controller/webhook, RBAC and network policy; initially dry-run |
+| Argo child `adsb` | Node-pinned RTL-SDR decoder plus FlightAware/Flightradar24 feeders |
 | Operator | Git-ignored Route53 credential Secret |
 | cert-manager controller | Generated account keys, challenges and Gateway frontend TLS Secret |
 

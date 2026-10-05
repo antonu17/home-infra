@@ -7,10 +7,12 @@ workload. Secret values are stored directly in Vault, outside Terraform.
 Terraform has been applied. On 2026-10-04, the cert-manager SecretStore and
 Route53 ExternalSecret were checked Ready, and the operator confirmed a successful
 Argo sync. The Home Assistant store remains an example, not part of its workload
-Kustomization.
+Kustomization. The ADS-B role below is repository-prepared and has not yet been
+applied.
 
 | Vault role / policy | Kubernetes identity | Readable KV paths |
 |---|---|---|
+| `eso-adsb` | `adsb/vault-eso` | `home-cloud/adsb/*` |
 | `eso-cert-manager` | `cert-manager/vault-eso` | `home-cloud/cert-manager/*` |
 | `eso-external-dns` | `external-dns/vault-eso` | `home-cloud/external-dns/*` |
 | `eso-synology-csi` | `synology-csi/vault-eso` | `home-cloud/synology-csi/*` |

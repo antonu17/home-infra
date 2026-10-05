@@ -8,6 +8,7 @@ Kubernetes receives them through ESO; existing target names and keys are preserv
 
 | Consumer | Vault path beneath `home-cloud` | Kubernetes target | Status |
 |---|---|---|---|
+| ADS-B | `adsb/feeders` | `adsb/adsb-config` | References prepared; placeholder/real values and Terraform apply operator-pending |
 | cert-manager | `cert-manager/route53-credentials` | `cert-manager/route53-credentials` | ESO Ready and operator sync confirmed |
 | ExternalDNS | `external-dns/mikrotik-credentials` | `external-dns/mikrotik-credentials` | Values verified in Vault; Terraform applied, Argo sync pending |
 | Synology CSI | `synology-csi/client-info` | `synology-csi/client-info-secret` | Values verified in Vault; Terraform applied, Argo sync pending |
@@ -36,9 +37,10 @@ terraform -chdir=terraform/vault init
 terraform -chdir=terraform/vault plan -out=configure.tfplan
 ```
 
-Require additions for `eso-external-dns` and `eso-synology-csi` policies/roles only.
-Stop on unintended deletion, auth configuration changes, mount changes or scope
-expansion. If using `TF_VAR_eso_roles`, retain the existing identities in that map.
+For the ADS-B onboarding, require the addition of `eso-adsb` only. Stop on changes
+to existing roles, unintended deletion, auth configuration changes, mount changes
+or scope expansion. If using `TF_VAR_eso_roles`, retain every existing identity in
+that map.
 
 Apply the reviewed plan (**live Vault changes**):
 

@@ -74,6 +74,11 @@ variable "eso_roles" {
     secret_prefix   = string
   }))
   default = {
+    adsb = {
+      namespace       = "adsb"
+      service_account = "vault-eso"
+      secret_prefix   = "adsb"
+    }
     cert-manager = {
       namespace       = "cert-manager"
       service_account = "vault-eso"

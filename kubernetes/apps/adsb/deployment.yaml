@@ -1,0 +1,214 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adsb
+  namespace: adsb
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: adsb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: adsb
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: hardware.home.antonu.org/rtl-sdr
+                    operator: In
+                    values:
+                      - "true"
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dump1090-fa
+          # Built from antonu17/pi-adsb commit 5d339a807e4969dbc6e22d0ee8400caffd483c32.
+          image: registry.home.antonu.org/apps/pi-adsb:5d339a807e49
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              lighttpd -f /etc/lighttpd/lighttpd.conf
+              exec dump1090-fa \
+                --quiet \
+                --net \
+                --write-json /run/dump1090-fa \
+                --json-location-accuracy 2 \
+                --lat "${LAT}" \
+                --lon "${LON}"
+          env:
+            - name: LAT
+              valueFrom:
+                secretKeyRef:
+                  name: adsb-config
+                  key: LAT
+            - name: LON
+              valueFrom:
+                secretKeyRef:
+                  name: adsb-config
+                  key: LON
+          ports:
+            - name: dump1090-http
+              containerPort: 8080
+              protocol: TCP
+            - name: avr-output
+              containerPort: 30002
+              protocol: TCP
+            - name: beast-output
+              containerPort: 30005
+              protocol: TCP
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            seccompProfile:
+              type: Unconfined
+          startupProbe:
+            tcpSocket:
+              port: beast-output
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 24
+          readinessProbe:
+            tcpSocket:
+              port: beast-output
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: beast-output
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: usb
+              mountPath: /dev/bus/usb
+            - name: dump1090-run
+              mountPath: /run/dump1090-fa
+        - name: piaware
+          image: registry.home.antonu.org/apps/pi-adsb:5d339a807e49
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              piaware-config allow-auto-updates no
+              piaware-config allow-manual-updates no
+              piaware-config receiver-host 127.0.0.1
+              piaware-config receiver-port 30005
+              piaware-config receiver-type other
+              piaware-config allow-mlat no
+              piaware-config use-gpsd no
+              piaware-config feeder-id "${FLIGHTAWARE_FEEDER_ID}"
+              exec piaware -debug
+          env:
+            - name: FLIGHTAWARE_FEEDER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: adsb-config
+                  key: FLIGHTAWARE_FEEDER_ID
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            exec:
+              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null"]
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 24
+          livenessProbe:
+            exec:
+              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null"]
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+        - name: fr24feed
+          image: registry.home.antonu.org/apps/pi-adsb:5d339a807e49
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              umask 077
+              cat > /etc/fr24feed.ini <<EOF
+              receiver="avr-tcp"
+              fr24key="${FR24KEY}"
+              host="127.0.0.1:30002"
+              bs="no"
+              raw="no"
+              mlat="no"
+              mlat-without-gps="no"
+              EOF
+              exec fr24feed
+          env:
+            - name: FR24KEY
+              valueFrom:
+                secretKeyRef:
+                  name: adsb-config
+                  key: FR24KEY
+          ports:
+            - name: fr24-http
+              containerPort: 8754
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            tcpSocket:
+              port: fr24-http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 24
+          readinessProbe:
+            tcpSocket:
+              port: fr24-http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: fr24-http
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: fr24-logs
+              mountPath: /var/log/fr24feed
+      volumes:
+        # This preserves the Compose stack's broad privileged USB access. Replace
+        # it with a vendor/product-aware device plugin when one is selected.
+        - name: usb
+          hostPath:
+            path: /dev/bus/usb
+            type: Directory
+        - name: dump1090-run
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: fr24-logs
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Mi

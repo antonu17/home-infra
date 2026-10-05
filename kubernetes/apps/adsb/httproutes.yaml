@@ -1,0 +1,53 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dump1090-fa
+  namespace: adsb
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - adsb.home.antonu.org
+  rules:
+    - backendRefs:
+        - name: dump1090-fa
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fr24feed
+  namespace: adsb
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - fr24.home.antonu.org
+  rules:
+    - backendRefs:
+        - name: fr24feed
+          port: 8754
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: adsb-redirect
+  namespace: adsb
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: http
+  hostnames:
+    - adsb.home.antonu.org
+    - fr24.home.antonu.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
