@@ -4,6 +4,7 @@
 menu Home Cloud Network Boot
 item --gap -- ---------------- Operating systems ------------
 item talos    Talos v1.14.2 maintenance (Image Factory)
+item talos_rpi4 Talos v1.14.2 Raspberry Pi 4 maintenance (Image Factory)
 item talos_wipe  Talos v1.14.2 WIPE SYSTEM DISK
 item --gap -- ---------------- Diagnostics ----------------
 item identity Show client identity
@@ -18,10 +19,18 @@ goto ${target}
 :talos
 set talos_factory http://talos.home.antonu.org
 set talos_version v1.14.2
-set talos_schematic 376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
+set talos_schematic c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac
 
 echo Starting Talos ${talos_version} from Image Factory...
 chain ${talos_factory}/pxe/${talos_schematic}/${talos_version}/metal-amd64 || goto talos_failed
+
+:talos_rpi4
+set talos_factory http://talos.home.antonu.org
+set talos_version v1.14.2
+set talos_schematic f47e6cd2634c7a96988861031bcc4144468a1e3aef82cca4f5b5ca3fffef778a
+
+echo Starting Talos ${talos_version} for Raspberry Pi 4 from Image Factory...
+chain ${talos_factory}/pxe/${talos_schematic}/${talos_version}/metal-arm64 || goto talos_failed
 
 :talos_wipe
 set talos_factory http://talos.home.antonu.org
