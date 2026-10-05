@@ -28,7 +28,9 @@ the sync instead of silently taking resources from another Application.
 ESO targets the existing `synology-csi/client-info-secret`, preserving the exact
 `client-info.yml` bytes. Vault data is at `home-cloud/synology-csi/client-info`;
 Terraform's `eso-synology-csi` identity reads that workload prefix only. The
-ExternalSecret uses Orphan/Retain, so removing it does not delete the Secret.
+ExternalSecret uses Owner/Retain: ESO sets an owner reference for Argo child
+visibility. Removing the ExternalSecret can garbage-collect the credential Secret;
+Retain protects against Vault-entry deletion only.
 
 Storage-backed Vault/ESO depend on functioning storage. Keep the existing retained
 credential Secret during outages and keep independent Vault backups; rebuilding
