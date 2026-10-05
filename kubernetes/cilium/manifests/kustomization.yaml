@@ -7,3 +7,4 @@ resources:
   - bgp-peer.yaml
   - lb-pool.yaml
   - hubble-ui-httproute.yaml
+  - gateway-class-config.yaml

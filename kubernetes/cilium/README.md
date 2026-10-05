@@ -30,6 +30,53 @@ field management. Argo adopts only fields present in the render. Helm's historic
 release record and any omitted fields remain; this is not a fresh-cluster bootstrap.
 Use the documented Helm bootstrap only before adoption on a fresh cluster.
 
+## Argo CD gRPC-Web through the shared Gateway
+
+Prepared 2026-10-05; operator-provided output confirms the existing class is
+Argo-tracked, the Argo routes are Accepted/ResolvedRefs, and the installed
+CiliumGatewayClassConfig CRD supports the translation setting. This change has
+not been synced or tested live by the agent.
+
+Cilium enables Envoy gRPC-Web to native gRPC translation by default. The shared
+`gateway/home-cloud` Gateway terminates client HTTPS on TCP 443 and forwards
+HTTP/1.1 to `argocd/argocd-server:80` (pod port 8080). Translation strips the
+`application/grpc-web+proto` content type that selects Argo's gRPC-Web handler,
+which explains a CLI-only 404 while browser HTTP/API requests work.
+
+The `kube-system/cilium-grpc-web` CiliumGatewayClassConfig disables translation,
+and the rendered `cilium` GatewayClass references it. CRDs sync in wave -2,
+the configuration in wave -1, and the class in wave 0. This affects every Gateway
+using class `cilium`; check for other backends that depend on translation before
+syncing. TLS, backend ports, DNS, VIPs and route admission remain unchanged.
+See [Cilium's supported setting](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/parameterized-gatewayclass/#disable-grpc-web-translation).
+
+Operator procedure after reviewing and committing/pushing these source changes:
+
+1. In the working Argo browser UI, refresh the `cilium` Application and review its
+   full diff. It was already OutOfSync in the operator's preflight output; stop on
+   unexplained existing changes. The intended additions are the configuration and
+   the GatewayClass parametersRef, with retention annotations. No Cilium workload
+   template changes or certificate replacements are expected.
+2. Operator-run live change: manually sync `cilium` with Prune, Force and Replace
+   disabled. Do not separately apply the manifests or run a Helm upgrade.
+3. Read-only readiness and acceptance checks, with repository direnv loaded:
+
+   ```sh
+   kubectl get gatewayclass cilium -o yaml
+   kubectl -n kube-system get ciliumgatewayclassconfig cilium-grpc-web -o yaml
+   kubectl -n gateway get gateway home-cloud -o yaml
+   kubectl -n argocd get httproute argocd-https -o yaml
+   argocd login argocd.home.antonu.org --grpc-web --skip-test-tls
+   ```
+
+   Require current-generation Gateway Accepted/Programmed and route
+   Accepted/ResolvedRefs. Verify Argo browser access, Hubble and Home Assistant
+   through the shared Gateway. The CLI still validates the frontend certificate.
+4. On failure, stop further syncs. Restore only this change's source additions,
+   push, then manually sync `cilium` without pruning. Removing the newly added
+   GatewayClass parametersRef restores default translation; the unused config can
+   remain. Do not delete or recreate the Gateway, TLS Secret or Cilium installation.
+
 ## Operator adoption — no live actions performed by the agent
 
 Run from `/Users/anton/projects/home-infra` with direnv loaded. Maintain Talos

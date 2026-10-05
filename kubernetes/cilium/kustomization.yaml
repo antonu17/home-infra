@@ -21,6 +21,24 @@ helmCharts:
 # Maintenance of an existing installation: retain live Helm-generated TLS data.
 # Offline Helm cannot look up existing certificates. See README.md for bootstrap.
 patches:
+  # Preserve gRPC-Web for Argo's HTTP backend on every Gateway using this class.
+  - target:
+      group: gateway.networking.k8s.io
+      version: v1
+      kind: GatewayClass
+      name: cilium
+    patch: |-
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: GatewayClass
+      metadata:
+        name: cilium
+      spec:
+        parametersRef:
+          group: cilium.io
+          kind: CiliumGatewayClassConfig
+          name: cilium-grpc-web
+          namespace: kube-system
+
   - target:
       version: v1
       kind: Secret

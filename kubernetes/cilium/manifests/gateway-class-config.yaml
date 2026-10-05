@@ -1,0 +1,13 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumGatewayClassConfig
+metadata:
+  name: cilium-grpc-web
+  namespace: kube-system
+  annotations:
+    # Gateway API CRDs use wave -2; configure the class before wave-0 resources.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  httpOptions:
+    # Argo CD handles gRPC-Web itself over the HTTP/1.1 backend hop.
+    grpcWebTranslation:
+      enabled: false
