@@ -21,7 +21,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, anki-sync, argocd, deconz, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, deconz, gateway, grocy, home-assistant, kube-system, mealie]
         kinds:
           - kind: HTTPRoute
     - name: https
@@ -40,7 +40,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, anki-sync, argocd, deconz, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, deconz, gateway, grocy, home-assistant, kube-system, mealie]
         kinds:
           - kind: HTTPRoute
     - name: deconz-websocket

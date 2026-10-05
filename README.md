@@ -12,6 +12,8 @@ they do **not** mean Argo CD or the Gateway has been deployed.
 - [ADS-B receiver Kubernetes deployment](kubernetes/apps/adsb/README.md)
 - [Anki Sync Server Kubernetes deployment and data migration](kubernetes/apps/anki-sync/README.md)
 - [deCONZ / RaspBee II Kubernetes deployment](kubernetes/apps/deconz/README.md)
+- [Grocy Kubernetes migration](kubernetes/apps/grocy/README.md)
+- [Mealie Kubernetes migration](kubernetes/apps/mealie/README.md)
 - [ExternalDNS activation and ownership tests](docs/external-dns.md)
 - [cert-manager / Route53 Argo CD onboarding](docs/cert-manager.md)
 - [Current Gateway TLS termination / Argo bootstrap](docs/gateway-bootstrap.md)
