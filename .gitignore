@@ -3,8 +3,6 @@
 # Generated Talos machine configurations contain cluster credentials.
 /talos/generated/
 /talos/secrets/
-/kubernetes/storage/synology-csi/secret/
-/kubernetes/cert-manager/charts/
 /.private/
 
 # Kustomize's Helm inflator downloads charts here while rendering.

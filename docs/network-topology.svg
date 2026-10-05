@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1900" viewBox="0 0 1800 1900" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2300" viewBox="0 0 1800 2300" role="img" aria-labelledby="title desc">
   <title id="title">Home infrastructure network topology</title>
   <desc id="desc">Current physical links and planned VLAN migrations for the RB5009 router, FRITZ!Box, Synology NAS, Aruba access point, wired clients, Raspberry Pis, Wi-Fi networks, IoT devices, and home-cloud virtual machines.</desc>
 
@@ -49,11 +49,11 @@
     </style>
   </defs>
 
-  <rect width="1800" height="1900" fill="#f5f7fb"/>
+  <rect width="1800" height="2300" fill="#f5f7fb"/>
 
   <!-- Header -->
   <text x="46" y="48" class="title">Home infrastructure · network topology</text>
-  <text x="46" y="75" class="subtitle">Implemented Home Cloud + retained physical wiring · planned migrations dashed · reconciled 2026-10-01</text>
+  <text x="46" y="75" class="subtitle">Implemented Home Cloud + retained physical wiring · planned migrations dashed · updated 2026-10-02</text>
   <g transform="translate(1420,30)">
     <line x1="0" y1="10" x2="48" y2="10" class="physical"/>
     <text x="58" y="15" class="small">Current link</text>
@@ -399,8 +399,52 @@
     <text x="24" y="482" class="small">Validated storage: provision → attach → write → pod replacement → controlled worker reboot + remount; backup restore still untested.</text>
     <path d="M470 514 H530" class="planned"/>
     <text x="24" y="519" class="node-title">Future / not deployed</text>
-    <text x="550" y="519" class="small">Cilium LB-IPAM + BGP ↔ MikroTik · HA / quantum migration · Pi workers · independent-disk Ceph only later</text>
+    <text x="550" y="519" class="small">Argo / Gateway activation · HA / quantum migration · Pi workers · independent-disk Ceph only later</text>
     <text x="24" y="542" class="tiny">Source YAML + persistent private PKI → generated Talos configs. Ordinary container images and Cilium OCI chart still come from public registries.</text>
   </g>
-  <text x="45" y="1870" class="tiny">Reported implementation + checked-in configuration, 2026-10-01. Drift and operational caveats: docs/pxe.md, docs/talos-mirror.md, docs/talos-cluster.md.</text>
+  <g transform="translate(45,1855)">
+    <rect width="1710" height="365" class="panel"/>
+    <text x="24" y="32" class="section-title">Application layer · prepared in Git, operator deployment pending</text>
+    <text x="24" y="58" class="small">Already working: four Cilium peers ASN 65001 ↔ RB5009 ASN 65000 · LB pool 10.40.0.0/24 · allocated VIP /32 advertisements only</text>
+    <g transform="translate(24,85)">
+      <rect width="320" height="92" class="node"/>
+      <text x="16" y="28" class="node-title">LAN / approved Tailscale routes</text>
+      <text x="16" y="52" class="small">argocd.home.antonu.org</text>
+      <text x="16" y="74" class="small">DNS → 10.40.0.10 (proposed stable VIP)</text>
+    </g>
+    <path d="M350 130 H435" class="planned"/>
+    <g transform="translate(450,85)">
+      <rect width="340" height="92" class="node"/>
+      <text x="16" y="28" class="node-title">Cilium Gateway / HTTPS</text>
+      <text x="16" y="52" class="small">Existing wildcard certificate</text>
+      <text x="16" y="74" class="small">HTTPRoute + verified backend TLS</text>
+    </g>
+    <path d="M800 130 H885" class="planned"/>
+    <g transform="translate(900,85)">
+      <rect width="325" height="92" class="node"/>
+      <text x="16" y="28" class="node-title">Argo CD / HTTPS</text>
+      <text x="16" y="52" class="small">Helm bootstrap · Git root → Gateway</text>
+      <text x="16" y="74" class="small">Manual sync · Cilium not Argo-owned</text>
+    </g>
+    <g transform="translate(1260,85)">
+      <rect width="425" height="92" class="node"/>
+      <text x="16" y="28" class="node-title">Home Assistant: decision gate</text>
+      <text x="16" y="52" class="small">No deployment · Synology iSCSI intended</text>
+      <text x="16" y="74" class="small">Test mDNS / SSDP / IPv6: VLAN300 ↔ 400</text>
+    </g>
+    <text x="24" y="212" class="small">Bootstrap remains independent: Talos → Gateway CRDs + Cilium Helm/CRs → Argo Helm → root sync → Gateway/routes.</text>
+    <text x="24" y="238" class="small">TLS renewal/import, DNS, Git repository access and live acceptance remain operator actions. No Home Assistant or Raspberry Pi changes.</text>
+    <g transform="translate(24,267)">
+      <rect width="780" height="72" class="node"/>
+      <text x="16" y="27" class="node-title">HTTPRoute → ExternalDNS + localhost MikroTik webhook</text>
+      <text x="16" y="51" class="small">Argo-owned · TXT owner home-cloud · exact names only · dry-run → upsert-only → tested sync</text>
+    </g>
+    <path d="M815 303 H915" class="planned"/>
+    <g transform="translate(930,267)">
+      <rect width="755" height="72" class="node"/>
+      <text x="16" y="27" class="node-title">RB5009 DNS · HTTPS REST at 192.168.40.1</text>
+      <text x="16" y="51" class="small">Dedicated account · verified TLS · manual infrastructure / legacy app records protected</text>
+    </g>
+  </g>
+  <text x="45" y="2270" class="tiny">Operator-reported state + prepared configuration, 2026-10-02. Bootstrap/recovery: docs/gitops.md. DNS activation and ownership gates: docs/external-dns.md.</text>
 </svg>

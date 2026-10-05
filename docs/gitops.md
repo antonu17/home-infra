@@ -14,18 +14,20 @@ time, against the intended home-cloud kubeconfig.
 | Owner | Resources |
 |---|---|
 | Operator / Talos | Machines, PKI, API VIP, router, NAS and DNS |
-| Operator / Kustomize | Gateway API 1.6.1 standard CRDs; existing Cilium BGP/IPAM CRs; existing CSI; initial Argo bootstrap |
+| Operator / Kustomize | Existing CSI; initial Argo bootstrap; Cilium bootstrap before adoption |
 | Kustomize + upstream Helm | Argo CD chart 10.9.6 / app 3.5.3; root Application |
-| Helm | Cilium 1.20.2 |
+| Argo child `cilium` (prepared adoption) | Cilium 1.20.2 chart, BGP/IPAM, Hubble routes and Gateway API CRDs; existing TLS excluded |
 | Argo root `home-cloud` | Child Application declarations |
 | Argo child `argocd` | Argo CD itself after the initial bootstrap |
-| Argo child `home-cloud-gateway` | Gateway and Argo HTTPRoutes |
+| Argo child `cert-manager` | cert-manager v1.21.2 Helm chart, CRDs and ClusterIssuers |
+| Argo child `home-cloud-gateway` | Frontend Certificate, Gateway and Argo HTTPRoutes |
 | Argo child `external-dns` | Official chart-rendered DNS controller/webhook, RBAC and network policy; initially dry-run |
-| cert-manager | Gateway frontend TLS Secret |
+| Operator | Git-ignored Route53 credential Secret |
+| cert-manager controller | Generated account keys, challenges and Gateway frontend TLS Secret |
 
 Argo adopts its own Kustomize/Helm installation after bootstrap, using
-server-side apply as required for its CRDs. It does not adopt the Cilium Helm
-release or CSI. The one-time bootstrap deliberately forces field ownership from
+server-side apply as required for its CRDs. Cilium adoption is now prepared separately in
+[kubernetes/cilium/README.md](../kubernetes/cilium/README.md); CSI remains separate. The one-time bootstrap deliberately forces field ownership from
 the old Helm manager to Argo's `argocd-controller` manager; subsequent ownership
 is declarative. There are no automated syncs, automated pruning, or
 cascade-deletion finalizers. Manual sync is intentional for learning; Git remains
@@ -49,10 +51,11 @@ forwards to `argocd-server:80`; Argo deliberately uses `server.insecure=true`.
 The backend hop is plaintext inside the cluster and has no BackendTLSPolicy, CA
 ConfigMap, or backend certificate. Use CLI `--grpc-web` through HTTPRoute.
 
-The repo contains NAS service/DNS conventions but no complete ACME renewal
-integration. Retain existing acme.sh / Route53 issuance; no AWS credentials or new
-certificate controller are introduced. Certificate import/renewal remains an
-explicit operator step, not falsely advertised as automated.
+cert-manager provides ACME DNS-01 issuance and renewal through Route53. Its
+controller and non-secret configuration are Argo-owned; the plaintext Route53
+credential Secret is created separately by the operator and never committed.
+The Kubernetes 1.37 compatibility exception and ordered manual-sync procedure are
+documented in [cert-manager](cert-manager.md).
 
 ## 1. Preflight and local rendering
 
@@ -66,7 +69,7 @@ kubectl config current-context
 kubectl get nodes -o wide
 kubectl get services -A -o wide
 kubectl get ciliumbgpclusterconfigs,ciliumbgppeerconfigs,ciliumbgpadvertisements,ciliumloadbalancerippools
-kubectl kustomize kubernetes/cilium
+kustomize build --enable-helm kubernetes/cilium
 kubectl kustomize kubernetes/gateway
 kustomize build --enable-helm kubernetes/argocd
 ```
@@ -78,6 +81,10 @@ Keep encrypted Talos secrets, etcd snapshot, CSI credentials and application dat
 backups outside this NAS. All VMs and LUNs still share one physical failure domain.
 
 ## 2. CRDs, then Cilium
+
+For the existing cluster, follow the [Cilium Argo adoption guide](../kubernetes/cilium/README.md).
+The Helm sequence below is pre-adoption/fresh-cluster bootstrap only. After adoption,
+use the manually synced `cilium` Application; do not alternate managers.
 
 Cilium 1.20.2 uses the ten 1.6.1 CRDs included here, kube-proxy
 replacement and L7 proxy. Existing values retain all Talos-specific settings.
@@ -98,7 +105,7 @@ kubectl get gatewayclass cilium -o yaml
 ```
 
 Stop if the class is not Accepted or existing connectivity/BGP regresses. On a
-fresh cluster also apply `kubectl apply -k kubernetes/cilium` after Cilium CRDs
+fresh cluster also apply `kubectl apply -k kubernetes/cilium/manifests` after Cilium CRDs
 exist. On the working cluster do not gratuitously re-own these existing CRs.
 Default Gateway datapath uses TPROXY; if timeouts occur inspect Envoy/Cilium logs
 and Talos kernel support, not blind firewall openings or beta datapath toggles.
@@ -144,8 +151,9 @@ Review and commit/push these repository changes yourself **before** syncing: Arg
 fetches GitHub `main`, not your working tree. If the repo is private, configure a
 read-only repository credential in Argo privately first (UI/CLI), never in Git.
 
-Use the port-forward UI to sync `home-cloud`, then sync `argocd` and
-`home-cloud-gateway`.
+Use the port-forward UI to sync `home-cloud`, then sync `argocd`. Follow the
+credential bootstrap, combined `cert-manager` sync, and readiness gates in
+[cert-manager](cert-manager.md) before syncing `home-cloud-gateway`.
 Alternatively use `argocd app sync` after authenticating. Both applications start
 manual and neither prunes by default. Do not apply the Gateway directory separately
 and give it a second lifecycle owner.
@@ -219,3 +227,9 @@ not reserved for Argo. Three control planes on one NAS do not change that capaci
 - [Cilium 1.20 Gateway prerequisites](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)
 - [Official Argo Helm chart](https://github.com/argoproj/argo-helm/tree/argo-cd-10.9.6/charts/argo-cd)
 - [Argo Gateway / ingress](https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/)
+
+## External Secrets Operator
+
+Prepared Argo child `external-secrets` installs the pinned ESO chart and CRDs.
+See [installation and readiness gates](external-secrets.md). Vault stores and
+workload secret migrations are deferred; existing Secret ownership is unchanged.

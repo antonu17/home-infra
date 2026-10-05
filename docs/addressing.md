@@ -28,7 +28,7 @@ automation remains planned, not an existing source of truth.
 | `192.168.40.22` | Second Talos control-plane node (`talos-cp-02`) |
 | `192.168.40.23` | Third Talos control-plane node (`talos-cp-03`) |
 | `192.168.40.24-29` | Additional Talos control-plane reservations |
-| `192.168.40.30-39` | Previously reserved LB space; no LB-IPAM pool or BGP advertisement configured |
+| `192.168.40.30-39` | Unused historical LB reservation; service IPs now use `10.40.0.0/24` |
 | `192.168.40.40` | `talos-worker-01`, Synology VMM worker, DHCP reservation |
 | `192.168.40.41-99` | Reserved additional VM or physical nodes |
 | `192.168.40.100-199` | Dynamic DHCP and machine discovery pool |
@@ -50,6 +50,7 @@ migration to it remains future work. Aruba/ether7 does not need VLAN 400.
 | `talos.home.antonu.org` | `192.168.100.5` | Self-hosted Image Factory, HTTPS |
 | `registry.home.antonu.org` | `192.168.100.5` | OCI registry for promoted Talos installers, HTTPS |
 | `k8s.home.antonu.org` | `192.168.40.20` | Kubernetes API VIP, TCP/6443 |
+| `argocd.home.antonu.org` | `10.40.0.10` | Prepared Gateway reservation; HTTPRoute → ExternalDNS after staged activation |
 
 The NAS services remain on VLAN 100, reached by routing from VLAN 400. Only
 the VMM guests are on the tagged Home Cloud network. Ensure each client DNS
@@ -58,5 +59,9 @@ updates Pi-hole. The registry DNS deployment is operator-reported, not captured
 in the existing RouterOS DNS scripts.
 
 Talos management uses the real control-plane endpoints `.21`, `.22`, `.23`
-(TCP/50000), not the Kubernetes VIP. Cilium LB-IPAM and eBGP to MikroTik are
-planned; the final service address pool still needs an explicit decision.
+(TCP/50000), not the Kubernetes VIP. As reported on 2026-10-02, Cilium LB-IPAM
+uses `10.40.0.0/24`. All four nodes (ASN 65001) peer with RB5009
+`192.168.40.1` (ASN 65000), advertising allocated Service VIPs as /32 routes.
+This is routed service space, not a new VLAN/subnet interface on the router.
+No permanent BGP /24 aggregate is introduced. See [GitOps](gitops.md) for the
+prepared Gateway's stable VIP, DNS and separate Tailscale prerequisites.

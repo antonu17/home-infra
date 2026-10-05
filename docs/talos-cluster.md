@@ -26,8 +26,6 @@ Three etcd members provide quorum resilience to one member being unavailable,
 |---|---|---|
 | Kubernetes API VIP | `192.168.40.20` (`k8s.home.antonu.org`) | Elected control-plane owner |
 | `talos-cp-01` | `192.168.40.21` | `02:11:32:28:5A:95` |
-| `talos-cp-02` | `192.168.40.22` | `02:11:32:25:8E:20` |
-| `talos-cp-03` | `192.168.40.23` | `02:11:32:22:49:65` |
 | `talos-worker-01` | `192.168.40.40` | `02:11:32:2E:F4:1B` |
 
 The CP VMs were provisioned with 2 vCPUs, 4 GiB RAM and 34 GB `/dev/sda`;
@@ -53,12 +51,11 @@ Always specify `-n` for maintenance: saved defaults can target multiple nodes.
 | `talos/generated/` | Disposable generated configs and client credentials |
 | `kubernetes/cilium/values.yaml` | Actual Cilium Helm settings |
 
-**Security gap found during documentation review:** `.gitignore` excludes
-`talos/generated/`, but does not cover `talos/secrets/` or
-`kubernetes/storage/synology-csi/secret/`. Both directories are untracked.
-Do not use `git add .`. Establish ignore/encryption rules before committing;
-review any archived configs/backups as potentially sensitive too. This docs-only
-update did not inspect secret contents or change ignore rules.
+`.gitignore` now excludes `talos/generated/`, `talos/secrets/`,
+`.private/`. Deployment credentials now belong in Vault; see
+[secret management](secret-management.md). Review staged changes
+before committing; ignore rules do not remove already tracked secrets. Secret
+contents were not inspected. Review archived configs/backups as sensitive too.
 
 Back up persistent cluster secrets securely outside this NAS failure domain.
 Disposable outputs are recoverable only when their source patches and secrets
@@ -81,9 +78,8 @@ was tested successfully against the existing cluster during implementation.
 ## Safe regeneration
 
 Run from the repository root with Talos CLI 1.14.2. Check
-`talosctl version --client` first: `mise.toml` currently has both
-`talos = "1.14.2"` and `talosctl = "1.14.1"`; command resolution must be
-reconciled by the operator. The commands below were checked against the
+`talosctl version --client` first: both tool entries in `mise.toml` now pin
+`1.14.2`. The commands below were checked against the
 installed 1.14.2 CLI help, not executed against the cluster.
 
 Generate into a **new review directory**, preserving existing outputs:
@@ -91,30 +87,28 @@ Generate into a **new review directory**, preserving existing outputs:
 ```sh
 umask 077
 test -s talos/secrets/home-cloud.yaml || exit 1
-SCHEMATIC=$(tr -d '\r\n' < talos/image-factory/schematic-amd64.id)
-INSTALLER="registry.home.antonu.org/talos/metal-installer/${SCHEMATIC}:v1.14.2"
-REGEN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/home-cloud-config.XXXXXX")
+
 talosctl gen config home-cloud https://k8s.home.antonu.org:6443 \
   --with-secrets talos/secrets/home-cloud.yaml \
-  --talos-version v1.14.2 --kubernetes-version 1.37.1 \
-  --install-disk /dev/sda --install-image "$INSTALLER" \
-  --config-patch @talos/patches/cilium.yaml \
-  --output "$REGEN_DIR" --with-docs=false --with-examples=false
+  --talos-version ${TALOS_VERSION} --kubernetes-version 1.37.1 \
+  --install-disk /dev/sda --install-image "$TALOS_INSTALLER" \
+  --config-patch-control-plane @talos/patches/cilium.yaml \
+  --output "$TALOS_DIR" --with-docs=false --with-examples=false --with-cluster-discovery=false
 
-for NODE in cp-01 cp-02 cp-03; do
-  talosctl machineconfig patch "$REGEN_DIR/controlplane.yaml" \
-    --patch "@talos/patches/${NODE}.yaml" \
-    --output "$REGEN_DIR/talos-${NODE}.yaml"
-done
-talosctl machineconfig patch "$REGEN_DIR/worker.yaml" \
-  --patch @talos/patches/worker-01.yaml \
-  --output "$REGEN_DIR/talos-worker-01.yaml"
+talosctl machineconfig patch "$TALOS_DIR/controlplane.yaml" --patch "@talos/patches/cp-01.yaml" --output "$TALOS_DIR/nodes/cp-01.yaml"
+talosctl machineconfig patch "$TALOS_DIR/worker.yaml" --patch "@talos/patches/worker-01.yaml" --output "$TALOS_DIR/nodes/worker-01.yaml"
 
-for NODE in cp-01 cp-02 cp-03 worker-01; do
-  talosctl validate --config "$REGEN_DIR/talos-${NODE}.yaml" --mode metal
-done
-talosctl --talosconfig "$REGEN_DIR/talosconfig" \
-  -e 192.168.40.21 -n 192.168.40.21 version
+talosctl validate --config "$TALOS_DIR/nodes/cp-01.yaml" --mode metal
+talosctl validate --config "$TALOS_DIR/nodes/worker-01.yaml" --mode metal
+
+talosctl apply-config --insecure -n 192.168.40.21 -f talos/generated/home-cloud/nodes/cp-01.yaml
+talosctl apply-config --insecure -n 192.168.40.40 -f talos/generated/home-cloud/nodes/worker-01.yaml
+talosctl bootstrap -n 192.168.40.21
+
+talosctl config endpoint 192.168.40.21
+talosctl -n 192.168.40.21 version
+talosctl -n 192.168.40.21 get extensions
+talosctl kubeconfig -n 192.168.40.21
 ```
 
 These commands create sensitive local outputs; do not publish their contents.
@@ -138,17 +132,13 @@ document rather than assuming the old `machine.install.image` layout.
 The committed Cilium patch uses all three operations:
 
 ```yaml
-cluster:
-  proxy:
-    disabled: true
----
-apiVersion: v1alpha1
-kind: KubeProxyConfig
-$patch: delete
----
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig
 $patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
 ```
 
 `KubeProxyConfig.disabled: true` was invalid. Deleting that document alone did
@@ -184,8 +174,16 @@ kubectl -n kube-system get daemonsets
 ```
 
 Expect Cilium, healthy CoreDNS, and no Flannel or kube-proxy DaemonSets.
-Cilium BGP Control Plane, LB-IPAM pools and MikroTik eBGP peering are **not
-configured**. The Kubernetes API VIP is separate from future service LB IPs.
+The operator reports working BGP on all four nodes (ASN 65001), peering with
+RB5009 `.40.1` (ASN 65000), and LB-IPAM pool `10.40.0.0/24`. Allocated Service
+VIPs are advertised as /32 routes. The Kubernetes API VIP is separate.
+The existing Helm release is the pre-adoption owner; Argo adoption is prepared. `kubernetes/cilium/kustomization.yaml`
+renders the pinned chart plus local resources using the standard `helmCharts`
+pattern; `kubernetes/cilium/manifests` is the separate local-resource apply target.
+Follow the explicit Argo adoption and rollback plan in `kubernetes/cilium/README.md`.
+After adoption, manually sync `cilium` instead of running separate Helm upgrades.
+Values now also prepare Gateway API: install the pinned CRDs **before** upgrading
+the release using [the GitOps sequence](gitops.md).
 
 ## Machine configuration versus installed image
 
@@ -239,11 +237,12 @@ Synology DS923+ / DSM 7.4.1-90080, RAID10 backing pool, Btrfs Volume 3
 (300 GB; about 254 GB free at initial setup) hosts the iSCSI LUNs.
 Those capacity figures are historical, not live monitoring.
 
-`kubernetes/storage/synology-csi/kustomization.yaml` deploys the pinned
+`kubernetes/synology-csi/kustomization.yaml` deploys the pinned
 `synology/synology-csi:v1.3.1` controller and node plugin and includes
-`storageclass.yaml`. Both components are still selected onto
-`talos-worker-01`: installing the extension on all four nodes does not broaden
-CSI placement. Review the selector before scheduling storage consumers elsewhere.
+`storageclass.yaml` and the namespaced ESO resources. The controller is pinned
+to `talos-worker-01`; the node DaemonSet selects nodes labeled
+`storage.home.antonu.org/synology-iscsi=true` (two ready instances observed on
+2026-10-04). Extension installation alone does not broaden that selector.
 
 | StorageClass setting | Current value |
 |---|---|
@@ -261,6 +260,18 @@ The CSI controller uses DSM HTTPS/443 for management; the node uses TCP/3260
 for iSCSI data. CSI runs in Kubernetes; SAN Manager/LUNs run on the NAS.
 A dedicated DSM administrative account is stored in `client-info-secret`.
 It is not restricted to Volume 3. TLS verification remains enabled.
+
+The account configuration was copied into Vault at
+`home-cloud/synology-csi/client-info` on 2026-10-04, preserving the live
+`client-info.yml` bytes. ESO synchronization is prepared under
+`kubernetes/synology-csi/external-secrets`, included in the full `synology-csi`
+Argo Application alongside the driver and StorageClass. Terraform was reported
+applied; operator Argo adoption remains pending. Follow the
+[CSI adoption guide](../kubernetes/synology-csi/README.md).
+The target remains `synology-csi/client-info-secret`; do not delete or recreate it.
+PVCs, PVs and NAS LUNs retain their existing owners.
+Vault/ESO depend on existing cluster storage: preserve the retained Kubernetes
+Secret during outages and do not prune it or delete storage to troubleshoot auth.
 
 IP-based HTTPS requests received HTTP 403 from the NAS frontend. Switching
 the configured host to `pulsar.home.antonu.org` fixed routing and both driver
@@ -296,7 +307,7 @@ Snapshots on this NAS alone are not independent backups.
 
 ## Planned, not deployed
 
-- Cilium LB-IPAM and BGP Control Plane; eBGP to MikroTik.
+- Argo CD and Cilium Gateway API: manifests prepared; deployment/acceptance pending.
 - Home Assistant migration from HAOS and migration of quantum-infra services.
 - Freed Raspberry Pis as Talos nodes, additional workers and inventory/API.
 - Ceph/Rook only if independent local disks/failure domains become available.
