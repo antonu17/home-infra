@@ -32,8 +32,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: deconz
-          # Match the source server for the initial Phoscon backup restore.
-          image: deconzcommunity/deconz:2.29.1
+          image: deconzcommunity/deconz:2.32.5
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
