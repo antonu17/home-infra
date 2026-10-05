@@ -4,8 +4,7 @@ metadata:
   name: mealie
   namespace: mealie
 spec:
-  # Migration gate: set to 1 in Git only after the stopped-source import matches.
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
