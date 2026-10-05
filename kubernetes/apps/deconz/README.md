@@ -98,6 +98,8 @@ hope device access will repair itself.
 Commit and push the reviewed declarative changes. Sync `gitops`,
 `home-cloud-gateway`, then `deconz`, all without pruning. This starts one deCONZ
 replica. The PVC uses `WaitForFirstConsumer` and binds when the pod is scheduled.
+All workload resources use the default sync wave so Argo creates the PVC and
+Deployment together; an earlier PVC wave would block waiting for its consumer.
 
 Read-only checks:
 

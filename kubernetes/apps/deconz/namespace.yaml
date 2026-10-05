@@ -3,7 +3,6 @@ kind: Namespace
 metadata:
   name: deconz
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"
     argocd.argoproj.io/sync-options: Prune=false
   labels:
     # Direct GPIO UART access requires a privileged container.
