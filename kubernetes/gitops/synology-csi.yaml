@@ -13,31 +13,11 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: synology-csi
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: storage.k8s.io
-      kind: CSIDriver
-    - group: storage.k8s.io
-      kind: StorageClass
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
-    - group: apps
-      kind: StatefulSet
-    - group: apps
-      kind: DaemonSet
-    - group: ""
-      kind: ServiceAccount
-    - group: rbac.authorization.k8s.io
-      kind: Role
-    - group: rbac.authorization.k8s.io
-      kind: RoleBinding
-    - group: external-secrets.io
-      kind: SecretStore
-    - group: external-secrets.io
-      kind: ExternalSecret
+    - group: "*"
+      kind: "*"
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
