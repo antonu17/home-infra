@@ -44,7 +44,9 @@ spec:
         kinds:
           - kind: HTTPRoute
     - name: deconz-websocket
-      hostname: deconz.home.antonu.org
+      # Keep hostname specificity equal to the 443 listener so the exact
+      # deCONZ hostname does not suppress its UI route on that listener.
+      hostname: "*.home.antonu.org"
       protocol: HTTPS
       port: 8443
       tls:
