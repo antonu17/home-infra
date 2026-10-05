@@ -94,10 +94,21 @@ docker --context quantum inspect --format '{{.State.Status}}' ankibot-anki-sync-
 
 docker --context quantum cp ankibot-anki-sync-1:/root/.syncserver/. \
   "$ANKI_MIGRATION_DIR/source/"
-tar -C "$ANKI_MIGRATION_DIR/source" -czf \
+COPYFILE_DISABLE=1 tar -C "$ANKI_MIGRATION_DIR/source" -czf \
   "$ANKI_MIGRATION_DIR/anki-sync-data.tar.gz" .
 shasum -a 256 "$ANKI_MIGRATION_DIR/anki-sync-data.tar.gz" | \
   tee "$ANKI_MIGRATION_DIR/anki-sync-data.tar.gz.sha256"
+
+python3 - "$ANKI_MIGRATION_DIR/anki-sync-data.tar.gz" <<'PY'
+import pathlib, sys, tarfile
+with tarfile.open(sys.argv[1], "r:gz") as archive:
+    unwanted = [
+        member for member in archive.getmembers()
+        if any(part.startswith("._") for part in pathlib.PurePosixPath(member.name).parts)
+    ]
+assert not unwanted, f"archive contains {len(unwanted)} AppleDouble entries"
+print("archive_appledouble_entries=0")
+PY
 ```
 
 Require Docker status `exited`, a non-empty archive and a recorded checksum. If
@@ -138,30 +149,70 @@ target = pathlib.Path("/data/syncserver")
 assert not target.exists()
 target.mkdir(mode=0o700)
 with tarfile.open("/tmp/anki-sync-data.tar.gz", "r:gz") as archive:
+    assert not any(
+        part.startswith("._")
+        for member in archive.getmembers()
+        for part in pathlib.PurePosixPath(member.name).parts
+    ), "archive contains macOS AppleDouble entries"
     archive.extractall(target, filter="data")
 '
 ```
 
-Check aggregate data and both SQLite databases without printing paths or content:
+Compare the restored tree with the stopped-source copy. These commands hash every
+relative path and every file byte, but print no filenames or content. Run the
+first command locally:
 
 ```sh
-kubectl -n anki-sync exec anki-sync-migration -- python -c '
-import pathlib, sqlite3
-root = pathlib.Path("/data/syncserver")
+python3 - "$ANKI_MIGRATION_DIR/source" <<'PY'
+import hashlib, pathlib, sys
+root = pathlib.Path(sys.argv[1])
 files = [path for path in root.rglob("*") if path.is_file()]
-magic = bytes.fromhex("53514c69746520666f726d6174203300")
-databases = [path for path in files if path.open("rb").read(16) == magic]
-for path in databases:
-    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-    assert connection.execute("PRAGMA quick_check").fetchall() == [("ok",)]
-    connection.close()
-print(f"files={len(files)} bytes={sum(path.stat().st_size for path in files)} sqlite_files={len(databases)} quick_check=ok")
-'
+digest = hashlib.sha256()
+total = 0
+for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+    relative = path.relative_to(root).as_posix().encode()
+    size = path.stat().st_size
+    digest.update(len(relative).to_bytes(8, "big"))
+    digest.update(relative)
+    digest.update(size.to_bytes(8, "big"))
+    total += size
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+print(f"files={len(files)} bytes={total} sha256={digest.hexdigest()}")
+PY
 ```
 
-Expect two SQLite files and `quick_check=ok`. The final file/byte counts may be
-slightly greater than the preflight inventory, but they must match a count taken
-from the stopped source copy. Preserve the final archive even after success.
+Then run the same calculation on the PVC:
+
+```sh
+kubectl -n anki-sync exec -i anki-sync-migration -- \
+  python - /data/syncserver <<'PY'
+import hashlib, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+files = [path for path in root.rglob("*") if path.is_file()]
+digest = hashlib.sha256()
+total = 0
+for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+    relative = path.relative_to(root).as_posix().encode()
+    size = path.stat().st_size
+    digest.update(len(relative).to_bytes(8, "big"))
+    digest.update(relative)
+    digest.update(size.to_bytes(8, "big"))
+    total += size
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+print(f"files={len(files)} bytes={total} sha256={digest.hexdigest()}")
+PY
+```
+
+Require the two output lines to be identical. Plain Python `sqlite3` must not be
+used for an integrity check here: Anki registers a custom `unicase` collation in
+its Rust backend, so a raw `PRAGMA quick_check` fails with `no such collation
+sequence: unicase` even when the database is healthy. The matching archive hash
+and content-tree hash verify the migration without changing the database.
+Preserve the final archive even after success.
 
 Remove only the temporary pod after verification:
 

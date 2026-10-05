@@ -7,9 +7,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   serviceName: anki-sync
-  # Migration gate: change to 1 only after the final stopped-source archive has
-  # been restored and verified on the PVC.
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: anki-sync
