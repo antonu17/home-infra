@@ -21,7 +21,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, anki-sync, argocd, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, deconz, gateway, home-assistant, kube-system]
         kinds:
           - kind: HTTPRoute
     - name: https
@@ -40,6 +40,23 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, anki-sync, argocd, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, deconz, gateway, home-assistant, kube-system]
+        kinds:
+          - kind: HTTPRoute
+    - name: deconz-websocket
+      hostname: deconz.home.antonu.org
+      protocol: HTTPS
+      port: 8443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: home-antonu-org-tls
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: deconz
         kinds:
           - kind: HTTPRoute

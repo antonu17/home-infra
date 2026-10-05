@@ -44,9 +44,12 @@ Always specify `-n` for maintenance: saved defaults can target multiple nodes.
 | `talos/image-factory/schematic-amd64.yaml` | Normal schematic source, including iSCSI extension |
 | `talos/image-factory/schematic-amd64.id` | Derived normal schematic ID |
 | `talos/image-factory/schematic-amd64-wipe.{yaml,id}` | Separate destructive reprovisioning schematic |
+| `talos/image-factory/schematic-rpi4.yaml` | Normal Raspberry Pi 4 schematic with iSCSI support |
+| `talos/image-factory/schematic-rpi4-raspbee.{yaml,id}` | Raspberry Pi 4 schematic with the serial console removed for RaspBee II UART access |
 | `talos/patches/cilium.yaml` | Disable proxy deployment and remove legacy CNI documents |
 | `talos/patches/cp-01.yaml`, `cp-02.yaml`, `cp-03.yaml` | DHCP, common VIP and individual hostname |
 | `talos/patches/worker-01.yaml` | Worker hostname |
+| `talos/patches/worker-02.yaml` | Physical Raspberry Pi worker hostname and persistent hardware/workload labels |
 | `talos/secrets/home-cloud.yaml` | Persistent, sensitive cluster identity input |
 | `talos/generated/` | Disposable generated configs and client credentials |
 | `kubernetes/cilium/values.yaml` | Actual Cilium Helm settings |

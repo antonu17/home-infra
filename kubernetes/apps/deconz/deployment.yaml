@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deconz
+  namespace: deconz
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: deconz
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: deconz
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: hardware.home.antonu.org/raspbee2
+                    operator: In
+                    values:
+                      - "true"
+                  - key: storage.home.antonu.org/synology-iscsi
+                    operator: In
+                    values:
+                      - "true"
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: deconz
+          # Match the source server for the initial Phoscon backup restore.
+          image: deconzcommunity/deconz:2.29.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: Europe/Berlin
+            - name: DECONZ_WEB_PORT
+              value: "8080"
+            - name: DECONZ_WS_PORT
+              value: "8443"
+            - name: DECONZ_DEVICE
+              value: /dev/ttyAMA0
+            - name: DECONZ_BAUDRATE
+              value: "38400"
+            - name: DEBUG_INFO
+              value: "1"
+            - name: DEBUG_APS
+              value: "0"
+            - name: DEBUG_ZCL
+              value: "0"
+            - name: DEBUG_ZDP
+              value: "0"
+            - name: DEBUG_OTA
+              value: "0"
+            - name: DECONZ_VNC_MODE
+              value: "0"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: websocket
+              containerPort: 8443
+              protocol: TCP
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            seccompProfile:
+              type: Unconfined
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /opt/deCONZ
+            - name: raspbee-uart
+              mountPath: /dev/ttyAMA0
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: deconz-data
+        - name: raspbee-uart
+          hostPath:
+            path: /dev/ttyAMA0
+            type: CharDevice

@@ -24,6 +24,7 @@ time, against the intended home-cloud kubeconfig.
 | Argo child `external-dns` | Official chart-rendered DNS controller/webhook, RBAC and network policy; initially dry-run |
 | Argo child `adsb` | Node-pinned RTL-SDR decoder plus FlightAware/Flightradar24 feeders |
 | Argo child `anki-sync` | Anki Sync Server, retained Synology-backed data and Vault-sourced credentials |
+| Argo child `deconz` | Node-pinned deCONZ/Phoscon with RaspBee II UART access and retained application data |
 | Operator | Git-ignored Route53 credential Secret |
 | cert-manager controller | Generated account keys, challenges and Gateway frontend TLS Secret |
 

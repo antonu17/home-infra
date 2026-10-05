@@ -1,0 +1,52 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: deconz
+  namespace: deconz
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - deconz.home.antonu.org
+  rules:
+    - backendRefs:
+        - name: deconz
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: deconz-websocket
+  namespace: deconz
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: deconz-websocket
+  hostnames:
+    - deconz.home.antonu.org
+  rules:
+    - backendRefs:
+        - name: deconz
+          port: 8443
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: deconz-redirect
+  namespace: deconz
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: http
+  hostnames:
+    - deconz.home.antonu.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
