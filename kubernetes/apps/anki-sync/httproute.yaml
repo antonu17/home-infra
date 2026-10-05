@@ -1,0 +1,35 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: anki-sync
+  namespace: anki-sync
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - anki-anton.home.antonu.org
+  rules:
+    - backendRefs:
+        - name: anki-sync
+          port: 8088
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: anki-sync-redirect
+  namespace: anki-sync
+spec:
+  parentRefs:
+    - name: home-cloud
+      namespace: gateway
+      sectionName: http
+  hostnames:
+    - anki-anton.home.antonu.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

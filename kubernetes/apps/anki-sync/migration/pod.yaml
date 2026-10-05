@@ -1,0 +1,42 @@
+# One-time operator-owned migration pod. This file is intentionally excluded from
+# the Argo Kustomization and must be deleted after the PVC import is verified.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: anki-sync-migration
+  namespace: anki-sync
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: storage.home.antonu.org/synology-iscsi
+                operator: In
+                values:
+                  - "true"
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: migration
+      image: python:3.12-slim
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec, "sleep 86400"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: anki-sync-data

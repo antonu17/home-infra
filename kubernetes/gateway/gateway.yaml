@@ -21,7 +21,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, argocd, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, gateway, home-assistant, kube-system]
         kinds:
           - kind: HTTPRoute
     - name: https
@@ -40,6 +40,6 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [adsb, argocd, gateway, home-assistant, kube-system]
+                values: [adsb, anki-sync, argocd, gateway, home-assistant, kube-system]
         kinds:
           - kind: HTTPRoute

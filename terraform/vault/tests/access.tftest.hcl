@@ -44,7 +44,7 @@ run "default_workload_scope" {
   }
   assert {
     condition = alltrue([
-      for name in ["adsb", "external-dns", "synology-csi"] :
+      for name in ["adsb", "anki-sync", "external-dns", "synology-csi"] :
       vault_kubernetes_auth_backend_role.eso[name].bound_service_account_names == toset(["vault-eso"]) &&
       vault_kubernetes_auth_backend_role.eso[name].bound_service_account_namespaces == toset([name]) &&
       vault_kubernetes_auth_backend_role.eso[name].token_policies == toset(["eso-${name}"]) &&

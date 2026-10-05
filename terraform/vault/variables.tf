@@ -79,6 +79,11 @@ variable "eso_roles" {
       service_account = "vault-eso"
       secret_prefix   = "adsb"
     }
+    anki-sync = {
+      namespace       = "anki-sync"
+      service_account = "vault-eso"
+      secret_prefix   = "anki-sync"
+    }
     cert-manager = {
       namespace       = "cert-manager"
       service_account = "vault-eso"

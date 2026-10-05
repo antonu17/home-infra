@@ -10,6 +10,7 @@ they do **not** mean Argo CD or the Gateway has been deployed.
 - [PXE](docs/pxe.md), [Image Factory / registry](docs/talos-mirror.md)
 - [Home Assistant Kubernetes deployment and deferred migration](kubernetes/apps/home-assistant/README.md)
 - [ADS-B receiver Kubernetes deployment](kubernetes/apps/adsb/README.md)
+- [Anki Sync Server Kubernetes deployment and data migration](kubernetes/apps/anki-sync/README.md)
 - [ExternalDNS activation and ownership tests](docs/external-dns.md)
 - [cert-manager / Route53 Argo CD onboarding](docs/cert-manager.md)
 - [Current Gateway TLS termination / Argo bootstrap](docs/gateway-bootstrap.md)
@@ -26,6 +27,7 @@ kubernetes/
   external-dns/              # official chart values, scoped policy, optional test
   apps/home-assistant/        # Argo-managed fresh Home Assistant Container
   apps/adsb/                  # Argo-managed RTL-SDR decoder and feeder stack
+  apps/anki-sync/             # Argo-managed Python-based Anki Sync Server, initially scaled to zero
   synology-csi/               # Argo adoption: driver, retained StorageClass, ESO
 ```
 
