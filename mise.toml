@@ -1,3 +1,4 @@
 [tools]
-talos = "1.14.2"
+cmctl = "latest"
 talosctl = "1.14.2"
+terraform = "latest"
