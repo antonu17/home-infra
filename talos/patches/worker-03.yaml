@@ -1,11 +1,10 @@
 apiVersion: v1alpha1
 kind: HostnameConfig
 auto: off
-hostname: talos-worker-02
+hostname: talos-worker-03
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig
 labels:
-  hardware.home.antonu.org/rtl-sdr: "true"
   storage.home.antonu.org/synology-iscsi: "true"
-  workload.home.antonu.org/home-assistant: "true"
+  hardware.home.antonu.org/raspbee2: "true"

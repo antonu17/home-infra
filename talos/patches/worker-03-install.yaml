@@ -1,0 +1,10 @@
+# DESTRUCTIVE: Quantum 192.168.40.42, SanDisk NVMe serial 24380U800133 only.
+# Requires boot-only SD with no recognized META partition and independent backups.
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+  image: registry.home.antonu.org/talos/custom-rpi5/installer@sha256:2c8c7da39af1b40750687b234fae81f866f5573c1cf569198cc0fb5323c8b89e
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/nvme0n1" && disk.serial == "24380U800133"
+  wipe: true
