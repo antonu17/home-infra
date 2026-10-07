@@ -37,7 +37,7 @@ variable "kubernetes_ca_cert" {
 }
 
 variable "kubernetes_token_reviewer_jwt" {
-  description = "Dedicated reviewer service-account JWT with TokenReview permission; rotate before expiry."
+  description = "Dedicated persistent reviewer service-account JWT with TokenReview-only permission; rotate if compromised."
   type        = string
   sensitive   = true
   validation {

@@ -99,7 +99,7 @@ validated; plan a controlled driver rollout separately for an actual rotation.
 Identical-value adoption does not require a restart. RouterOS and DSM account
 changes remain separate operator actions.
 
-The dedicated reviewer JWT is still an expiring input to Vault Kubernetes auth;
+The dedicated reviewer JWT is a persistent TokenReview-only credential;
 see [Terraform reviewer maintenance](../terraform/vault/README.md#reviewer-token-maintenance).
 ESO does not automatically rotate it.
 

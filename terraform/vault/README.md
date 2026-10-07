@@ -176,23 +176,26 @@ existing owners; follow the [CSI guide](../../kubernetes/synology-csi/README.md)
 
 ## Reviewer token maintenance
 
-The current module still passes a dedicated `token_reviewer_jwt` to Vault.
-`external-secrets/vault-token-reviewer` and its TokenReview-only RBAC are managed
-alongside ESO in `kubernetes/external-secrets/vault-reviewer.yaml`; do not apply
-the duplicate reviewer example separately.
+The module passes a dedicated persistent `token_reviewer_jwt` to Vault.
+`external-secrets/vault-token-reviewer`, its TokenReview-only RBAC, and its
+`kubernetes.io/service-account-token` Secret are declared in
+`kubernetes/external-secrets/vault-reviewer.yaml`. Kubernetes generates the Secret's
+token data; credential values must never be added to Git. The Secret is protected
+from Argo pruning and application deletion.
 
-ESO creates short-lived **workload login tokens** through each store's
-`serviceAccountRef`. It does not renew the dedicated reviewer JWT stored in
-`.private/vault-reviewer.jwt` or update Vault's auth configuration.
+On 2026-10-07, the existing reviewer credential was rejected by Kubernetes with
+401 Unauthorized. A persistent service-account-token Secret was created, its
+token saved privately to `.private/vault-reviewer.jwt`, and the existing Vault
+`kubernetes-home-cloud` auth mount updated. This credential has no scheduled
+expiry. Deleting its Secret or service account revokes it; rotate it if exposed.
+ESO workload login tokens remain short-lived and automatically requested.
 
-The earlier reviewer token was requested with a 24-hour lifetime; the API server
-may have limited that duration. Before it expires, obtain a replacement for the
-same reviewer identity using an API-accepted audience, save it privately at the
-configured path, reload direnv, and plan/apply Terraform. Expiry breaks new Vault
-Kubernetes logins. This maintenance remains required by the current design;
-removing manual reviewer rotation requires an authentication design change, not
-just a README edit. Keep the reviewer audience separate from the workload login
-audience `vault`.
+The repair updated Vault directly because the Terraform state share was unmounted.
+The private Terraform input now contains the replacement credential. Mount the
+existing state share before the next Terraform operation; review the plan and
+preserve all existing roles and policies. Commit/push the declarative Secret and
+sync the existing external-secrets Argo application to adopt it; no token data
+belongs in the source manifest.
 
 ## References
 

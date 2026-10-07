@@ -21,8 +21,8 @@ Secret permissions: restrict who can change its Git sources and RBAC.
 Automatic RBAC aggregation and global service-account TokenRequest grants are
 disabled. The package now includes `vault-token-reviewer` and dedicated
 TokenReview-only ClusterRole/ClusterRoleBinding for the NAS-hosted Vault; these
-are repository-prepared and require an operator Argo sync. Its JWT must be
-issued privately by the operator and rotated before expiry. Future Vault Kubernetes authentication must add a namespaced Role
+are deployed. A persistent service-account-token Secret supplies the reviewer JWT
+for NAS-hosted Vault; its payload stays outside Git. Rotate it if exposed. Future Vault Kubernetes authentication must add a namespaced Role
 restricted to the selected service account's `serviceaccounts/token` subresource
 and a RoleBinding to ESO's controller service account.
 
