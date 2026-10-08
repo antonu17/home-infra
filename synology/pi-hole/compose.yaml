@@ -1,0 +1,15 @@
+services:
+  pihole:
+    image: pihole/pihole:2026.09.0
+    ports:
+      - "8081:80/tcp"
+      - "53:53/udp"
+      - "53:53/tcp"
+    environment:
+      TZ: Europe/Berlin
+      FTLCONF_webserver_api_password: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in the private .env file}
+      # Required for DNS requests forwarded through Docker's bridge network.
+      FTLCONF_dns_listeningMode: ALL
+    volumes:
+      - ./etc-pihole:/etc/pihole
+    restart: unless-stopped
