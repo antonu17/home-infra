@@ -1,0 +1,5 @@
+.env
+.env.*
+!.env.example
+ssh/*
+!ssh/config.example

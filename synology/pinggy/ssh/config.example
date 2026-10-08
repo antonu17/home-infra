@@ -1,0 +1,13 @@
+Host pinggy
+    HostName free.pinggy.io
+    Port 443
+    User tcp
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    GlobalKnownHostsFile /dev/null
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    ExitOnForwardFailure yes
+    RequestTTY no
+    ForwardAgent no
+    ConnectTimeout 20

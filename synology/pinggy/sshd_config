@@ -1,0 +1,20 @@
+Port 2222
+ListenAddress 127.0.0.1
+HostKey /var/lib/ssh-host-keys/ssh_host_ed25519_key
+PidFile /run/sshd/sshd.pid
+AuthorizedKeysFile .ssh/authorized_keys
+PermitRootLogin no
+AllowUsers tunnel
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+StrictModes yes
+AllowAgentForwarding no
+AllowTcpForwarding local
+GatewayPorts no
+X11Forwarding no
+PermitTunnel no
+PermitUserEnvironment no
+PrintMotd no
+Subsystem sftp internal-sftp

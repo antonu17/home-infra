@@ -1,0 +1,29 @@
+services:
+  pinggy:
+    build: .
+    image: home-infra/pinggy:local
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID, SYS_CHROOT]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN privately}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      RECONNECT_DELAY: "10"
+    volumes:
+      - ./scripts:/app:ro
+      - ./ssh:/mnt/ssh:ro
+      - ssh-host-keys:/var/lib/ssh-host-keys
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run:rw,noexec,nosuid,size=4m,mode=0755
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "3"
+volumes:
+  ssh-host-keys:
