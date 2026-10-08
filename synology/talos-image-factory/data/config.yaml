@@ -1,0 +1,43 @@
+http:
+  httpListenAddr: "0.0.0.0:8080"
+  externalURL: "https://talos.home.antonu.org"
+  externalPXEURL: "http://talos.home.antonu.org"
+
+build:
+  maxConcurrency: 2
+
+cache:
+  oci:
+    registry: registry.home.antonu.org
+    namespace: siderolabs
+    repository: image-factory-cache
+    insecure: false
+
+  signingKeyPath: /etc/image-factory/cache-signing-key.key
+
+artifacts:
+  # Initially get the Talos build inputs from upstream.
+  core:
+    registry: ghcr.io
+    insecure: false
+
+  # Store submitted schematics in our own registry.
+  schematic:
+    registry: registry.home.antonu.org
+    namespace: siderolabs
+    repository: image-factory-schematic
+    insecure: false
+
+  # Image Factory pushes generated Talos installer images here.
+  installer:
+    internal:
+      registry: registry.home.antonu.org
+      namespace: siderolabs
+      repository: installer
+      insecure: false
+
+    external:
+      registry: registry.home.antonu.org
+      namespace: siderolabs
+      repository: installer
+      insecure: false

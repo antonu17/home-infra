@@ -1,0 +1,50 @@
+services:
+  key-init:
+    image: alpine/openssl:3.5.8
+    restart: "no"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./data:/etc/image-factory
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        umask 077
+        key=/etc/image-factory/cache-signing-key.key
+        if [ -e "$$key" ] || [ -L "$$key" ]; then
+          [ ! -L "$$key" ] && [ -f "$$key" ] && [ -s "$$key" ] || {
+            echo "Existing signing key is not a non-empty regular file" >&2
+            exit 1
+          }
+          openssl ec -passin pass: -in "$$key" -check -noout >/dev/null 2>&1 || {
+            echo "Existing signing key is not a valid unencrypted EC private key" >&2
+            exit 1
+          }
+          echo "Preserving existing cache signing key"
+          exit 0
+        fi
+        tmp=$$(mktemp /etc/image-factory/.cache-signing-key.XXXXXX)
+        trap 'rm -f "$$tmp"' EXIT HUP INT TERM
+        openssl ecparam -name prime256v1 -genkey -noout -out "$$tmp"
+        # Publish atomically; never replace an existing signing identity.
+        ln "$$tmp" "$$key"
+        echo "Generated and persisted ECDSA P-256 cache signing key"
+
+  image-factory:
+    image: ghcr.io/siderolabs/image-factory:v1.7.0
+    container_name: talos-image-factory
+    restart: unless-stopped
+    depends_on:
+      key-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    volumes:
+      # Share configuration and the persisted key; the factory only reads them.
+      - ./data:/etc/image-factory:ro
+    command:
+      - --config
+      - /etc/image-factory/config.yaml
