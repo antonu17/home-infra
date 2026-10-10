@@ -26,7 +26,7 @@ No live menu upload or current client boot test was supplied during this audit.
 
 The 2026-10-10 DHCP export and common DHCP source name `ipxe-x86_64.efi`.
 The repository TFTP source maps that requested name to the existing physical
-binary `flash/pxe/ipxe.efi`. Uploading a file alone does not create this mapping;
+binary `flash/pxe/ipxe-x86_64.efi`. Uploading a file alone does not create this mapping;
 verify the live TFTP configuration before booting a client.
 
 Operator confirmed on 2026-10-10 that no PXE boot-file changes are known.
@@ -39,12 +39,12 @@ mapping has not been applied or boot-tested by the agent.
 |---|---|
 | `autoexec.ipxe` | Prevents self-chainloading and transfers control to the menu |
 | `boot.ipxe` | Current AMD64 normal/wipe and Pi 4 ARM64 maintenance entries; HTTP transport |
-| `ipxe.efi` | Existing EFI bootstrap binary, served as `ipxe-x86_64.efi` |
-| `SHA256SUMS` | Recorded checksum of the existing `ipxe.efi` binary |
+| `ipxe-x86_64.efi` | Existing EFI bootstrap binary, served as `ipxe-x86_64.efi` |
+| `SHA256SUMS` | Recorded checksum of the existing `ipxe-x86_64.efi` binary |
 | `talos/image-factory/schematic-amd64.yaml` | Current reproducible normal schematic |
 | `talos/image-factory/schematic-amd64-wipe.yaml` | Destructive system-wipe schematic |
 
-The existing `ipxe.efi` binary is preserved; its build/download provenance
+The existing `ipxe-x86_64.efi` binary is preserved; its build/download provenance
 is not established by the repository. Its checksum verifies file integrity,
 not boot compatibility.
 
@@ -64,11 +64,11 @@ after reboot. Create the persistent directory:
 ```
 
 Upload the contents of `network/mikrotik-rb5009upr/pxe/files/` into `flash/pxe/` using WinBox,
-WebFig, SFTP or SCP. Do not upload `routeros.rsc` into the served directory.
+WebFig, SFTP or SCP. Keep `.rsc` configuration files outside the served directory.
 
 If `/file print` does not show a `flash` directory, determine the persistent
-root for this device and adjust every `real-filename` in `routeros.rsc` before
-importing it.
+root for this device. `15-pxe.rsc` selects `flash/pxe/` when `flash` exists,
+otherwise `pxe/`; review this selection against `/file print` before importing.
 
 Verify:
 
@@ -76,40 +76,69 @@ Verify:
 /file print detail where name~"pxe"
 ```
 
-The existing `ipxe.efi` binary is `1163776` bytes. The SHA-256 recorded in this repository
+The existing `ipxe-x86_64.efi` binary is `1163776` bytes. The SHA-256 recorded in this repository
 is:
 
 ```text
 3b6285d2a1f8f184e86336a840c5e974780badfda06224acd5d3cf10a721ad81
 ```
 
-## 2. Legacy PXE configuration — reconcile before importing
+## 2. Idempotent PXE configuration
 
-The common DHCP source preserves the operator's boot filename
-`ipxe-x86_64.efi`. The reference `network/mikrotik-rb5009upr/pxe/routeros.rsc`
-maps this name to `flash/pxe/ipxe.efi`. It unconditionally adds TFTP mappings,
-so it is excluded from numbered idempotent imports. Do not re-import it on top
-of existing mappings; inspect the live entries and reconcile them first.
-Read the reference before using any of its mappings. It:
+[`15-pxe.rsc`](../network/mikrotik-rb5009upr/15-pxe.rsc) is the numbered
+RouterOS TFTP source. The former nested script has been removed.
+DHCP boot fields have one owner: `10-dhcp.rsc` preserves next-server
+`192.168.40.1` and boot filename `ipxe-x86_64.efi`.
+No DHCP scope, option or reservation is modified by file15.
 
-- limits TFTP clients to `192.168.40.0/24`;
-- permits only three exact filenames;
-- accepts each permitted filename with or without the leading slash used by
-  explicit iPXE TFTP URLs;
-- makes every TFTP mapping read-only;
-- limits negotiated TFTP blocks to 1468 bytes;
-- sets the VLAN 400 DHCP `next-server` to `192.168.40.1`;
-- sets the initial boot filename to `ipxe-x86_64.efi`.
+The file validates all three uploaded files are present and non-empty before
+changing anything. TFTP rules use stable descriptive comments. A unique old
+filename expression can be adopted even without its current comment; matching
+both an old row and a managed row is a duplicate and stops the import.
+Review duplicates manually rather than deleting arbitrary rules.
 
-Legacy/fresh setup only: these are **operator-run live changes**, after reconciling
-the boot filename with `network/mikrotik-rb5009upr/10-dhcp.rsc` and verifying paths:
+| Requested filename (optional leading slash) | Physical file | Stable comment |
+|---|---|---|
+| `ipxe-x86_64.efi` | `ipxe-x86_64.efi` | PXE x86-64 UEFI bootstrap |
+| `autoexec.ipxe` | `autoexec.ipxe` | PXE iPXE automatic startup |
+| `boot.ipxe` | `boot.ipxe` | PXE home-cloud boot menu |
+
+All managed rules restrict clients to `192.168.40.0/24`, are enabled/read-only,
+and use anchored expressions such as `^/?boot[.]ipxe$`. `ip-addresses` is the
+full RouterOS property name. `max-block-size=1468` preserves the existing
+fragmentation-avoidance setting. See [MikroTik TFTP documentation](https://manual.mikrotik.com/docs/cli-reference/ip/tftp/)
+and [block-size guidance](https://help.mikrotik.com/docs/spaces/ROS/pages/131366922/TFTP).
+
+TFTP uses the first matching rule. The import puts the three managed rules
+first in bootstrap/startup/menu order on every import. Other rules are retained:
+these three mappings do **not** eliminate access allowed by unrelated broad
+rules for other filenames or client networks. Inspect those separately. No
+catch-all allow/deny, broad removal or additional firewall rule is introduced.
+
+Operator-run, after uploading/checking the files and recording current TFTP
+rule properties/order and the global block-size setting privately:
 
 ```routeros
-/import file-name=routeros.rsc verbose=yes dry-run=yes
-/import file-name=routeros.rsc verbose=yes
+/ip tftp print detail
+/ip tftp settings print
+/file print detail where name~"pxe"
+/import file-name=15-pxe.rsc verbose=yes dry-run=yes
+/import file-name=15-pxe.rsc verbose=yes
 ```
 
-Alternatively, paste the reviewed commands section by section.
+If common DHCP is already imported, only file15 needs reapplication for this
+TFTP change. For full configuration, follow the alphabetical numbered imports;
+file15 requires uploaded assets but has no dependency on SSDP containers.
+Missing files or duplicate identities stop before any configuration mutation.
+Imports are not atomic; a runtime failure after preflight can leave partial
+updates. Fix the error and re-import to reconcile the same objects.
+
+Rollback: restore the three rows' recorded previous properties and positions,
+remove only managed rows that were newly added, and restore the previous
+`max-block-size` value. Uploaded assets are never altered by the script.
+DHCP rollback is unnecessary for a file15-only import because it does not
+modify DHCP. Do not remove all TFTP rules. No live import or PXE boot test has
+been performed by the agent.
 
 ## 3. Verify RouterOS
 
@@ -194,12 +223,9 @@ from the normal schematic and never make it the default menu choice.
 
 An explicit URL such as `tftp://192.168.40.1/boot.ipxe` requests the TFTP
 filename `/boot.ipxe`, including its leading slash. The supplied RouterOS
-rules accept both `boot.ipxe` and `/boot.ipxe`. If an older rule was already
-installed, update it in place:
-
-```routeros
-/ip tftp set [find where comment="PXE home-cloud boot menu"] req-filename="(boot[.]ipxe)|(/boot[.]ipxe)"
-```
+rules accept both `boot.ipxe` and `/boot.ipxe`. Re-import `15-pxe.rsc` to reconcile the exact anchored filename expressions,
+including the optional leading slash. Inspect rule hits and firewall counters
+if transfer still fails; do not add a wildcard TFTP mapping.
 
 ## Scope and next step
 
@@ -209,3 +235,10 @@ cluster uses locally generated Talos machine configurations with persistent
 secrets; Omni/inventory automation is not deployed. The Pi workers already
 joined VLAN400 and Kubernetes. The Pi 4 ARM64 menu entry exists, but verified Raspberry Pi firmware
 network boot remains outside this x86-64 UEFI chainloader runbook; Quantum's SD/NVMe boot is covered by [its history](quantum-talos-build-history.md).
+
+Operator file inventory on 2026-10-10 confirms `flash/pxe/ipxe-x86_64.efi`,
+`autoexec.ipxe` and `boot.ipxe` already exist. File15 and the repository binary
+name now match this layout. The displayed EFI size agrees with the repository
+size, but the live binary checksum has not been verified. The router's uploaded
+`SHA256SUMS` still references a removed bootstrap binary; replace that checksum
+file from the repository during the next asset upload. File15 does not use it.

@@ -1,19 +1,18 @@
 # RouterOS PXE assets
 
-Moved here from the former `mikrotik/pxe/` directory on 2026-10-10. The existing `ipxe.efi` binary and iPXE scripts are preserved. This repository move does not change
-router storage: uploaded boot files still live under `flash/pxe/`.
+`files/` contains the existing `ipxe-x86_64.efi` binary, its checksum, `autoexec.ipxe`
+and `boot.ipxe`. Upload these assets manually to persistent `flash/pxe/` storage
+(or `pxe/` when the router has no `flash` directory).
 
-See [the PXE runbook](../../../docs/pxe.md). Common DHCP is owned by
-[`10-dhcp.rsc`](../10-dhcp.rsc); current firewall allowances are in
-[`09-firewall-filter.rsc`](../09-firewall-filter.rsc).
+[`15-pxe.rsc`](../15-pxe.rsc) owns native TFTP settings and idempotent mappings.
+[`10-dhcp.rsc`](../10-dhcp.rsc) owns DHCP, including the Cloud boot filename
+`ipxe-x86_64.efi` and next-server `192.168.40.1`.
+[`09-firewall-filter.rsc`](../09-firewall-filter.rsc) owns firewall allowances.
+[`14-static-dns.rsc`](../14-static-dns.rsc) owns Image Factory/registry names.
+There is no separate nested RouterOS import script.
 
-`routeros.rsc` is a **legacy bootstrap reference**, excluded from the numbered
-idempotent imports. It unconditionally adds TFTP mappings. Its requested boot
-filename `ipxe-x86_64.efi` matches common DHCP and maps to the physical file
-`flash/pxe/ipxe.efi`. Check existing live mappings before using this reference;
-repeated imports would add duplicate mappings.
-
-`files/` contains the existing EFI binary, checksum, `autoexec.ipxe` and
-`boot.ipxe`. The menu uses current schematic IDs over HTTP and includes a
+The requested name `ipxe-x86_64.efi` maps to physical file `ipxe-x86_64.efi`.
+The menu uses current schematic IDs over HTTP and includes a
 **DESTRUCTIVE system-wipe entry**; never make that entry the default.
-No router upload, import or provisioning has been performed by the agent.
+See [the PXE runbook](../../../docs/pxe.md) for prerequisites, imports,
+verification and rollback. No upload, import or boot test was executed by the agent.

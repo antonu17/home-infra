@@ -21,6 +21,8 @@ Each object has a stable key:
 | Interface-list members | `list` + `interface` |
 | Firewall address entries | `list` + `address`; keep static entries permanent and enabled; reject dynamic matches |
 | Firewall filter rules | unique descriptive `comment`; update properties and order |
+| PXE TFTP mappings | descriptive `comment`; adopt a unique previous filename mapping |
+| Static DNS records | exact `name`; reject duplicates and ownership conflicts |
 | WAN masquerade | `WAN Internet masquerade`; also adopt the old `defconf: masquerade` comment |
 
 Every add is inside an absent-object check. Multiple matches stop with an error;
@@ -104,6 +106,8 @@ individually, in alphabetical filename order (numeric prefixes encode dependenci
 /import file-name=11-mdns.rsc
 # SSDP files 12/13 have separate prerequisites documented below.
 /import file-name=14-static-dns.rsc
+# Requires the three uploaded PXE files; see the PXE runbook.
+/import file-name=15-pxe.rsc
 ```
 
 The same order is used on every reapplication; no separate first-run procedure.
@@ -121,13 +125,15 @@ Use local Home IP access to 192.168.100.1 via ether4/8; Safe Mode is optional ro
 protection, not part of the configuration. Do not rely on a NAS-hosted remote path
 for applying disruptive network changes.
 
-## PXE assets and legacy reference
+## PXE configuration and assets
 
-PXE files now live in [`pxe/`](pxe/README.md) within this router package. The
-move changes repository paths only; router files remain under `flash/pxe/`.
-Do not include nested `pxe/routeros.rsc` in the numbered imports: it is a legacy
-non-idempotent bootstrap that unconditionally adds TFTP mappings.
-See [the PXE runbook](../../docs/pxe.md) before any upload or import.
+[`15-pxe.rsc`](15-pxe.rsc) reconciles native TFTP settings and three read-only
+VLAN400 mappings. It validates the uploaded assets before any mutation,
+adopts unique previous mappings and restores deterministic first-match order.
+DHCP remains owned exclusively by `10-dhcp.rsc`; no DHCP settings are duplicated.
+Assets remain under [`pxe/files/`](pxe/README.md). There is no nested import script.
+See [the PXE runbook](../../docs/pxe.md) for storage, prerequisites, verification,
+existing-rule limitations and rollback before importing file15.
 
 ## Target interfaces and VLANs
 
@@ -275,7 +281,7 @@ The NAS address remains static DSM configuration, outside this DHCP file.
 
 Cloud keeps the exact live-export PXE values: `next-server=192.168.40.1` and
 `boot-file-name=ipxe-x86_64.efi`. The PXE reference maps that requested name to
-`flash/pxe/ipxe.efi`; verify the live file and mapping. This DHCP change does not
+`flash/pxe/ipxe-x86_64.efi`; verify the live file and mapping. This DHCP change does not
 rewrite TFTP mappings/files or substitute another boot filename.
 Home/Guest lease times were omitted by the export; the documented RouterOS default
 30m is made explicit. Other unmentioned server/network/lease options are retained.
