@@ -1,9 +1,9 @@
-# Common IPv4 DHCP. Names, networks, DNS, domain, PXE and five reservations
+# Common IPv4 DHCP. Names, networks, DNS, domain, PXE and original reservations
 # come from the operator export dated 2026-10-10 (RouterOS7.24.4).
 # Pool ranges were not included: preserve existing pools, create missing pools
 # using the documented plan below. Reconcile ranges with /ip pool export.
 # No scopes for VLAN1/500. Only the exact former printer lease may be retired.
-# No DNS records or WAN DHCP changes; printer identity supplied 2026-10-10.
+# No DNS records or WAN DHCP changes; printer identities supplied 2026-10-10.
 
 # Preflight every managed identity before changing DHCP objects.
 :if ([/ip dns get allow-remote-requests] != true) do={ :error "Router DNS must already serve clients; DHCP does not enable it" }
@@ -90,6 +90,17 @@
     }
     :foreach row in=[/ip dhcp-server lease find where address="192.168.30.3"] do={
         :if (([/ip dhcp-server lease get $row mac-address] != "40:23:43:D9:F3:90") || ([/ip dhcp-server lease get $row server] != "dhcp300-iot")) do={ :error "192.168.30.3 is reserved for another client/server" }
+    }
+}
+
+# Bambu P2S: confirmed Wi-Fi identity; stop rather than move an unrelated lease.
+:do {
+    :if ([:len [/ip dhcp-server lease find where mac-address="EC:B5:0A:86:6F:30"]] > 1) do={ :error "Multiple Bambu P2S leases; reconcile first" }
+    :foreach row in=[/ip dhcp-server lease find where mac-address="EC:B5:0A:86:6F:30"] do={
+        :if ([/ip dhcp-server lease get $row server] != "dhcp300-iot") do={ :error "Bambu P2S lease belongs to another server; connect to IoT SSID and reconcile first" }
+    }
+    :foreach row in=[/ip dhcp-server lease find where address="192.168.30.4"] do={
+        :if (([/ip dhcp-server lease get $row mac-address] != "EC:B5:0A:86:6F:30") || ([/ip dhcp-server lease get $row server] != "dhcp300-iot")) do={ :error "192.168.30.4 is reserved for another client/server" }
     }
 }
 
@@ -270,5 +281,18 @@
             /ip dhcp-server lease make-static $existing
         }
         /ip dhcp-server lease set $existing server=dhcp400-home-cloud address=192.168.40.42 mac-address=2C:CF:67:1B:D6:FE client-id="" disabled=no comment="talos-worker-03"
+    }
+}
+
+# Reconnect the Bambu P2S to the IoT SSID to obtain its reserved address.
+:do {
+    :local existing [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="EC:B5:0A:86:6F:30"]
+    :if ([:len $existing] = 0) do={
+        /ip dhcp-server lease add server=dhcp300-iot address=192.168.30.4 mac-address=EC:B5:0A:86:6F:30 client-id="" disabled=no comment="3dprinter"
+    } else={
+        :if ([/ip dhcp-server lease get $existing dynamic] = true) do={
+            /ip dhcp-server lease make-static $existing
+        }
+        /ip dhcp-server lease set $existing server=dhcp300-iot address=192.168.30.4 mac-address=EC:B5:0A:86:6F:30 client-id="" disabled=no comment="3dprinter"
     }
 }

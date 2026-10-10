@@ -32,7 +32,8 @@
 - `docs/` is the operational source for addressing, PXE, Talos, image promotion, GitOps, Gateway, ExternalDNS, and cert-manager procedures. Read the linked runbook before touching its subsystem.
 - `talos/` contains Image Factory schematics and machine-config patches. Persistent cluster identity belongs in ignored `talos/secrets/`; generated configs and kubeconfigs belong in ignored `talos/generated/`.
 - `network/mikrotik-rb5009upr/` owns the RouterOS configuration and `pxe/` assets.
-  `mikrotik/` retains legacy DNS/VIP examples; `rb5009-config.rsc` is a sensitive
+  `14-static-dns.rsc` owns static infrastructure DNS outside ExternalDNS;
+  `10-dhcp.rsc` owns Talos leases. `rb5009-config.rsc` is a sensitive
   router export. Repository exports may lag the live router; do not infer current firewall, VLAN, BGP, DNS, or multicast state without explicit evidence.
 - `kubernetes/cilium/` is owned by the Argo CD `cilium` Application. Kustomize renders the pinned Helm chart using `values.yaml` and includes the BGP/LB-IPAM resources in `manifests/` and pinned Gateway API CRDs. Do not use independent Helm upgrades or direct applies that compete with this Application.
 - `kubernetes/synology-csi/` is owned by the Argo CD `synology-csi` Application, including its driver, retained StorageClass and Vault/ESO credential resources. The operator confirmed Cilium and CSI adoption on 2026-10-10. Sync remains operator-run; no automated pruning or cascading deletion. Treat PVC/PV/LUN deletion, selector changes, and vendor-manifest replacement as high risk.

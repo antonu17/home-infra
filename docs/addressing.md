@@ -54,7 +54,13 @@ already in VLAN400 at `.41` and `.42`. Aruba/ether7 does not need VLAN400.
 
 | Name | Address / target | Purpose |
 |---|---|---|
+| `router.home.antonu.org` | `192.168.88.1` | MikroTik management; primary Home management IP remains `192.168.100.1` |
+| `aruba.home.antonu.org` | `192.168.88.3` | Aruba AP management |
+| `printer.home.antonu.org` | `192.168.30.3` | IoT Wi-Fi printer, existing DHCP reservation |
+| `3dprinter.home.antonu.org` | `192.168.30.4` | Bambu P2S; DHCP reservation for Wi-Fi MAC `EC:B5:0A:86:6F:30` |
 | `pulsar.home.antonu.org` | `192.168.40.5` | Synology DSM; CSI API access over hostname-based HTTPS/443 |
+| `pihole.home.antonu.org` | `192.168.40.5` | Synology Pi-hole frontend |
+| `vault.home.antonu.org` | `192.168.40.5` | Synology Vault frontend |
 | `talos.home.antonu.org` | `192.168.40.5` | Self-hosted Image Factory, HTTPS |
 | `registry.home.antonu.org` | `192.168.40.5` | OCI registry for promoted Talos installers, HTTPS |
 | `k8s.home.antonu.org` | `192.168.40.20` | Kubernetes API VIP, TCP/6443 |
@@ -133,3 +139,7 @@ The numbered, idempotent router source is
 [network/mikrotik-rb5009upr](../network/mikrotik-rb5009upr/README.md).
 VLAN500 remains inactive. Application DNS records belong to ExternalDNS;
 its current crash loop is recorded in [ExternalDNS](external-dns.md).
+
+Static infrastructure names in this table are owned by
+[`14-static-dns.rsc`](../network/mikrotik-rb5009upr/14-static-dns.rsc);
+Gateway HTTPRoute names such as `argocd` remain ExternalDNS-owned.

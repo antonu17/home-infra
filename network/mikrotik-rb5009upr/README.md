@@ -50,7 +50,8 @@ are retained. Deleted source entries are not generally pruned automatically.
 The exact stale WAN/ether8 and LAN/bridge members are removed; the saved combined
 static VLAN100/200 row is disabled and replaced with single-VID rows. Unexpected
 static VLAN IDs/ranges on this bridge stop the import, including VLAN500. No broad
-`remove [find]`, reset, reboot, DNS-record/BGP or remote-service command is included.
+`remove [find]`, reset, reboot, BGP or remote-service command is included.
+Static infrastructure DNS is reconciled separately by `14-static-dns.rsc`.
 Common DHCP configuration covers Home, Guests, IoT and Cloud; WAN DHCP is untouched.
 Repeated import does not accumulate objects, but it can still interrupt traffic
 when changing desired values. Existing established/FastTracked sessions can retain
@@ -101,6 +102,8 @@ individually, in alphabetical filename order (numeric prefixes encode dependenci
 /import file-name=09-firewall-filter.rsc
 /import file-name=10-dhcp.rsc
 /import file-name=11-mdns.rsc
+# SSDP files 12/13 have separate prerequisites documented below.
+/import file-name=14-static-dns.rsc
 ```
 
 The same order is used on every reapplication; no separate first-run procedure.
@@ -338,7 +341,7 @@ source authorizes other workloads on that node to the same destination/ports.
 Per-workload egress isolation would need a separate Cilium policy task. Routed
 Pod sources require existing return routes; no Pod routing/SNAT is added here.
 Additional HA ports/callbacks need separate measured source/destination rules.
-Discovery, multicast relays, WAN DHCP, DNS records, BGP peers and other
+WAN DHCP, BGP peers and other
 services remain unchanged. Common IPv4 DHCP is configured by 10-dhcp.rsc. The remote lists do not configure Tailscale routes,
 grants or underlay. If remote traffic is SNATed into Home, it may already match
 Home policy; verify the actual path rather than assuming that source preservation.
@@ -376,7 +379,8 @@ exceptions if required.
 Home DHCP now advertises router DNS 192.168.100.1, per the current export.
 Any still-used legacy resolver at .100.2 must be verified separately; moving a
 former DNS device from ether5 requires resolving its actual dependencies externally. This repository task does not
-change DSM/VMM, service addresses, DNS records, WAN DHCP or Kubernetes resources.
+change DSM/VMM, service addresses, WAN DHCP or Kubernetes resources.
+Static infrastructure DNS records are managed by `14-static-dns.rsc`.
 
 **DISRUPTIVE:** ether3 becomes IoT, ether5/6 become Cloud and terminal denies
 replace implicit inter-VLAN trust. Verify those are the agreed connected devices
@@ -741,3 +745,43 @@ with12 then13 after11. First container start remains a separate manual step.
 The existing image can be extended to VLAN100 without a rebuild: source13 sets
 explicit relay entrypoint/arguments for all three VETHs. Stop the relay before
 reapplying04/09/12/13, then start it; see the linked extension/rollback procedure.
+
+## Static infrastructure DNS
+
+`14-static-dns.rsc` owns exact A records for `pulsar`, `pihole`, `vault`,
+`talos` and `registry` under `home.antonu.org`, all pointing to `192.168.40.5`.
+`k8s.home.antonu.org` points to the Kubernetes API VIP `192.168.40.20`.
+`router` points to `192.168.88.1`, `aruba` to `192.168.88.3`,
+`printer` to `192.168.30.3` and `3dprinter` to `192.168.30.4`.
+`10-dhcp.rsc` reserves `192.168.30.4` for Bambu P2S Wi-Fi MAC
+`EC:B5:0A:86:6F:30`, with lease comment `3dprinter`. The address is outside
+the dynamic IoT pool. Existing IoT leases are adopted and made static;
+duplicates, leases on another server or an occupied target address stop the
+import. Reconnect the printer to the IoT SSID after importing DHCP.
+These are infrastructure names outside the current Gateway HTTPRoute catalog.
+No wildcard, ExternalDNS TXT marker, resolver upstream or DNS service setting
+is created or changed. Current TTL is explicitly 5 minutes.
+
+The file validates all ten names before changing records, rejects duplicates,
+non-A records and matching ExternalDNS TXT ownership markers, then adds missing
+records or updates existing A records by exact name. Re-importing updates the
+same objects. Other names are untouched. DNS static A syntax follows the
+[MikroTik DNS documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/37748767/DNS).
+
+Operator-run, after reviewing existing records and saving their old values:
+
+```routeros
+/ip dns static print detail where name~"home[.]antonu[.]org"
+/import file-name=14-static-dns.rsc verbose=yes dry-run=yes
+/import file-name=14-static-dns.rsc
+:put [:resolve "pulsar.home.antonu.org" server=192.168.100.1]
+:put [:resolve "talos.home.antonu.org" server=192.168.100.1]
+:put [:resolve "k8s.home.antonu.org" server=192.168.100.1]
+```
+
+For a DNS-only update, import only this file. Include it after the existing
+numbered files for a complete configuration. Clients may cache older answers
+until their previous TTL expires. Rollback: restore the recorded properties of
+previous A records and remove only the exact names newly added by this import.
+Do not remove all static DNS records or ExternalDNS ownership TXT entries.
+The agent has not imported or tested this configuration on the live router.
