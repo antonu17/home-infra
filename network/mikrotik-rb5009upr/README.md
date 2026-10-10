@@ -118,6 +118,14 @@ Use local Home IP access to 192.168.100.1 via ether4/8; Safe Mode is optional ro
 protection, not part of the configuration. Do not rely on a NAS-hosted remote path
 for applying disruptive network changes.
 
+## PXE assets and legacy reference
+
+PXE files now live in [`pxe/`](pxe/README.md) within this router package. The
+move changes repository paths only; router files remain under `flash/pxe/`.
+Do not include nested `pxe/routeros.rsc` in the numbered imports: it is a legacy
+non-idempotent bootstrap that unconditionally adds TFTP mappings.
+See [the PXE runbook](../../docs/pxe.md) before any upload or import.
+
 ## Target interfaces and VLANs
 
 | Interface | Device | PVID | Accepted tagged ingress |
@@ -193,7 +201,7 @@ required infrastructure router services if inventory establishes them.
 
 Forward: invalid drop, optional WAN FastTrack, established/related, Home->IoT,
 Home->LB HTTP(S), API VIP 6443, known Talos nodes 50000, selected infrastructure
-HTTPS, Guest->PRINTERS IPP 631, measured HA->selected IoT HTTPS 443, documented
+HTTPS, measured HA->selected IoT HTTPS 443, documented
 NAS/DNS dependencies, zone Internet access, authorized remote Cloud web access,
 Cloud->LB web access, then deny. Other Guest/IoT/Cloud cross-zone initiation is
 denied. MGMT has no blanket initiation allow; add verified management tuples only.
@@ -263,9 +271,9 @@ No invented reservations for NAS `.40.5`, API VIP `.40.20`, or CP `.22/.23`.
 The NAS address remains static DSM configuration, outside this DHCP file.
 
 Cloud keeps the exact live-export PXE values: `next-server=192.168.40.1` and
-`boot-file-name=ipxe-x86_64.efi`. This differs from the older repository PXE guide's
-`snponly-x86_64.efi`; verify the configured boot file exists privately. This DHCP
-change does not rewrite TFTP mappings/files or substitute another boot filename.
+`boot-file-name=ipxe-x86_64.efi`. The PXE reference maps that requested name to
+`flash/pxe/ipxe.efi`; verify the live file and mapping. This DHCP change does not
+rewrite TFTP mappings/files or substitute another boot filename.
 Home/Guest lease times were omitted by the export; the documented RouterOS default
 30m is made explicit. Other unmentioned server/network/lease options are retained.
 
@@ -293,7 +301,7 @@ in 07-address-lists.rsc; keep those values in Git rather than adding them manual
 
 | List | Required evidence |
 |---|---|
-| PRINTERS | Printer /32s in VLAN300; verify IPP 631 support |
+| PRINTERS | Printer inventory /32s in VLAN300; no Guest access grant |
 | INFRA-MGMT | Aruba 192.168.88.3; current rule additionally pins this exact IP and allows all protocols/ports from Home |
 | HA-EGRESS | Source /32 seen at RouterOS, not HA's Gateway VIP |
 | HA-IOT | Exact devices using the configured HTTPS 443 integration |
@@ -486,15 +494,13 @@ Manual Aruba procedure (not executed by the agent):
 5. **DISRUPTIVE to printer connectivity:** move the printer to the IoT SSID;
    renew its lease. It should obtain 192.168.30.x. Changing an existing shared
    Home SSID to VLAN300 would move every client on that SSID; use a separate SSID.
-6. The confirmed printer MAC/address and prepared PRINTERS entry/reservation are
-   listed below. Confirm the printer model and supported printing protocol before
-   testing Guest printing.
-   The existing Guest exception supports IPP TCP631 only; Home already permits
-   IoT traffic. Add IPPS443/RAW9100/LPR515 only if actually required.
-7. Verify Home printing, Guest IPP to that exact printer, and denied Guest access
-   to other IoT destinations. AP role/client-isolation rules must also permit
-   the intended routed print traffic. IPv4 mDNS is now prepared by11 as described below. SSDP and DNS records
-   remain separate; use the known printer IP for direct printing tests.
+6. Operator confirmed the printer now uses `192.168.30.3` (2026-10-10).
+   Verify Home printing using its supported protocol; model/protocol support is
+   not recorded yet.
+7. Guests must not print or discover the printer. The updated 09 retires the
+   old `Guest IPP printers` exception; Guest-to-IoT reaches default deny. Keep
+   Guest excluded from mDNS/SSDP. Verify denied direct Guest access to the printer
+   and other IoT devices, independently of discovery.
 
 Rollback: reconnect the printer to its original SSID/settings. To retire the IoT
 SSID after reconnecting all affected clients, restore only its saved Aruba
@@ -510,12 +516,15 @@ This is guidance for manual review, not confirmation of the installed firmware.
 
 Wi-Fi MAC `40:23:43:D9:F3:90` is reserved as `192.168.30.3` on
 `dhcp300-iot`, outside the dynamic .30.100–199 pool, and added to PRINTERS.
-The printer model and IPP support are still unverified. The existing Guest rule
-permits only TCP631 to this printer; no extra printing protocols were opened.
+The operator confirmed the live printer address on 2026-10-10; model/printing
+protocols remain unverified. Guests are not authorized to print. Home access
+is covered by Home-to-IoT; the updated 09 removes the former Guest exception.
 
-Re-import07 and10 after uploading the updated files. No09 change is needed for
-this reservation: its Guest rule already references PRINTERS. Connect the printer
-to the VLAN300 SSID and renew DHCP, then verify the lease and actual printing.
+07/10 own the reservation/inventory and are already imported. For the newly
+clarified no-Guest-printing policy, upload and re-import **09-firewall-filter.rsc**
+only. The script removes the exact former managed Guest printer exception.
+Existing tracked connections may retain earlier acceptance until expiry; this
+change does not flush connection tracking. Verify new Guest connections are denied.
 
 **DISRUPTIVE / scoped deletion:** 10 adopts the exact former Home reservation
 192.168.100.26 for this MAC in place if there is no IoT lease. If an IoT lease
@@ -644,9 +653,9 @@ In particular:
 
 - Home has full access to NAS192.168.40.5 and Aruba192.168.88.3, Home-to-IoT,
   the Kubernetes service pool10.40.0.0/24, API VIP and known cluster nodes.
-- Guest has full access to the exact PRINTERS addresses (currently192.168.30.3),
-  plus its existing Internet path. Other IoT/Home/Cloud/management destinations
-  remain denied. Printer administration ports are included in this L3 choice.
+- Guest retains Internet access and has no access to the printer
+  (192.168.30.3), other IoT devices or Home/Cloud/management destinations.
+  Guest is excluded from printer/multicast discovery.
 - HA exceptions remain limited to listed HA-EGRESS sources and HA-IOT
   destinations but no longer restrict service ports. Empty lists still match
   nothing. Remote service paths likewise retain existing source/destination scope.

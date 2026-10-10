@@ -239,13 +239,13 @@
       <rect width="204" height="74" class="node" stroke-dasharray="7 5"/>
       <text x="14" y="26" class="node-title">Neutron IoT</text>
       <text x="14" y="47" class="small">2.4 GHz · VLAN 300</text>
-      <text x="14" y="64" class="tiny">Planned SSID</text>
+      <text x="14" y="64" class="tiny">Printer on VLAN300 confirmed</text>
     </g>
     <path d="M348 293 L348 328" class="planned"/>
     <g transform="translate(246,328)">
       <rect width="204" height="54" class="node" stroke-dasharray="7 5"/>
       <text x="102" y="23" text-anchor="middle" class="node-title">IoT devices + printer</text>
-      <text x="102" y="42" text-anchor="middle" class="tiny">Guest → PRINTERS: full L3 policy</text>
+      <text x="102" y="42" text-anchor="middle" class="tiny">Printer .30.3 · no Guest access</text>
     </g>
   </g>
 
@@ -301,7 +301,7 @@
     <text x="20" y="158" class="tiny">are reserved ideas, not active architecture.</text>
   </g>
 
-  <text x="45" y="1244" class="tiny">Operator evidence: NAS .40.5 live; Pi workers .41/.42 Ready; TV and Mac DLNA discovery works. Printer Wi-Fi move / Guest printing await confirmation.</text>
+  <text x="45" y="1244" class="tiny">Operator evidence: NAS .40.5 live; Pi workers .41/.42 Ready; TV and Mac DLNA discovery works. Printer .30.3 confirmed; Guest printing/discovery excluded.</text>
 
   <!-- Home Cloud: confirmed node/NAS observations and repository service configuration -->
   <g transform="translate(45,1275)">
@@ -396,7 +396,7 @@
     <text x="24" y="482" class="small">Validated storage: provision → attach → write → pod replacement → controlled worker reboot + remount; backup restore still untested.</text>
     <path d="M470 514 H530" class="planned"/>
     <text x="24" y="519" class="node-title">Remaining / unverified</text>
-    <text x="550" y="519" class="small">ExternalDNS recovery · backup restore · Quantum standalone boot · independent storage</text>
+    <text x="550" y="519" class="small">ExternalDNS recovery · backup restore · Quantum remains SD-dependent · independent storage</text>
     <text x="24" y="542" class="tiny">Source YAML + persistent private PKI → generated Talos configs. Container images and pinned charts still require public upstreams.</text>
   </g>
   <g transform="translate(45,1855)">

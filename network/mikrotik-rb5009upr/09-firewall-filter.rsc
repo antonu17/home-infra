@@ -385,15 +385,6 @@
     /ip firewall filter set $existing !protocol !dst-port !src-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=MGMT dst-address=192.168.88.3 dst-address-list=INFRA-MGMT comment="Home verified infrastructure management" log=no log-prefix=""
 }
 
-:do {
-    :local existing [/ip firewall filter find where comment="Guest IPP printers"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate /ip firewall filter object: comment=Guest IPP printers" }
-    :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="Guest IPP printers"
-        :set existing [/ip firewall filter find where comment="Guest IPP printers"]
-    }
-    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=GUEST src-address-list=GUEST-NETWORKS out-interface-list=IOT dst-address-list=PRINTERS comment="Guest IPP printers" log=no log-prefix=""
-}
 
 :do {
     :local existing [/ip firewall filter find where comment="measured HA integration HTTPS"]
@@ -531,7 +522,6 @@
         "checked-in PXE HTTP factory";
         "NAS HTTPS and iSCSI";
         "measured HA integration HTTPS";
-        "Guest IPP printers";
         "Home verified infrastructure management";
         "Home Talos known nodes";
         "Home Kubernetes API VIP";
@@ -583,3 +573,7 @@
 
 # Retire only the now-redundant managed NAS ICMP rule; full NAS L3 access includes ICMP.
 /ip firewall filter remove [find where dynamic=no and comment="Home NAS diagnostics"]
+
+# Operator policy 2026-10-10: Guests must not print. Retire only this former
+# managed exception; Guest-to-IoT now reaches forward default deny. Idempotent.
+/ip firewall filter remove [find where dynamic=no and comment="Guest IPP printers"]

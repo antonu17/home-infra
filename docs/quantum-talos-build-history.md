@@ -41,8 +41,9 @@ Do not reset, bootstrap, reinstall, or upgrade merely to troubleshoot boot.
 On 2026-10-10, operator node output again showed Quantum Ready at `.40.42`,
 Talos v1.14.2 / Kubernetes v1.37.1 / kernel 6.18.54-talos. This confirms node
 operation, not standalone NVMe boot or completion of the fan/U-Boot proposals.
-Current boot-media status is awaiting confirmation; preserve the historical
-constraints below until a successful standalone boot is documented.
+The operator reconfirmed on 2026-10-10 that Quantum remains SD-dependent.
+Preserve the known-working SD; standalone NVMe boot is not established. The
+historical recovery constraints still apply.
 
 ## Hardware, environment, and scope
 

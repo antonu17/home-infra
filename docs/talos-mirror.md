@@ -2,6 +2,12 @@
 
 ## Current deployment
 
+Operator clarification 2026-10-10: no PXE/certificate-renewal changes are known;
+operator Docker inspection now confirms Image Factory v1.7.0 and registry:3,
+their published ports and `/volume3/labs/` bind mounts. See the
+[NAS storage inventory](nas-storage.md) for exact paths and remaining checks.
+This is not an instruction to redeploy.
+
 The 2026-10-01 implementation handoff reports Image Factory
 `ghcr.io/siderolabs/image-factory:v1.7.0` and a generic OCI registry running
 in Synology Container Manager, published through Web Station/nginx with valid TLS.
@@ -25,17 +31,27 @@ Image Factory or registry. Those files are absent from the current repository;
 do not restore/redeploy that Compose project over the current service.
 Image Factory configuration is captured in
 [`synology/talos-image-factory`](../synology/talos-image-factory/README.md).
-Its directory mount and one-shot key initializer are repository-prepared
-changes, not confirmation of deployment. Copy the existing key and deployed config into
-project-local `data/` before updating;
-follow that README before updating the NAS project. Registry Compose configuration
-is captured in [`synology/oci-registry`](../synology/oci-registry/README.md), using
-`registry:3`, host port 5005 and project-local `data/`. These are prepared settings,
-not verification of the live registry version or storage mount. Certificate
-renewal hooks remain uncaptured; obtain them from the deployment.
+Docker inspection confirms the directory mount and one-shot key initializer
+are deployed: factory config/key directory `/volume3/labs/talos-image-factory/data`
+is read-only in the factory and writable in `key-init`. The helper is exited;
+its exit code and signing identity/backup remain unconfirmed. Do not repeat the
+older file-mount migration solely because its README retains that procedure.
+Registry inspection confirms `registry:3`, host5005→container5000 and
+`/volume3/labs/oci-registry/data` mounted at `/var/lib/registry`.
+See [`synology/oci-registry`](../synology/oci-registry/README.md).
+Certificate renewal hooks remain uncaptured; the operator knows of no changes.
 
 The old static mirror's `/healthz` and version-directory asset URLs are not
 the current factory API contract.
+
+## Storage confirmation and remaining uncertainties
+
+The [NAS inventory](nas-storage.md) records all observed containers, storage
+paths, source differences and outstanding checks. Factory and registry mount
+layout is now confirmed. Remaining questions concern key-init success, retained
+signing identity, independent backups, physical storage layout and recovery.
+Do not print signing keys or credentials. Frontend certificate renewal remains
+separate from Kubernetes cert-manager; no new renewal test was supplied.
 
 ## Local artifact pipeline
 

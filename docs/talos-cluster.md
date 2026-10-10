@@ -325,5 +325,5 @@ service retirement. ExternalDNS is an active unresolved issue.
 
 Inventory/API automation and independent storage remain future work. Do not
 build nominally replicated Ceph from disks all hosted on this NAS and describe
-it as independent fault tolerance. Quantum standalone boot/fan follow-up remains
-subject to the recorded build history and operator confirmation.
+it as independent fault tolerance. The operator reconfirmed Quantum is SD-dependent on 2026-10-10; standalone
+NVMe boot remains unresolved. Fan follow-up remains subject to its build history.

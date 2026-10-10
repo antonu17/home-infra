@@ -15,7 +15,7 @@ clean maintenance environment. Installed VMs normally continue to local boot.
 UEFI PXE -> MikroTik DHCP/TFTP -> iPXE -> local Image Factory kernel/initramfs
 -> Talos -> local OCI installer registry -> installed node disk.
 
-The checked-in `mikrotik/pxe/files/boot.ipxe` uses HTTP to the local factory
+The checked-in `network/mikrotik-rb5009upr/pxe/files/boot.ipxe` uses HTTP to the local factory
 in three entries (AMD64 normal, Pi 4 ARM64, AMD64 wipe). Its AMD64 normal
 schematic is already the current iSCSI-enabled
 `c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac`;
@@ -24,28 +24,29 @@ The factory/registry handoff reports HTTPS service endpoints; the repository
 iPXE menu uses HTTP. An HTTPS menu change requires separate iPXE TLS testing.
 No live menu upload or current client boot test was supplied during this audit.
 
-The 2026-10-10 DHCP export names `ipxe-x86_64.efi`; the legacy TFTP source maps
-`snponly-x86_64.efi`. A separate `ipxe.efi` exists locally but is not mapped by
-that legacy file. These names are not interchangeable evidence: verify the live
-bootstrap file/mapping before changing DHCP or importing legacy configuration.
+The 2026-10-10 DHCP export and common DHCP source name `ipxe-x86_64.efi`.
+The repository TFTP source maps that requested name to the existing physical
+binary `flash/pxe/ipxe.efi`. Uploading a file alone does not create this mapping;
+verify the live TFTP configuration before booting a client.
+
+Operator confirmed on 2026-10-10 that no PXE boot-file changes are known.
+Repository changes do not change live files or settings, and the updated
+mapping has not been applied or boot-tested by the agent.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `snponly-x86_64.efi` | Official iPXE x86-64 UEFI chainloader |
 | `autoexec.ipxe` | Prevents self-chainloading and transfers control to the menu |
 | `boot.ipxe` | Current AMD64 normal/wipe and Pi 4 ARM64 maintenance entries; HTTP transport |
-| `ipxe.efi` | Additional local EFI binary; no mapping in the legacy TFTP source |
-| `SHA256SUMS` | Recorded checksum of the downloaded iPXE binary |
+| `ipxe.efi` | Existing EFI bootstrap binary, served as `ipxe-x86_64.efi` |
+| `SHA256SUMS` | Recorded checksum of the existing `ipxe.efi` binary |
 | `talos/image-factory/schematic-amd64.yaml` | Current reproducible normal schematic |
 | `talos/image-factory/schematic-amd64-wipe.yaml` | Destructive system-wipe schematic |
 
-The binary was downloaded from:
-
-```text
-https://boot.ipxe.org/x86_64-efi/snponly.efi
-```
+The existing `ipxe.efi` binary is preserved; its build/download provenance
+is not established by the repository. Its checksum verifies file integrity,
+not boot compatibility.
 
 ## 1. Determine persistent RouterOS storage
 
@@ -62,7 +63,7 @@ after reboot. Create the persistent directory:
 /file add name=/flash/pxe type=directory
 ```
 
-Upload the contents of `mikrotik/pxe/files/` into `flash/pxe/` using WinBox,
+Upload the contents of `network/mikrotik-rb5009upr/pxe/files/` into `flash/pxe/` using WinBox,
 WebFig, SFTP or SCP. Do not upload `routeros.rsc` into the served directory.
 
 If `/file print` does not show a `flash` directory, determine the persistent
@@ -75,21 +76,21 @@ Verify:
 /file print detail where name~"pxe"
 ```
 
-The EFI binary should be `305664` bytes. The SHA-256 recorded in this repository
+The existing `ipxe.efi` binary is `1163776` bytes. The SHA-256 recorded in this repository
 is:
 
 ```text
-c84cbd76d925b947f776bf4fd0c25936ea818a5b9dc92bc4fd77efb9156948c0
+3b6285d2a1f8f184e86336a840c5e974780badfda06224acd5d3cf10a721ad81
 ```
 
 ## 2. Legacy PXE configuration — reconcile before importing
 
-The 2026-10-10 operator export uses boot filename `ipxe-x86_64.efi`; the current
-common DHCP source preserves it. The older `mikrotik/pxe/routeros.rsc` would
-change it to `snponly-x86_64.efi`. Do not re-import that legacy file unchanged
-on top of the numbered router configuration. First confirm the live boot file
-and exact TFTP mapping; the repository does not establish their equivalence.
-Read the legacy file before using any of its mappings. It:
+The common DHCP source preserves the operator's boot filename
+`ipxe-x86_64.efi`. The reference `network/mikrotik-rb5009upr/pxe/routeros.rsc`
+maps this name to `flash/pxe/ipxe.efi`. It unconditionally adds TFTP mappings,
+so it is excluded from numbered idempotent imports. Do not re-import it on top
+of existing mappings; inspect the live entries and reconcile them first.
+Read the reference before using any of its mappings. It:
 
 - limits TFTP clients to `192.168.40.0/24`;
 - permits only three exact filenames;
@@ -98,7 +99,7 @@ Read the legacy file before using any of its mappings. It:
 - makes every TFTP mapping read-only;
 - limits negotiated TFTP blocks to 1468 bytes;
 - sets the VLAN 400 DHCP `next-server` to `192.168.40.1`;
-- sets the initial boot filename to `snponly-x86_64.efi`.
+- sets the initial boot filename to `ipxe-x86_64.efi`.
 
 Legacy/fresh setup only: these are **operator-run live changes**, after reconciling
 the boot filename with `network/mikrotik-rb5009upr/10-dhcp.rsc` and verifying paths:

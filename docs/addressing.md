@@ -106,18 +106,18 @@ Aruba management is `192.168.88.3/24` on native VLAN1, gateway `192.168.88.1`.
 RouterOS policy permits Home full L3 access to this exact IP, including SSH and
 the observed HTTPS redirect from 443 to 4343. Ether7 is configured for
 native1/tagged100,200,300 membership; VLAN300 is for the printer/IoT SSID, not AP
-management. Printer model/protocol support remain pending; the confirmed MAC/address
-reservation is listed below. No DNS record is created. See the RouterOS package's
-manual Wi-Fi procedure before changing the printer SSID. These changes have
-not been verified on the AP.
+management. The operator confirmed the printer is now `192.168.30.3` on
+2026-10-10. This confirms the address, not every AP configuration detail or
+printing protocol. No DNS record is created.
 
 Printer reservation confirmed by operator 2026-10-10: Wi-Fi MAC
 `40:23:43:D9:F3:90` → `192.168.30.3/24`, gateway/DNS `192.168.30.1`,
-server `dhcp300-iot`. Prepared configuration replaces its former Home reservation
-`192.168.100.26` and adds the exact address to `PRINTERS`. The current user-selected
-L3 policy allows Guests all protocols to those listed printer addresses; the
-legacy rule comment `Guest IPP printers` no longer describes a port restriction.
-Printer model/protocol support and completed Wi-Fi move remain unverified.
+server `dhcp300-iot`. The configuration replaces its former Home reservation
+`192.168.100.26` and adds the exact address to `PRINTERS`. The operator clarified on 2026-10-10 that Guests must not print. The updated
+firewall source retires the former `Guest IPP printers` allow rule; Guest→IoT
+is denied, including this printer. Home printing remains covered by Home→IoT.
+Guest discovery remains excluded; the reported absence of discovery is expected
+for mDNS-based discovery. Direct printing is not authorized from Guest.
 
 ## Discovery and incident references
 

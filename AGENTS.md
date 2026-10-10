@@ -31,7 +31,9 @@
 
 - `docs/` is the operational source for addressing, PXE, Talos, image promotion, GitOps, Gateway, ExternalDNS, and cert-manager procedures. Read the linked runbook before touching its subsystem.
 - `talos/` contains Image Factory schematics and machine-config patches. Persistent cluster identity belongs in ignored `talos/secrets/`; generated configs and kubeconfigs belong in ignored `talos/generated/`.
-- `mikrotik/` and `rb5009-config.rsc` describe RouterOS/PXE state. Repository exports may lag the live router; do not infer current firewall, VLAN, BGP, DNS, or multicast state without explicit evidence.
+- `network/mikrotik-rb5009upr/` owns the RouterOS configuration and `pxe/` assets.
+  `mikrotik/` retains legacy DNS/VIP examples; `rb5009-config.rsc` is a sensitive
+  router export. Repository exports may lag the live router; do not infer current firewall, VLAN, BGP, DNS, or multicast state without explicit evidence.
 - `kubernetes/cilium/values.yaml` is the Helm-owned Cilium configuration. `kubernetes/cilium/manifests/` contains separately managed BGP/LB-IPAM resources. Do not move Cilium into Argo or merge these ownership paths casually.
 - `kubernetes/synology-csi/` prepares Argo adoption of the existing Kustomize installation, including its driver, retained StorageClass and Vault/ESO credentials. Sync remains operator-run; no automated pruning or cascading deletion. Treat PVC/PV/LUN deletion, selector changes, and vendor-manifest replacement as high risk.
 - `kubernetes/cert-manager/` is one Argo-managed Kustomize package: `helmCharts` renders the pinned upstream chart and ordinary resources add the issuers. `kubernetes/gateway/` owns the frontend Certificate alongside the Gateway. Route53 credentials are synchronized from Vault by ESO; Secret payloads remain excluded from Git. Check `docs/cert-manager.md` for the compatibility gate, bootstrap ordering, and TLS ownership.
