@@ -132,7 +132,10 @@ Never delete this file or data to force a retry. Run exactly one sidecar.
 
 ## 4. Configure HTTPS
 
-Set local DNS: `vault.home.antonu.org` → NAS `192.168.100.5`. In
+The target endpoint for `vault.home.antonu.org` is NAS **192.168.40.5** in
+VLAN400 / Home Cloud (operator plan, 2026-10-09; previously `192.168.100.5` in
+VLAN100). Check DNS and client access through the existing DNS workflow when the
+NAS moves; this documentation does not change records or confirm a live move. In
 **Control Panel → Login Portal → Advanced → Reverse Proxy → Create**:
 
 | Setting | Source | Destination |

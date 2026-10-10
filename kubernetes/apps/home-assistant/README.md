@@ -150,8 +150,13 @@ only for controlled onboarding or diagnostics; normal access is
 
 ## Evidence and missing information
 
-Nodes use VLAN400 (`192.168.40.0/24`); Synology management/storage is VLAN100
-(`192.168.100.5`). VLAN300 (`192.168.30.0/24`) is intended for IoT. The checked-in
+Nodes use VLAN400 (`192.168.40.0/24`). The operator's 2026-10-09 target moves
+Synology management/storage to **192.168.40.5/24 in VLAN400**, gateway
+`192.168.40.1`; the previous documented address was `192.168.100.5` in VLAN100.
+The move is not verified live. Check CSI/iSCSI endpoints and DNS separately;
+this documentation does not change workload or storage configuration. After
+the move, NAS-to-node storage traffic is local to VLAN400.
+VLAN300 (`192.168.30.0/24`) is intended for IoT. The checked-in
 router export predates the implemented 300/400 and BGP setup and cannot establish
 current firewall, multicast relay or IPv6 behavior. Aruba/ether7 historically
 carries only SSIDs/VLAN100 and 200; do not silently add VLAN400 or move devices.

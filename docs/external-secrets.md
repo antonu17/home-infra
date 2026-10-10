@@ -1,8 +1,10 @@
 # External Secrets Operator
 
 ESO installation remains operator-controlled. The operator reports the Vault
-Terraform configuration applied. Route53 values were copied to Vault on
-2026-10-04; the cert-manager role and Kubernetes migration are prepared below.
+Terraform configuration applied. Route53 values were copied to Vault and the cert-manager ESO integration was
+reported Ready after operator sync on 2026-10-04. On 2026-10-10, the operator reported ESO and the cert-manager/CSI/ADS-B/Anki
+Applications Synced/Healthy; ExternalDNS is Synced/Progressing with a controller
+crash loop. Resource health does not by itself prove consumer authentication.
 No cluster changes were executed here.
 
 Argo manages `kubernetes/external-secrets` using the upstream ESO chart pinned
@@ -26,13 +28,14 @@ for NAS-hosted Vault; its payload stays outside Git. Rotate it if exposed. Futur
 restricted to the selected service account's `serviceaccounts/token` subresource
 and a RoleBinding to ESO's controller service account.
 
-## Operator-run installation
+## Fresh-install / recovery procedure — operator-run
 
 1. Confirm the intended context and check for a pre-existing installation:
 
    ```sh
    cd /Users/anton/projects/home-infra
-   export KUBECONFIG="$PWD/talos/generated/home-cloud/kubeconfig"
+   direnv reload
+   : "${KUBECONFIG:?Load the repository direnv environment}"
    kubectl config current-context
    kubectl get deployments -A -l app.kubernetes.io/name=external-secrets
    helm list -A --filter external-secrets
@@ -71,7 +74,7 @@ and a RoleBinding to ESO's controller service account.
    Require Argo Synced/Healthy and all three deployments ready. Stop if webhook
    admission or rollout fails. Review events privately; do not share credentials.
 
-## Workload integration later
+## Workload integration and recorded status
 
 Vault provisioning is prepared in [terraform/vault](../terraform/vault/README.md):
 KV v2 `home-cloud`, a dedicated Kubernetes auth mount, and configurable scoped
@@ -88,8 +91,10 @@ Use TLS verification and restrict Vault policies to the required paths.
 Route53 credentials are synchronized from Vault through the cert-manager source:
 a namespaced Vault store and an ExternalSecret that preserves the existing Secret.
 The operator confirmed a successful cert-manager sync on 2026-10-04; see
-[the cert-manager guide](cert-manager.md). ExternalDNS and CSI have additional ESO migrations prepared; values are verified
-in Vault, and their new roles/stores require operator apply/sync. Follow
+[the cert-manager guide](cert-manager.md). ExternalDNS and CSI now have adopted Argo sources containing ESO references;
+ADS-B and Anki also include workload stores/ExternalSecrets. Their applications
+are present in the operator list. Inspect individual ESO readiness and consumer
+behavior before treating an Application health report as integration acceptance. Follow
 [secret management](secret-management.md). Certificate Secrets stay cert-manager-owned.
 
 ## Rollback
@@ -102,5 +107,5 @@ workloads before removing any component. This runbook does not authorize deletio
 
 ## Sources
 
-- [Upstream chart](https://github.com/external-secrets/external-secrets/tree/v2.11.0/deploy/charts/external-secrets)
+- [Upstream chart](https://github.com/external-secrets/external-secrets/tree/v2.10.0/deploy/charts/external-secrets)
 - [Vault provider](https://external-secrets.io/latest/provider/hashicorp-vault/)

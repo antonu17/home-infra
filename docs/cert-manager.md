@@ -1,7 +1,9 @@
 # cert-manager and Route53 DNS-01
 
-Repository preparation only; nothing has been installed or checked on the live
-cluster. The Argo root registers one manually synced `cert-manager` Application.
+Operator sync and cert-manager ESO readiness were reported on 2026-10-04.
+The operator also reported `cert-manager` Synced/Healthy on 2026-10-10.
+The agent has not queried the live cluster; current issuance/renewal acceptance
+remains a separate operator check. The Argo root registers one manually synced `cert-manager` Application.
 That Application renders the pinned upstream Helm chart and local ClusterIssuers
 together through Kustomize. The Gateway Application owns the frontend Certificate.
 
@@ -9,10 +11,10 @@ together through Kustomize. The Gateway Application owns the frontend Certificat
 
 The official chart is pinned to **v1.21.2**. The
 [official support matrix](https://cert-manager.io/docs/releases/) lists Kubernetes
-**1.33–1.36** for cert-manager 1.21, not this cluster's **1.37.1**. This remains a
-review candidate rather than a verified supported combination. Before syncing,
-explicitly accept that gap for this lab or wait for a release documenting 1.37
-support and update the pin and validation. Local rendering does not establish
+**1.33–1.36** for cert-manager 1.21, not this cluster's **1.37.1**. Rechecked on 2026-10-10, this is a
+deployed but out-of-matrix combination: the operator reports the Application
+Synced/Healthy, which does not extend upstream support. Preserve the pin for
+this documentation audit; any upgrade/compatibility decision is separate. Local rendering does not establish
 runtime compatibility.
 
 Gateway API CRDs must exist before cert-manager starts. The repository manages
@@ -26,15 +28,13 @@ kubernetes/cert-manager/
   values.yaml                  # CRDs and Gateway API controller configuration
   namespace.yaml               # cert-manager namespace, retained
   config/
-    namespace.yaml             # gateway namespace, retained
     vault-store.yaml           # namespaced Vault store and scoped TokenRequest RBAC
     route53-external-secret.yaml # ESO references only; no credential values
     clusterissuers.yaml        # staging and production Route53 issuers
 kubernetes/gateway/
   certificate.yaml             # gateway/home-antonu-org
 kubernetes/gitops/
-  bootstrap/cert-manager-project.yaml
-  applications/cert-manager.yaml
+  cert-manager.yaml            # AppProject and Application
 ```
 
 `kubernetes/cert-manager/kustomization.yaml` follows the same pattern as the Argo
@@ -60,9 +60,10 @@ for the wave-0 resources before submitting issuer resources. The separate Gatewa
 Application owns its Certificate at wave `-1`, ahead of the Gateway at wave `0`.
 Sync remains manual and pruning is not automated.
 
-The dedicated AppProject permits only this repository, the `cert-manager` and
-`gateway` namespaces, and the cluster-scoped kinds rendered by the pinned chart
-plus `ClusterIssuer`.
+The current AppProject targets `cert-manager` and this repository, but allows
+all cluster-scoped and namespaced resource kinds. It is an administrative
+boundary, not a kind-restricted project. The Gateway package owns the frontend
+Certificate in `gateway`.
 
 ## Secret boundary
 
@@ -70,8 +71,9 @@ Route53 credentials are stored in Vault KV v2 at
 `home-cloud/cert-manager/route53-credentials`, with properties `access-key-id`
 and `secret-access-key`. On 2026-10-04, the ignored local file was copied into
 Vault and both values were verified privately against the source. Terraform was
-reported applied by the operator; the newly added cert-manager role still needs
-another operator plan/apply. No Kubernetes migration has been executed here.
+reported applied by the operator. Subsequent cert-manager sync and ESO readiness
+were confirmed on 2026-10-04; do not repeat credential migration merely because
+this guide retains its onboarding procedure.
 
 The cert-manager Argo source now includes a namespaced `home-cloud-vault`
 SecretStore and `route53-credentials` ExternalSecret. It authenticates as
@@ -80,8 +82,9 @@ audience `vault`. ESO's controller has TokenRequest permission for that account
 only. Terraform restricts the role to the `cert-manager/` Vault prefix.
 
 ESO targets the existing `cert-manager/route53-credentials` Secret with the same
-two keys consumed by the ClusterIssuers. `creationPolicy: Owner` creates or updates the Secret with an owner reference
-to the ExternalSecret, allowing Argo to display it as a child. Deleting the
+two keys consumed by the ClusterIssuers. The source omits explicit target
+lifecycle policies and relies on ESO defaults Owner/Retain, giving the Secret an
+ExternalSecret owner reference for Argo child visibility. Deleting the
 ExternalSecret can garbage-collect the Secret; `deletionPolicy: Retain` only
 preserves it if the Vault entry disappears.
 ESO now maintains the Secret; the operator confirmed a successful cert-manager
@@ -101,7 +104,7 @@ The IAM identity should be limited to:
 The explicit hosted-zone ID means `ListHostedZonesByName` is unnecessary. This
 policy assumes there is no delegated `_acme-challenge` zone or CNAME.
 
-## Argo onboarding — operator-run, not executed here
+## Fresh onboarding / recovery — operator-run, not executed here
 
 Run from `/Users/anton/projects/home-infra`. Commit and push the reviewed files
 first; Argo reads remote `main`, not the local working tree.
@@ -113,10 +116,12 @@ kubectl config current-context
 kubectl get crd gateways.gateway.networking.k8s.io
 kubectl -n cert-manager get deployments 2>/dev/null || true
 kubectl get crd certificates.cert-manager.io 2>/dev/null || true
-argocd app get home-cloud
+argocd app get gitops
 ```
 
-Before syncing, configure the new Vault role. These are **operator-run live
+For a fresh onboarding only, configure a missing Vault role. The existing
+cert-manager integration was already reported working; inspect the plan before
+changing it. These are **operator-run live
 Vault changes**; inspect the Terraform plan first. Keep the existing
 home-assistant role if you override `TF_VAR_eso_roles`. With the NAS SMB backend,
 run from one workstation only; the share does not support Terraform locking.
@@ -141,7 +146,7 @@ Register the Application through the root, review its complete combined diff,
 then sync it once. These are **operator-run live changes**:
 
 ```sh
-argocd app sync home-cloud
+argocd app sync gitops
 argocd app diff cert-manager
 argocd app sync cert-manager
 ```
@@ -177,7 +182,7 @@ kubectl get clusterissuer
 Stop if controller or webhook readiness fails. Issuer readiness proves account
 registration, not necessarily that Route53 challenge permissions work. Only after
 the production issuer is ready, follow [Gateway bootstrap](gateway-bootstrap.md)
-to review and sync `home-cloud-gateway`; that Application creates the Certificate.
+to review and sync `gateway`; that Application creates the Certificate.
 
 ## Staging and production
 
@@ -191,7 +196,7 @@ issuerRef:
 
 After staging issuance succeeds, change it back to `letsencrypt-prod` in
 `kubernetes/gateway/certificate.yaml`, commit and push, review
-`argocd app diff home-cloud-gateway`, and manually sync the Gateway Application.
+`argocd app diff gateway`, and manually sync the Gateway Application.
 Do not delete the Certificate or TLS Secret. Verify the resulting certificate's
 issuer and SANs rather than relying only on `Ready=True`.
 
@@ -245,7 +250,6 @@ The combined source renders locally without contacting the Kubernetes API:
 
 ```sh
 kustomize build --enable-helm kubernetes/cert-manager > /dev/null
-bash kubernetes/verify-gitops.sh
 ```
 
 Rendering downloads the pinned chart over HTTPS. It verifies structure and

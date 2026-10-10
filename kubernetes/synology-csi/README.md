@@ -9,6 +9,13 @@ their ServiceAccounts/RBAC, `synology-block` StorageClass, and ESO login/store/s
 resources. Driver and sidecar versions, pod specifications, selectors, and storage
 settings are preserved. Vendor manifests remain pinned and unmodified.
 
+The operator's 2026-10-09 network target places Synology at
+`192.168.40.5/24` in VLAN400 / Home Cloud, gateway `192.168.40.1`, replacing
+the previous `192.168.100.5` in VLAN100. The move is not verified live.
+Check hostname-based DSM HTTPS and existing iSCSI target references separately;
+node-to-NAS traffic will be local to VLAN400 after the move. This documentation
+does not edit CSI credentials, endpoints, PVs or storage configuration.
+
 It does not manage existing PVCs, PVs or NAS LUNs. `storage-test.yaml` is an optional
 operator test and is not included in the production Kustomization.
 

@@ -10,3 +10,8 @@
 
 # Machine-local direnv settings and credentials.
 /.envrc.local
+
+# Image Factory runtime signing identity and private Compose environment.
+/synology/talos-image-factory/**/*.key
+/synology/talos-image-factory/.env
+/synology/talos-image-factory/**/.cache-signing-key.*

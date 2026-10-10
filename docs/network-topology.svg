@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2300" viewBox="0 0 1800 2300" role="img" aria-labelledby="title desc">
   <title id="title">Home infrastructure network topology</title>
-  <desc id="desc">Current physical links and planned VLAN migrations for the RB5009 router, FRITZ!Box, Synology NAS, Aruba access point, wired clients, Raspberry Pis, Wi-Fi networks, IoT devices, and home-cloud virtual machines.</desc>
+  <desc id="desc">Network source and operator observations as of 2026-10-10: one control plane, three workers, Synology on VLAN400, Argo adoption complete, and ExternalDNS webhook timeout unresolved.</desc>
 
   <defs>
     <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%">
@@ -53,12 +53,12 @@
 
   <!-- Header -->
   <text x="46" y="48" class="title">Home infrastructure · network topology</text>
-  <text x="46" y="75" class="subtitle">Implemented Home Cloud + retained physical wiring · planned migrations dashed · updated 2026-10-02</text>
+  <text x="46" y="75" class="subtitle">Repository topology + operator evidence · pending items dashed · updated 2026-10-10</text>
   <g transform="translate(1420,30)">
     <line x1="0" y1="10" x2="48" y2="10" class="physical"/>
     <text x="58" y="15" class="small">Current link</text>
     <line x1="0" y1="39" x2="48" y2="39" class="planned"/>
-    <text x="58" y="44" class="small">Planned migration</text>
+    <text x="58" y="44" class="small">Pending / unresolved</text>
   </g>
 
   <!-- Internet and router -->
@@ -76,7 +76,7 @@
   </g>
   <path d="M875 268 L875 310" class="wan"/>
   <rect x="896" y="280" width="184" height="24" class="pill warn-chip"/>
-  <text x="988" y="297" text-anchor="middle" class="pill-text">1 GbE copper SFP+</text>
+  <text x="988" y="297" text-anchor="middle" class="pill-text">Copper SFP+ WAN</text>
 
   <g transform="translate(555,310)">
     <rect width="640" height="200" class="core"/>
@@ -90,8 +90,8 @@
       <rect x="76" y="0" width="68" height="46" class="port"/><text x="110" y="20" text-anchor="middle" class="port-text">ether2</text><text x="110" y="36" text-anchor="middle" class="port-text">Synology</text>
       <rect x="152" y="0" width="68" height="46" class="port"/><text x="186" y="20" text-anchor="middle" class="port-text">ether3</text><text x="186" y="36" text-anchor="middle" class="port-text">TV</text>
       <rect x="228" y="0" width="68" height="46" class="port"/><text x="262" y="20" text-anchor="middle" class="port-text">ether4</text><text x="262" y="36" text-anchor="middle" class="port-text">Denis</text>
-      <rect x="304" y="0" width="68" height="46" class="port"/><text x="338" y="20" text-anchor="middle" class="port-text">ether5</text><text x="338" y="36" text-anchor="middle" class="port-text">Pi #2</text>
-      <rect x="380" y="0" width="68" height="46" class="port"/><text x="414" y="20" text-anchor="middle" class="port-text">ether6</text><text x="414" y="36" text-anchor="middle" class="port-text">Pi #1</text>
+      <rect x="304" y="0" width="68" height="46" class="port"/><text x="338" y="20" text-anchor="middle" class="port-text">ether5</text><text x="338" y="36" text-anchor="middle" class="port-text">worker-03</text>
+      <rect x="380" y="0" width="68" height="46" class="port"/><text x="414" y="20" text-anchor="middle" class="port-text">ether6</text><text x="414" y="36" text-anchor="middle" class="port-text">worker-02</text>
       <rect x="456" y="0" width="68" height="46" class="port"/><text x="490" y="20" text-anchor="middle" class="port-text">ether7</text><text x="490" y="36" text-anchor="middle" class="port-text">Aruba</text>
       <rect x="532" y="0" width="68" height="46" class="port"/><text x="566" y="20" text-anchor="middle" class="port-text">ether8</text><text x="566" y="36" text-anchor="middle" class="port-text">Anton</text>
       <rect x="226" y="57" width="148" height="34" class="port"/><text x="300" y="79" text-anchor="middle" class="port-text">sfp-sfpplus1 · WAN</text>
@@ -103,10 +103,10 @@
   <path d="M689 442 L689 578 L350 578 L350 610" class="lacp"/>
   <text x="438" y="552" class="small">syno1 · 802.3ad LACP · 2×1 GbE</text>
 
-  <path d="M765 442 L765 535 L702 535 L702 610" class="physical v100"/>
+  <path d="M765 442 L765 535 L702 535 L702 610" class="physical v300"/>
   <path d="M841 442 L841 550 L859 550 L859 610" class="physical v100"/>
-  <path d="M917 442 L917 565 L1029 565 L1029 610" class="physical v100"/>
-  <path d="M993 442 L993 580 L1206 580 L1206 610" class="physical v100"/>
+  <path d="M917 442 L917 565 L1029 565 L1029 610" class="physical v400"/>
+  <path d="M993 442 L993 580 L1206 580 L1206 610" class="physical v400"/>
   <path d="M1069 442 L1370 442 L1370 610" class="physical"/>
   <path d="M1145 442 L1145 528 L1298 528 L1298 840 L1190 840" class="physical v100"/>
 
@@ -116,14 +116,14 @@
     <text x="24" y="34" class="section-title">Synology · pulsar</text>
     <text x="24" y="57" class="small">NAS, storage appliance and VMM host · Bond 1 / syno1</text>
 
-    <rect x="24" y="77" width="238" height="30" class="pill p100"/>
-    <text x="143" y="97" text-anchor="middle" class="pill-text">Native VLAN 100 · NAS services</text>
+    <rect x="24" y="77" width="238" height="30" class="pill p400"/>
+    <text x="143" y="97" text-anchor="middle" class="pill-text">Untagged VLAN400 · NAS + VMs</text>
     <rect x="274" y="77" width="260" height="30" class="pill p400"/>
-    <text x="404" y="97" text-anchor="middle" class="pill-text">Current tagged VLAN 400 · VMM</text>
+    <text x="404" y="97" text-anchor="middle" class="pill-text">NAS · 192.168.40.5</text>
 
     <line x1="24" y1="126" x2="536" y2="126" class="divider"/>
     <text x="24" y="153" class="node-title">Containers + VMM home-cloud</text>
-    <text x="24" y="174" class="small">Services on VLAN 100 · VMM external switch VLAN 400</text>
+    <text x="24" y="174" class="small">NAS + VMM untagged400 · gateway 192.168.40.1</text>
 
     <g transform="translate(24,194)">
       <rect width="244" height="74" class="node"/>
@@ -138,7 +138,7 @@
       <text x="14" y="66" class="tiny">HTTPS · promoted Talos installers</text>
     </g>
 
-    <text x="24" y="302" class="small">Current control planes · etcd quorum 2 of 3</text>
+    <text x="24" y="302" class="small">Two VMM guests · single control plane / no etcd redundancy</text>
     <g transform="translate(24,316)">
       <rect width="158" height="60" class="node"/>
       <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-01</text>
@@ -146,13 +146,13 @@
     </g>
     <g transform="translate(190,316)">
       <rect width="158" height="60" class="node"/>
-      <text x="79" y="25" text-anchor="middle" class="node-title">talos-cp-02</text>
-      <text x="79" y="45" text-anchor="middle" class="tiny">192.168.40.22</text>
+      <text x="79" y="25" text-anchor="middle" class="node-title">worker-01</text>
+      <text x="79" y="45" text-anchor="middle" class="tiny">192.168.40.40</text>
     </g>
     <g transform="translate(356,316)">
       <rect width="178" height="60" class="node"/>
-      <text x="89" y="25" text-anchor="middle" class="node-title">talos-cp-03</text>
-      <text x="89" y="45" text-anchor="middle" class="tiny">192.168.40.23</text>
+      <text x="89" y="25" text-anchor="middle" class="node-title">Volume 3 / LUNs</text>
+      <text x="89" y="45" text-anchor="middle" class="tiny">Shared NAS storage</text>
     </g>
   </g>
 
@@ -164,9 +164,8 @@
       <rect width="145" height="142" class="node"/>
       <text x="72.5" y="28" text-anchor="middle" class="node-title">TV</text>
       <text x="72.5" y="49" text-anchor="middle" class="small mono">ether3</text>
-      <rect x="19" y="62" width="107" height="25" class="pill p100"/><text x="72.5" y="79" text-anchor="middle" class="pill-text">Current V100</text>
-      <path d="M72 92 L72 113" class="planned"/>
-      <rect x="19" y="111" width="107" height="25" class="pill p300"/><text x="72.5" y="128" text-anchor="middle" class="pill-text">Target V300</text>
+      <rect x="19" y="62" width="107" height="25" class="pill p300"/><text x="72.5" y="79" text-anchor="middle" class="pill-text">VLAN 300</text>
+      <rect x="19" y="111" width="107" height="25" class="pill p300"/><text x="72.5" y="128" text-anchor="middle" class="pill-text">TV · .30.100</text>
     </g>
 
     <g transform="translate(157,0)">
@@ -178,26 +177,24 @@
 
     <g transform="translate(314,0)">
       <rect width="170" height="202" class="node"/>
-      <text x="85" y="28" text-anchor="middle" class="node-title">Pi #2</text>
-      <text x="85" y="48" text-anchor="middle" class="small">raspi-quantum</text>
+      <text x="85" y="28" text-anchor="middle" class="node-title">Quantum · Pi 5</text>
+      <text x="85" y="48" text-anchor="middle" class="small">talos-worker-03</text>
       <text x="85" y="67" text-anchor="middle" class="small mono">ether5</text>
-      <rect x="31" y="80" width="108" height="25" class="pill p100"/><text x="85" y="97" text-anchor="middle" class="pill-text">Current V100</text>
-      <path d="M85 109 L85 130" class="planned"/>
-      <rect x="31" y="128" width="108" height="25" class="pill p400"/><text x="85" y="145" text-anchor="middle" class="pill-text">Target V400</text>
-      <text x="85" y="171" text-anchor="middle" class="tiny">Ubuntu + quantum-infra</text>
+      <rect x="31" y="80" width="108" height="25" class="pill p400"/><text x="85" y="97" text-anchor="middle" class="pill-text">VLAN 400</text>
+      <rect x="31" y="128" width="108" height="25" class="pill p400"/><text x="85" y="145" text-anchor="middle" class="pill-text">Untagged</text>
+      <text x="85" y="171" text-anchor="middle" class="tiny">Talos · 192.168.40.42</text>
       <text x="85" y="187" text-anchor="middle" class="tiny">Zigbee HAT · /dev/ttyAMA0</text>
     </g>
 
     <g transform="translate(496,0)">
       <rect width="160" height="202" class="node"/>
-      <text x="80" y="28" text-anchor="middle" class="node-title">Pi #1</text>
-      <text x="80" y="48" text-anchor="middle" class="small">Home Assistant OS</text>
+      <text x="80" y="28" text-anchor="middle" class="node-title">Raspberry Pi 4</text>
+      <text x="80" y="48" text-anchor="middle" class="small">talos-worker-02</text>
       <text x="80" y="67" text-anchor="middle" class="small mono">ether6</text>
-      <rect x="26" y="80" width="108" height="25" class="pill p100"/><text x="80" y="97" text-anchor="middle" class="pill-text">Current V100</text>
-      <path d="M80 109 L80 130" class="planned"/>
-      <rect x="26" y="128" width="108" height="25" class="pill p400"/><text x="80" y="145" text-anchor="middle" class="pill-text">Target V400</text>
-      <text x="80" y="177" text-anchor="middle" class="tiny">Talos worker after</text>
-      <text x="80" y="193" text-anchor="middle" class="tiny">HA migration</text>
+      <rect x="26" y="80" width="108" height="25" class="pill p400"/><text x="80" y="97" text-anchor="middle" class="pill-text">VLAN 400</text>
+      <rect x="26" y="128" width="108" height="25" class="pill p400"/><text x="80" y="145" text-anchor="middle" class="pill-text">Untagged</text>
+      <text x="80" y="177" text-anchor="middle" class="tiny">Talos · 192.168.40.41</text>
+      <text x="80" y="193" text-anchor="middle" class="tiny">RTL-SDR node label</text>
     </g>
 
     <g transform="translate(480,230)">
@@ -205,8 +202,8 @@
       <text x="80" y="28" text-anchor="middle" class="node-title">Anton workstation</text>
       <text x="80" y="49" text-anchor="middle" class="small mono">ether8</text>
       <rect x="26" y="69" width="108" height="25" class="pill p100"/><text x="80" y="86" text-anchor="middle" class="pill-text">VLAN 100</text>
-      <text x="80" y="118" text-anchor="middle" class="tiny">Remove stale WAN-list</text>
-      <text x="80" y="133" text-anchor="middle" class="tiny">membership</text>
+      <text x="80" y="118" text-anchor="middle" class="tiny">Router management</text>
+      <text x="80" y="133" text-anchor="middle" class="tiny">192.168.100.1</text>
     </g>
   </g>
 
@@ -214,12 +211,12 @@
   <g transform="translate(1320,610)">
     <rect width="475" height="405" class="panel"/>
     <text x="24" y="34" class="section-title">Aruba IAP-305</text>
-    <text x="24" y="57" class="small mono">ether7 · AP trunk</text>
+    <text x="24" y="57" class="small mono">ether7 · native1 · 192.168.88.3</text>
 
     <rect x="24" y="76" width="76" height="26" class="pill p1"/><text x="62" y="94" text-anchor="middle" class="pill-text">VLAN 1</text>
     <rect x="108" y="76" width="92" height="26" class="pill p100"/><text x="154" y="94" text-anchor="middle" class="pill-text">VLAN 100</text>
     <rect x="208" y="76" width="92" height="26" class="pill p200"/><text x="254" y="94" text-anchor="middle" class="pill-text">VLAN 200</text>
-    <rect x="308" y="76" width="142" height="26" class="pill p300"/><text x="379" y="94" text-anchor="middle" class="pill-text">VLAN 300 planned</text>
+    <rect x="308" y="76" width="142" height="26" class="pill p300"/><text x="379" y="94" text-anchor="middle" class="pill-text">VLAN 300 tagged</text>
 
     <line x1="24" y1="121" x2="451" y2="121" class="divider"/>
     <g transform="translate(24,143)">
@@ -248,7 +245,7 @@
     <g transform="translate(246,328)">
       <rect width="204" height="54" class="node" stroke-dasharray="7 5"/>
       <text x="102" y="23" text-anchor="middle" class="node-title">IoT devices + printer</text>
-      <text x="102" y="42" text-anchor="middle" class="tiny">Guest printer access: IPP/631 as needed</text>
+      <text x="102" y="42" text-anchor="middle" class="tiny">Guest → PRINTERS: full L3 policy</text>
     </g>
   </g>
 
@@ -269,7 +266,7 @@
       <rect x="14" y="14" width="88" height="25" class="pill p100"/><text x="58" y="31" text-anchor="middle" class="pill-text">VLAN 100</text>
       <text x="114" y="31" class="node-title">Home</text>
       <text x="14" y="58" class="small mono">192.168.100.0/24</text>
-      <text x="14" y="77" class="tiny">Gateway .1 · DNS .2</text>
+      <text x="14" y="77" class="tiny">Gateway / DHCP DNS .1</text>
     </g>
     <g transform="translate(536,53)">
       <rect width="244" height="88" class="node"/>
@@ -283,14 +280,14 @@
       <rect x="14" y="14" width="88" height="25" class="pill p300"/><text x="58" y="31" text-anchor="middle" class="pill-text">VLAN 300</text>
       <text x="114" y="31" class="node-title">IoT</text>
       <text x="14" y="58" class="small mono">192.168.30.0/24</text>
-      <text x="14" y="77" class="tiny">Target · gateway 192.168.30.1</text>
+      <text x="14" y="77" class="tiny">Gateway / DHCP DNS 192.168.30.1</text>
     </g>
     <g transform="translate(1068,53)">
       <rect width="288" height="88" class="node"/>
       <rect x="14" y="14" width="88" height="25" class="pill p400"/><text x="58" y="31" text-anchor="middle" class="pill-text">VLAN 400</text>
       <text x="114" y="31" class="node-title">Home Cloud</text>
       <text x="14" y="58" class="small mono">192.168.40.0/24</text>
-      <text x="14" y="77" class="tiny">GW/DHCP/TFTP .1 · API VIP .20 · worker .40</text>
+      <text x="14" y="77" class="tiny">GW .1 · VIP .20 · nodes .21 / .40 / .41 / .42</text>
     </g>
   </g>
 
@@ -304,13 +301,13 @@
     <text x="20" y="158" class="tiny">are reserved ideas, not active architecture.</text>
   </g>
 
-  <text x="45" y="1244" class="tiny">Physical wiring retained from existing documentation; not rediscovered. VLAN 400 is implemented. Aruba has no Home Cloud VLAN requirement.</text>
+  <text x="45" y="1244" class="tiny">Operator evidence: NAS .40.5 live; Pi workers .41/.42 Ready; TV and Mac DLNA discovery works. Printer Wi-Fi move / Guest printing await confirmation.</text>
 
-  <!-- Implemented logical architecture: services stay on VLAN 100, guests on VLAN 400 -->
+  <!-- Home Cloud: confirmed node/NAS observations and repository service configuration -->
   <g transform="translate(45,1275)">
     <rect width="1710" height="560" class="panel"/>
     <text x="24" y="34" class="section-title">Implemented Home Cloud · Talos 1.14.2 / Kubernetes 1.37.1 / Cilium 1.20.2</text>
-    <text x="24" y="57" class="small">All four VMs and their persistent storage share Synology DS923+ — one physical failure domain, not independent hardware HA.</text>
+    <text x="24" y="57" class="small">Two AMD64 VMs + two ARM64 Pis. One etcd member; all Synology LUNs share the NAS failure domain.</text>
 
     <g transform="translate(24,80)">
       <rect width="280" height="90" class="node"/>
@@ -336,44 +333,44 @@
     </g>
     <g transform="translate(1250,80)">
       <rect width="430" height="90" class="node"/>
-      <text x="16" y="27" class="node-title">Synology services · 192.168.100.5</text>
-      <text x="16" y="49" class="small">Web Station/nginx · wildcard TLS</text>
+      <text x="16" y="27" class="node-title">Synology live · 192.168.40.5</text>
+      <text x="16" y="49" class="small">VLAN400 · Web Station/nginx · TLS</text>
       <text x="16" y="70" class="small">acme.sh + Route53 · Internet still required</text>
     </g>
 
-    <path d="M520 170 V203 H550 V220" class="physical v400"/>
-    <text x="275" y="198" class="tiny">boot assets (repo menu still HTTP / old ID)</text>
+    <path d="M520 170 V203 H150 V220" class="physical v400"/>
+    <text x="275" y="198" class="tiny">VM boot assets: current ID / HTTP menu</text>
     <path d="M1020 170 V205 H1080 V220" class="physical v400"/>
     <text x="1090" y="198" class="tiny">install / upgrade</text>
 
     <g transform="translate(24,220)">
       <rect width="265" height="75" class="node"/>
       <text x="16" y="27" class="node-title">talos-cp-01 · .40.21</text>
-      <text x="16" y="51" class="small">control plane / etcd member</text>
+      <text x="16" y="51" class="small">AMD64 VM / sole etcd member</text>
     </g>
     <g transform="translate(309,220)">
       <rect width="265" height="75" class="node"/>
-      <text x="16" y="27" class="node-title">talos-cp-02 · .40.22</text>
-      <text x="16" y="51" class="small">control plane / etcd member</text>
+      <text x="16" y="27" class="node-title">worker-02 · .40.41</text>
+      <text x="16" y="51" class="small">ARM64 physical Pi worker</text>
     </g>
     <g transform="translate(594,220)">
       <rect width="265" height="75" class="node"/>
-      <text x="16" y="27" class="node-title">talos-cp-03 · .40.23</text>
-      <text x="16" y="51" class="small">control plane / etcd member</text>
+      <text x="16" y="27" class="node-title">worker-03 · .40.42</text>
+      <text x="16" y="51" class="small">ARM64 physical Pi worker</text>
     </g>
     <g transform="translate(899,220)">
       <rect width="330" height="75" class="node"/>
       <text x="16" y="27" class="node-title">talos-worker-01 · .40.40</text>
       <text x="16" y="51" class="small">8 GiB RAM · current CSI placement</text>
     </g>
-    <text x="24" y="464" class="small">All node IPs: 192.168.40.x · VMM VLAN 400 · DHCP reservations · iscsi-tools installed on all four nodes</text>
+    <text x="24" y="464" class="small">VLAN400 nodes .21 / .40 / .41 / .42 · DHCP reservations · BGP ASN65001 → router ASN65000</text>
 
-    <path d="M150 295 V340 H729 V295 M442 295 V340" class="physical v400"/>
+    <path d="M150 295 V340 H224" class="physical v400"/>
     <g transform="translate(24,357)">
       <rect width="400" height="88" class="node"/>
       <text x="16" y="26" class="node-title">API VIP · 192.168.40.20:6443</text>
       <text x="16" y="48" class="small">k8s.home.antonu.org · one elected CP owner</text>
-      <text x="16" y="69" class="small">Talos API endpoints: .21 / .22 / .23, not VIP</text>
+      <text x="16" y="69" class="small">Talos API endpoint: .21; .22 / .23 retired</text>
     </g>
     <path d="M224 340 V357" class="physical v400"/>
     <g transform="translate(454,357)">
@@ -386,7 +383,7 @@
       <rect width="330" height="88" class="node"/>
       <text x="16" y="26" class="node-title">Pod → PVC → Synology CSI</text>
       <text x="16" y="48" class="small">synology-block · ext4 · Retain</text>
-      <text x="16" y="69" class="small">Controller + node plugin on worker-01</text>
+      <text x="16" y="69" class="small">Controller: worker-01 · plugins: all 3 workers</text>
     </g>
     <path d="M1064 295 V357" class="physical v400"/>
     <path d="M1229 401 H1290" class="physical"/>
@@ -398,53 +395,53 @@
     </g>
     <text x="24" y="482" class="small">Validated storage: provision → attach → write → pod replacement → controlled worker reboot + remount; backup restore still untested.</text>
     <path d="M470 514 H530" class="planned"/>
-    <text x="24" y="519" class="node-title">Future / not deployed</text>
-    <text x="550" y="519" class="small">Argo / Gateway activation · HA / quantum migration · Pi workers · independent-disk Ceph only later</text>
-    <text x="24" y="542" class="tiny">Source YAML + persistent private PKI → generated Talos configs. Ordinary container images and Cilium OCI chart still come from public registries.</text>
+    <text x="24" y="519" class="node-title">Remaining / unverified</text>
+    <text x="550" y="519" class="small">ExternalDNS recovery · backup restore · Quantum standalone boot · independent storage</text>
+    <text x="24" y="542" class="tiny">Source YAML + persistent private PKI → generated Talos configs. Container images and pinned charts still require public upstreams.</text>
   </g>
   <g transform="translate(45,1855)">
     <rect width="1710" height="365" class="panel"/>
-    <text x="24" y="32" class="section-title">Application layer · prepared in Git, operator deployment pending</text>
+    <text x="24" y="32" class="section-title">Application layer · adopted in Argo (operator status 2026-10-10)</text>
     <text x="24" y="58" class="small">Already working: four Cilium peers ASN 65001 ↔ RB5009 ASN 65000 · LB pool 10.40.0.0/24 · allocated VIP /32 advertisements only</text>
     <g transform="translate(24,85)">
       <rect width="320" height="92" class="node"/>
       <text x="16" y="28" class="node-title">LAN / approved Tailscale routes</text>
       <text x="16" y="52" class="small">argocd.home.antonu.org</text>
-      <text x="16" y="74" class="small">DNS → 10.40.0.10 (proposed stable VIP)</text>
+      <text x="16" y="74" class="small">Gateway VIP: 10.40.0.10</text>
     </g>
-    <path d="M350 130 H435" class="planned"/>
+    <path d="M350 130 H435" class="physical v400"/>
     <g transform="translate(450,85)">
       <rect width="340" height="92" class="node"/>
       <text x="16" y="28" class="node-title">Cilium Gateway / HTTPS</text>
       <text x="16" y="52" class="small">Existing wildcard certificate</text>
-      <text x="16" y="74" class="small">HTTPRoute + verified backend TLS</text>
+      <text x="16" y="74" class="small">HTTPRoute → plaintext HTTP backend</text>
     </g>
-    <path d="M800 130 H885" class="planned"/>
+    <path d="M800 130 H885" class="physical v400"/>
     <g transform="translate(900,85)">
       <rect width="325" height="92" class="node"/>
-      <text x="16" y="28" class="node-title">Argo CD / HTTPS</text>
-      <text x="16" y="52" class="small">Helm bootstrap · Git root → Gateway</text>
-      <text x="16" y="74" class="small">Manual sync · Cilium not Argo-owned</text>
+      <text x="16" y="28" class="node-title">Argo CD / HTTP backend</text>
+      <text x="16" y="52" class="small">Root: gitops · child: gateway</text>
+      <text x="16" y="74" class="small">Manual sync · Cilium Argo-owned</text>
     </g>
     <g transform="translate(1260,85)">
       <rect width="425" height="92" class="node"/>
-      <text x="16" y="28" class="node-title">Home Assistant: decision gate</text>
-      <text x="16" y="52" class="small">No deployment · Synology iSCSI intended</text>
-      <text x="16" y="74" class="small">Test mDNS / SSDP / IPv6: VLAN300 ↔ 400</text>
+      <text x="16" y="28" class="node-title">Home Assistant + Matter</text>
+      <text x="16" y="52" class="small">Argo Synced/Healthy · CSI recovered</text>
+      <text x="16" y="74" class="small">mDNS + SSDP: VLAN100 / 300 / 400</text>
     </g>
-    <text x="24" y="212" class="small">Bootstrap remains independent: Talos → Gateway CRDs + Cilium Helm/CRs → Argo Helm → root sync → Gateway/routes.</text>
-    <text x="24" y="238" class="small">TLS renewal/import, DNS, Git repository access and live acceptance remain operator actions. No Home Assistant or Raspberry Pi changes.</text>
+    <text x="24" y="212" class="small">Bootstrap/recovery remains operator-run. Current platform and workload apps are adopted; do not alternate Helm/direct apply and Argo managers.</text>
+    <text x="24" y="238" class="small">All 14 apps Synced; 13 Healthy. ExternalDNS Progressing / crash loop; resource health does not prove service or renewal acceptance.</text>
     <g transform="translate(24,267)">
       <rect width="780" height="72" class="node"/>
       <text x="16" y="27" class="node-title">HTTPRoute → ExternalDNS + localhost MikroTik webhook</text>
-      <text x="16" y="51" class="small">Argo-owned · TXT owner home-cloud · exact names only · dry-run → upsert-only → tested sync</text>
+      <text x="16" y="51" class="small">Argo-owned · write-enabled / upsert-only · /records webhook timeout unresolved</text>
     </g>
     <path d="M815 303 H915" class="planned"/>
     <g transform="translate(930,267)">
       <rect width="755" height="72" class="node"/>
-      <text x="16" y="27" class="node-title">RB5009 DNS · HTTPS REST at 192.168.40.1</text>
-      <text x="16" y="51" class="small">Dedicated account · verified TLS · manual infrastructure / legacy app records protected</text>
+      <text x="16" y="27" class="node-title">RB5009 DNS · HTTP REST at 192.168.40.1:80</text>
+      <text x="16" y="51" class="small">Dedicated account · source restrictions · no explicit name-exclusion regex in current values</text>
     </g>
   </g>
-  <text x="45" y="2270" class="tiny">Operator-reported state + prepared configuration, 2026-10-02. Bootstrap/recovery: docs/gitops.md. DNS activation and ownership gates: docs/external-dns.md.</text>
+  <text x="45" y="2270" class="tiny">Operator evidence + repository source, 2026-10-10. See docs/gitops.md, docs/external-dns.md and incidents/postmortems/ for status and limitations.</text>
 </svg>

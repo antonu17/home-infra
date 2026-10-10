@@ -45,8 +45,10 @@ All NAS commands and changes below are **operator-run**.
 1. Verify no DSM DNS service or other container occupies TCP/UDP 53, and that
    TCP 8081 is free. Identify the existing DNS server before replacing anything.
    The [addressing plan](../../docs/addressing.md) lists Home DNS at
-   `192.168.100.2`, while the Synology NAS is `192.168.100.5`. Publishing port 53
-   on the NAS does not transfer `.2` or update client DHCP settings. Confirm the
+   `192.168.100.2`, while the NAS target is `192.168.40.5/24` in VLAN400, gateway
+   `192.168.40.1` (operator plan, 2026-10-09; previously `192.168.100.5` in
+   VLAN100). This is not confirmation of a live move. Publishing port53 on the
+   NAS does not transfer `.100.2` or update client DHCP settings. Confirm the
    intended endpoint; preserve the existing resolver during validation.
 2. For an existing Pi-hole, record its image version/digest and Compose settings.
    Export settings with Teleporter and keep an independent private backup of its

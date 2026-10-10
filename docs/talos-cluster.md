@@ -1,41 +1,46 @@
 # Talos home-cloud cluster
 
-## Current architecture
+## Current architecture — operator evidence 2026-10-10
 
-Reconciled on 2026-10-01 from repository configuration and the operator's
-implementation handoff; this documentation update did not query the live lab.
+The operator supplied node, CSI and Argo status; the agent did not query live
+infrastructure. All four nodes were Ready at Talos `v1.14.2`, Kubernetes
+`v1.37.1`, kernel `6.18.54-talos`, containerd `2.3.6`.
 
-| Component | Implemented state |
+| Component | Recorded state |
 |---|---|
-| Talos / Kubernetes | `v1.14.2` / `v1.37.1` |
-| Nodes | Three control planes and one worker, all Synology VMM guests; reported Ready |
-| Networking | Cilium `1.20.2`, CNI and eBPF kube-proxy replacement |
-| Removed components | Flannel and kube-proxy |
-| Storage | Synology CSI `v1.3.1`, working iSCSI persistent volumes |
-| Provisioning | RouterOS DHCP/TFTP, local Image Factory, local installer registry |
-| Extensions | `siderolabs/iscsi-tools` installed on all four nodes after rolling upgrades |
+| Nodes | One control plane and three workers: two AMD64 Synology VMs and two ARM64 Raspberry Pis |
+| Networking | Cilium `1.20.2`, eBPF kube-proxy replacement, no Flannel/kube-proxy |
+| Storage | Synology CSI `v1.3.1`; controller on worker-01, node plugins on all three workers |
+| Provisioning | RouterOS DHCP/TFTP, NAS-hosted Image Factory and installer registry |
+| GitOps | Root `gitops`; Cilium, CSI, Argo, Gateway, cert-manager, ESO and workloads Synced/Healthy |
+| Open issue | ExternalDNS Synced/Progressing; controller crash loop awaiting local webhook `/records` |
 
 See [topology](network-topology.svg), [addressing](addressing.md),
-[PXE](pxe.md) and [Image Factory / registry](talos-mirror.md).
-Three etcd members provide quorum resilience to one member being unavailable,
-**not independent physical HA**: all guests and their storage share one NAS.
+[PXE](pxe.md), [Image Factory / registry](talos-mirror.md) and
+[GitOps](gitops.md). There is **one etcd member, no control-plane redundancy**.
+Control-plane VM and worker-01 share the NAS; the two physical workers add
+compute independence, but their Synology LUNs still share the NAS failure domain.
 
 ## Addressing
 
-| Purpose | Address | MAC address |
+| Purpose | Address | Platform / MAC |
 |---|---|---|
-| Kubernetes API VIP | `192.168.40.20` (`k8s.home.antonu.org`) | Elected control-plane owner |
-| `talos-cp-01` | `192.168.40.21` | `02:11:32:28:5A:95` |
-| `talos-worker-01` | `192.168.40.40` | `02:11:32:2E:F4:1B` |
+| Kubernetes API VIP | `192.168.40.20` (`k8s.home.antonu.org`) | Owned by the current control plane |
+| `talos-cp-01` | `192.168.40.21` | AMD64 VM / `02:11:32:28:5A:95` |
+| `talos-worker-01` | `192.168.40.40` | AMD64 VM / `02:11:32:2E:F4:1B` |
+| `talos-worker-02` | `192.168.40.41` | Pi 4 ARM64, ether6 / `DC:A6:32:2F:57:C3` |
+| `talos-worker-03` | `192.168.40.42` | Quantum Pi 5 ARM64, ether5 / `2C:CF:67:1B:D6:FE` |
 
-The CP VMs were provisioned with 2 vCPUs, 4 GiB RAM and 34 GB `/dev/sda`;
-the worker has 8 GiB RAM and a 34 GB system disk. NIC `ens3` uses RouterOS
-DHCP reservations on VLAN 400. All three CP patches include the shared VIP.
+The original VM profiles were 2 vCPUs/4 GiB/34 GB for cp-01 and 8 GiB/34 GB
+for worker-01, with `ens3` and `/dev/sda`. These are historical VM allocations,
+not Raspberry Pi hardware profiles. All nodes use Home Cloud DHCP reservations.
+The `.22`/`.23` nodes and BGP peers are retired; their patches no longer exist.
 
 Kubernetes clients use `https://k8s.home.antonu.org:6443`. Talos management
-uses actual CP endpoints `.21,.22,.23` on TCP/50000, **not the API VIP**.
-`-e` chooses the contacted Talos endpoint; `-n` chooses the target node.
-Always specify `-n` for maintenance: saved defaults can target multiple nodes.
+uses `.40.21:50000`, **not the API VIP**. `-e` chooses the contacted endpoint;
+`-n` chooses the target node. Explicitly specify both for maintenance.
+Load `KUBECONFIG` and `TALOSCONFIG` through repository direnv; do not override them
+with a second configuration path.
 
 ## Source configuration and secrets
 
@@ -46,10 +51,13 @@ Always specify `-n` for maintenance: saved defaults can target multiple nodes.
 | `talos/image-factory/schematic-amd64-wipe.{yaml,id}` | Separate destructive reprovisioning schematic |
 | `talos/image-factory/schematic-rpi4.yaml` | Normal Raspberry Pi 4 schematic with iSCSI support |
 | `talos/image-factory/schematic-rpi4-raspbee.{yaml,id}` | Raspberry Pi 4 schematic with the serial console removed for RaspBee II UART access |
-| `talos/patches/cilium.yaml` | Disable proxy deployment and remove legacy CNI documents |
-| `talos/patches/cp-01.yaml`, `cp-02.yaml`, `cp-03.yaml` | DHCP, common VIP and individual hostname |
+| `talos/patches/cilium.yaml` | Delete Flannel document; set KubeProxyConfig enabled=false |
+| `talos/patches/cp-01.yaml` | VM DHCP, API VIP and control-plane hostname |
 | `talos/patches/worker-01.yaml` | Worker hostname |
 | `talos/patches/worker-02.yaml` | Physical Raspberry Pi worker hostname and persistent hardware/workload labels |
+| `talos/patches/worker-03.yaml` | Quantum hostname and storage/RaspBee labels |
+| `talos/custom-rpi5/` | Custom AXI kernel and boot/installer lineage; stock upgrades can remove support |
+| `talos/patches/worker-02-install.yaml`, `worker-03-install.yaml` | Destructive fresh-install disk selectors; not ordinary config/upgrade patches |
 | `talos/secrets/home-cloud.yaml` | Persistent, sensitive cluster identity input |
 | `talos/generated/` | Disposable generated configs and client credentials |
 | `kubernetes/cilium/values.yaml` | Actual Cilium Helm settings |
@@ -78,52 +86,47 @@ talosctl gen secrets \
 Subsequent regeneration always uses `--with-secrets`. A regenerated talosconfig
 was tested successfully against the existing cluster during implementation.
 
-## Safe regeneration
+## Local configuration regeneration — no live changes
 
-Run from the repository root with Talos CLI 1.14.2. Check
-`talosctl version --client` first: both tool entries in `mise.toml` now pin
-`1.14.2`. The commands below were checked against the
-installed 1.14.2 CLI help, not executed against the cluster.
-
-Generate into a **new review directory**, preserving existing outputs:
+Run from the repository root with Talos CLI 1.14.2 and direnv loaded. Use the
+existing persistent cluster secrets; never generate a new cluster identity.
+This example generates **AMD64 VM configs only** into a new private directory.
+Pi workers require their architecture-specific installer/disk choices; Quantum
+requires its custom build and boot constraints. Do not apply its wipe patch
+as an ordinary configuration update.
 
 ```sh
 umask 077
 test -s talos/secrets/home-cloud.yaml || exit 1
-
+talosctl version --client
+mkdir -p talos/generated
+TALOS_REVIEW_DIR=$(mktemp -d "$PWD/talos/generated/review.XXXXXX")
+mkdir "$TALOS_REVIEW_DIR/nodes"
+SCHEMATIC=$(tr -d '\r\n' < talos/image-factory/schematic-amd64.id)
+TALOS_INSTALLER="registry.home.antonu.org/talos/metal-installer/${SCHEMATIC}:v1.14.2"
 talosctl gen config home-cloud https://k8s.home.antonu.org:6443 \
   --with-secrets talos/secrets/home-cloud.yaml \
-  --talos-version ${TALOS_VERSION} --kubernetes-version 1.37.1 \
+  --talos-version v1.14.2 --kubernetes-version 1.37.1 \
   --install-disk /dev/sda --install-image "$TALOS_INSTALLER" \
   --config-patch-control-plane @talos/patches/cilium.yaml \
-  --output "$TALOS_DIR" --with-docs=false --with-examples=false --with-cluster-discovery=false
+  --config-patch-worker @talos/patches/cilium.yaml \
+  --output "$TALOS_REVIEW_DIR" --with-docs=false --with-examples=false \
+  --with-cluster-discovery=false
 
-talosctl machineconfig patch "$TALOS_DIR/controlplane.yaml" --patch "@talos/patches/cp-01.yaml" --output "$TALOS_DIR/nodes/cp-01.yaml"
-talosctl machineconfig patch "$TALOS_DIR/worker.yaml" --patch "@talos/patches/worker-01.yaml" --output "$TALOS_DIR/nodes/worker-01.yaml"
-
-talosctl validate --config "$TALOS_DIR/nodes/cp-01.yaml" --mode metal
-talosctl validate --config "$TALOS_DIR/nodes/worker-01.yaml" --mode metal
-
-talosctl apply-config --insecure -n 192.168.40.21 -f talos/generated/home-cloud/nodes/cp-01.yaml
-talosctl apply-config --insecure -n 192.168.40.40 -f talos/generated/home-cloud/nodes/worker-01.yaml
-talosctl bootstrap -n 192.168.40.21
-
-talosctl config endpoint 192.168.40.21
-talosctl -n 192.168.40.21 version
-talosctl -n 192.168.40.21 get extensions
-talosctl kubeconfig -n 192.168.40.21
+talosctl machineconfig patch "$TALOS_REVIEW_DIR/controlplane.yaml" \
+  --patch @talos/patches/cp-01.yaml --output "$TALOS_REVIEW_DIR/nodes/cp-01.yaml"
+talosctl machineconfig patch "$TALOS_REVIEW_DIR/worker.yaml" \
+  --patch @talos/patches/worker-01.yaml --output "$TALOS_REVIEW_DIR/nodes/worker-01.yaml"
+talosctl validate --config "$TALOS_REVIEW_DIR/nodes/cp-01.yaml" --mode metal
+talosctl validate --config "$TALOS_REVIEW_DIR/nodes/worker-01.yaml" --mode metal
 ```
 
-These commands create sensitive local outputs; do not publish their contents.
-Review privately before replacing files under `talos/generated/home-cloud/`.
-The final command checks authentication, not full configuration equivalence.
-Regeneration is not an instruction to apply every generated file.
-
-For initial provisioning only: inspect the maintenance node's disks, confirm
-the installation disk is disposable, then explicitly apply the reviewed
-per-node config to that node. It installs to disk; later boots normally use
-that disk. Workers and additional CPs join the existing cluster; do not
-bootstrap each node.
+These commands create sensitive local files. Review them privately against the
+existing node configuration; generation is not permission to replace or apply it.
+No `apply-config`, `bootstrap`, endpoint rewriting or kubeconfig replacement
+belongs in this local regeneration sequence. For a genuinely fresh installation,
+first review the exact node/disk and preserved identity, then use a separate
+operator-run provisioning procedure. Never bootstrap an intact existing cluster.
 
 ## Talos 1.14 multi-document networking
 
@@ -132,7 +135,7 @@ Configs include separate `HostnameConfig`, `KubeNetworkConfig`,
 documents. Preserve this structure and inspect the generated installer
 document rather than assuming the old `machine.install.image` layout.
 
-The committed Cilium patch uses all three operations:
+The committed Cilium patch contains these two documents:
 
 ```yaml
 apiVersion: v1alpha1
@@ -145,7 +148,8 @@ enabled: false
 ```
 
 `KubeProxyConfig.disabled: true` was invalid. Deleting that document alone did
-not stop proxy deployment; `cluster.proxy.disabled` is the switch used.
+not stop proxy deployment. The current source explicitly uses `enabled: false`;
+the earlier `cluster.proxy.disabled` approach is historical.
 Do not combine the old `cluster.network.cni.name: none` pattern with these
 new network documents: that produced conflicts during implementation.
 Each node patch supplies `HostnameConfig` with `auto: off`.
@@ -157,15 +161,11 @@ KubePrism at `localhost:7445`. They disable automatic cgroup mounting, use
 `/sys/fs/cgroup`, set `bpf.hostLegacyRouting: true`, and explicitly list
 Talos-compatible capabilities. Keep the checked-in values authoritative.
 
-The reproducible installation/update command uses the **OCI chart**, not
-`helm repo add`. This is a cluster-changing command; review before running:
-
-```sh
-export KUBECONFIG="$PWD/talos/generated/home-cloud/kubeconfig"
-helm upgrade --install cilium oci://quay.io/cilium/charts/cilium \
-  --version 1.20.2 --namespace kube-system \
-  --values kubernetes/cilium/values.yaml
-```
+Cilium is now Argo-owned: the operator reported `cilium` Synced/Healthy on
+2026-10-10. Its source renders the pinned chart through Kustomize `helmCharts`
+from `https://helm.cilium.io/`, plus local BGP/IPAM/Gateway resources. Review
+Git changes and manually sync `cilium`; do not alternate Helm upgrades and direct
+applies with Argo. Fresh-cluster bootstrap is covered in [GitOps](gitops.md).
 
 Control-plane bootstrap preceded Cilium installation. Nodes/CoreDNS became
 healthy after Cilium was installed. Read-only checks:
@@ -180,13 +180,9 @@ Expect Cilium, healthy CoreDNS, and no Flannel or kube-proxy DaemonSets.
 The operator reports working BGP on all four nodes (ASN 65001), peering with
 RB5009 `.40.1` (ASN 65000), and LB-IPAM pool `10.40.0.0/24`. Allocated Service
 VIPs are advertised as /32 routes. The Kubernetes API VIP is separate.
-The existing Helm release is the pre-adoption owner; Argo adoption is prepared. `kubernetes/cilium/kustomization.yaml`
-renders the pinned chart plus local resources using the standard `helmCharts`
-pattern; `kubernetes/cilium/manifests` is the separate local-resource apply target.
-Follow the explicit Argo adoption and rollback plan in `kubernetes/cilium/README.md`.
-After adoption, manually sync `cilium` instead of running separate Helm upgrades.
-Values now also prepare Gateway API: install the pinned CRDs **before** upgrading
-the release using [the GitOps sequence](gitops.md).
+The [Cilium adoption guide](../kubernetes/cilium/README.md) retains the historical
+handoff and rollback procedure. Adoption is complete according to the operator's
+Argo list; Gateway API CRDs are now in the Cilium source, not a second owner.
 
 ## Machine configuration versus installed image
 
@@ -201,38 +197,38 @@ local iSCSI-enabled installer. Existing nodes received rolling image upgrades;
 they were not wiped. The Talos version stayed `v1.14.2` while the schematic
 composition changed.
 
-## Rolling image upgrade
+## Image upgrades — operator-run maintenance
 
-Before starting, verify cluster health, preserve a recoverable etcd backup and
-plan workload interruption. The single worker hosts CSI as well as workloads.
-The successful sequence was worker canary first, then CPs **one at a time**.
+Preserve an independent etcd backup and workload backups first. Check node/DNS,
+Cilium, CSI and storage health before maintenance. Upgrade one reviewed worker
+at a time, verify recovery, then schedule cp-01 maintenance with an API/etcd
+outage: there is no second control-plane endpoint or quorum redundancy.
+
+This example affects **AMD64 worker-01 `192.168.40.40` only** and changes its
+installed image/reboots it. Load repository direnv first; review the installer
+and workload drain constraints before running.
 
 ```sh
+: "${TALOSCONFIG:?Load the repository direnv environment}"
+: "${KUBECONFIG:?Load the repository direnv environment}"
 SCHEMATIC=$(tr -d '\r\n' < talos/image-factory/schematic-amd64.id)
 INSTALLER="registry.home.antonu.org/talos/metal-installer/${SCHEMATIC}:v1.14.2"
-talosctl --talosconfig talos/generated/home-cloud/talosconfig \
-  -e 192.168.40.21 -n 192.168.40.40 \
-  upgrade --image "$INSTALLER" --wait
-talosctl --talosconfig talos/generated/home-cloud/talosconfig \
-  -e 192.168.40.21 -n 192.168.40.40 get extensions
+talosctl -e 192.168.40.21 -n 192.168.40.40 upgrade --image "$INSTALLER" --wait
+talosctl -e 192.168.40.21 -n 192.168.40.40 get extensions
 kubectl get nodes -o wide
+kubectl -n synology-csi get pods -o wide
 ```
 
-The upgrade lifecycle performs drain, image retrieval/installation, reboot,
-post-checks and uncordon. Drain can block on workload constraints; investigate
-rather than bypassing it. Do not use deprecated `--force`.
+Drain can block on workload constraints; investigate rather than bypassing it.
+Do not use deprecated `--force`. Pi 4 needs an ARM64 installer; Quantum needs
+its custom kernel/installer lineage and known-working boot media. Neither uses
+this AMD64 example. Follow [Quantum history](quantum-talos-build-history.md)
+before any worker-03 image change. Never target retired `.22` or `.23`.
 
-After the canary is healthy, repeat for `.21`, then `.22`, then `.23`,
-waiting and checking etcd health/node readiness between each. Use another
-healthy CP endpoint when upgrading the endpoint itself (for example `-e .22`
-with the full IP while targeting `.21`). Do not run these CP upgrades in
-parallel. Check extensions and Cilium/CSI recovery after maintenance.
-
-Three etcd members require two for quorum. A planned complete shutdown is
-possible with downtime: one returning member has no quorum, two restore it,
-three restore full membership, assuming their existing state is intact.
-**Never run `talosctl bootstrap` again just because the initialized cluster
-was powered off.** Actual state loss requires a separate recovery procedure.
+A complete shutdown causes downtime; restoration depends on the original cp-01
+etcd state and NAS availability. **Never run `talosctl bootstrap` again because
+an initialized cluster was powered off.** State loss requires a reviewed recovery
+procedure, not an automatic bootstrap.
 
 ## Current persistent storage
 
@@ -244,8 +240,8 @@ Those capacity figures are historical, not live monitoring.
 `synology/synology-csi:v1.3.1` controller and node plugin and includes
 `storageclass.yaml` and the namespaced ESO resources. The controller is pinned
 to `talos-worker-01`; the node DaemonSet selects nodes labeled
-`storage.home.antonu.org/synology-iscsi=true` (two ready instances observed on
-2026-10-04). Extension installation alone does not broaden that selector.
+`storage.home.antonu.org/synology-iscsi=true` (three ready instances on workers
+01/02/03 observed on 2026-10-10; cp-01 is not labeled). Extension installation alone does not broaden that selector.
 
 | StorageClass setting | Current value |
 |---|---|
@@ -266,15 +262,16 @@ It is not restricted to Volume 3. TLS verification remains enabled.
 
 The account configuration was copied into Vault at
 `home-cloud/synology-csi/client-info` on 2026-10-04, preserving the live
-`client-info.yml` bytes. ESO synchronization is prepared under
+`client-info.yml` bytes. ESO synchronization is declared under
 `kubernetes/synology-csi/external-secrets`, included in the full `synology-csi`
 Argo Application alongside the driver and StorageClass. Terraform was reported
-applied; operator Argo adoption remains pending. Follow the
+applied; the operator reported `synology-csi` Synced/Healthy on 2026-10-10.
+Follow the
 [CSI adoption guide](../kubernetes/synology-csi/README.md).
 The target remains `synology-csi/client-info-secret`; do not delete or recreate it.
 PVCs, PVs and NAS LUNs retain their existing owners.
-Vault/ESO depend on existing cluster storage: preserve the retained Kubernetes
-Secret during outages and do not prune it or delete storage to troubleshoot auth.
+Vault is NAS-hosted and ESO is cluster-hosted; their dependencies overlap.
+Preserve the retained Kubernetes Secret during outages and do not prune it or delete storage to troubleshoot auth.
 
 IP-based HTTPS requests received HTTP 403 from the NAS frontend. Switching
 the configured host to `pulsar.home.antonu.org` fixed routing and both driver
@@ -302,18 +299,31 @@ terminal; it needed manual recreation. Its manifest omits `restartPolicy`
 `ReadWriteOnce` is a single-node access mode, not guaranteed single-pod fencing.
 
 The test PVC/LUN is retained. Deleting a retained claim does not automatically
-clean up NAS storage; never delete unidentified LUNs. Before HA migration:
+clean up NAS storage; never delete unidentified LUNs. For continued Home Assistant and other stateful workload operation:
 test backup restoration to a separate volume, establish off-NAS backups,
 test expansion if required, and design controller-managed workload recovery.
 Unexpected power loss and cross-worker failover have not been validated.
 Snapshots on this NAS alone are not independent backups.
 
-## Planned, not deployed
+## Recent storage incident
 
-- Argo CD and Cilium Gateway API: manifests prepared; deployment/acceptance pending.
-- Home Assistant migration from HAOS and migration of quantum-infra services.
-- Freed Raspberry Pis as Talos nodes, additional workers and inventory/API.
-- Ceph/Rook only if independent local disks/failure domains become available.
+On 2026-10-10, worker-02 could not stage Home Assistant/Matter LUNs despite
+healthy NAS volumes and attached VolumeAttachments. CSI startup failed DSM login
+because `pulsar.home.antonu.org` DNS lookup timed out, leaving DSM unregistered
+while the plugin remained Running/Ready. The operator confirmed recovery; the
+initial DNS timeout cause and exact recovery commands remain unknown.
+See the [CSI postmortem](../incidents/postmortems/2026-10-10-synology-csi-dns-startup.md).
+Inspect startup logs, name resolution and DSM registration before altering LUNs.
 
-Do not build a nominally replicated Ceph cluster from VMs whose disks all
-reside on this same NAS and describe it as fault-domain-independent storage.
+## Remaining work and limitations
+
+Argo, Gateway, cert-manager, ESO and application adoption are deployed according
+to the 2026-10-10 Argo list. Home Assistant and Matter recovered; both Pi workers
+already joined the cluster. Synced/Healthy does not independently demonstrate
+backup restoration, certificate renewal, every integration or completed legacy
+service retirement. ExternalDNS is an active unresolved issue.
+
+Inventory/API automation and independent storage remain future work. Do not
+build nominally replicated Ceph from disks all hosted on this NAS and describe
+it as independent fault tolerance. Quantum standalone boot/fan follow-up remains
+subject to the recorded build history and operator confirmation.

@@ -2,7 +2,7 @@
 
 The RB5009 is the DHCP authority and native TFTP server for VLAN 400. No
 provisioner VM, RouterOS container, proxy-DHCP service or second DHCP server is
-required.
+required for PXE. The separate SSDP discovery container is unrelated to provisioning.
 
 This setup supports x86-64 UEFI clients with Secure Boot disabled. The menu
 boots Talos Linux 1.14.2 artifacts from the local Image Factory rather than
@@ -15,17 +15,19 @@ clean maintenance environment. Installed VMs normally continue to local boot.
 UEFI PXE -> MikroTik DHCP/TFTP -> iPXE -> local Image Factory kernel/initramfs
 -> Talos -> local OCI installer registry -> installed node disk.
 
-The factory and registry are deployed with HTTPS, but the checked-in
-`mikrotik/pxe/files/boot.ipxe` still uses `http://talos.home.antonu.org` in both
-entries. Its normal entry also still contains the obsolete extension-free
-schematic `376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba`.
-This is configuration drift, **not the current normal provisioning schematic**.
-Do not upload that menu unchanged expecting the current iSCSI-enabled boot.
+The checked-in `mikrotik/pxe/files/boot.ipxe` uses HTTP to the local factory
+in three entries (AMD64 normal, Pi 4 ARM64, AMD64 wipe). Its AMD64 normal
+schematic is already the current iSCSI-enabled
+`c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac`;
+the Pi 4 entry uses `f47e6cd2634c7a96988861031bcc4144468a1e3aef82cca4f5b5ca3fffef778a`.
+The factory/registry handoff reports HTTPS service endpoints; the repository
+iPXE menu uses HTTP. An HTTPS menu change requires separate iPXE TLS testing.
+No live menu upload or current client boot test was supplied during this audit.
 
-The normal source of truth is `talos/image-factory/schematic-amd64.yaml` with
-derived ID `c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac`.
-Review/update the menu scheme and ID separately, test iPXE TLS, then upload it.
-This documentation-only change does not modify router files or live services.
+The 2026-10-10 DHCP export names `ipxe-x86_64.efi`; the legacy TFTP source maps
+`snponly-x86_64.efi`. A separate `ipxe.efi` exists locally but is not mapped by
+that legacy file. These names are not interchangeable evidence: verify the live
+bootstrap file/mapping before changing DHCP or importing legacy configuration.
 
 ## Files
 
@@ -33,7 +35,8 @@ This documentation-only change does not modify router files or live services.
 |---|---|
 | `snponly-x86_64.efi` | Official iPXE x86-64 UEFI chainloader |
 | `autoexec.ipxe` | Prevents self-chainloading and transfers control to the menu |
-| `boot.ipxe` | Local Image Factory normal/wipe boot and diagnostics menu; drift noted above |
+| `boot.ipxe` | Current AMD64 normal/wipe and Pi 4 ARM64 maintenance entries; HTTP transport |
+| `ipxe.efi` | Additional local EFI binary; no mapping in the legacy TFTP source |
 | `SHA256SUMS` | Recorded checksum of the downloaded iPXE binary |
 | `talos/image-factory/schematic-amd64.yaml` | Current reproducible normal schematic |
 | `talos/image-factory/schematic-amd64-wipe.yaml` | Destructive system-wipe schematic |
@@ -79,9 +82,14 @@ is:
 c84cbd76d925b947f776bf4fd0c25936ea818a5b9dc92bc4fd77efb9156948c0
 ```
 
-## 2. Review and import the configuration
+## 2. Legacy PXE configuration — reconcile before importing
 
-Read `mikrotik/pxe/routeros.rsc` before importing it. It:
+The 2026-10-10 operator export uses boot filename `ipxe-x86_64.efi`; the current
+common DHCP source preserves it. The older `mikrotik/pxe/routeros.rsc` would
+change it to `snponly-x86_64.efi`. Do not re-import that legacy file unchanged
+on top of the numbered router configuration. First confirm the live boot file
+and exact TFTP mapping; the repository does not establish their equivalence.
+Read the legacy file before using any of its mappings. It:
 
 - limits TFTP clients to `192.168.40.0/24`;
 - permits only three exact filenames;
@@ -92,7 +100,8 @@ Read `mikrotik/pxe/routeros.rsc` before importing it. It:
 - sets the VLAN 400 DHCP `next-server` to `192.168.40.1`;
 - sets the initial boot filename to `snponly-x86_64.efi`.
 
-Import only after the file paths have been verified:
+Legacy/fresh setup only: these are **operator-run live changes**, after reconciling
+the boot filename with `network/mikrotik-rb5009upr/10-dhcp.rsc` and verifying paths:
 
 ```routeros
 /import file-name=routeros.rsc verbose=yes dry-run=yes
@@ -109,17 +118,17 @@ Alternatively, paste the reviewed commands section by section.
 /ip dhcp-server network print detail where address="192.168.40.0/24"
 ```
 
-Expected DHCP values:
+Current preserved DHCP values (operator export 2026-10-10):
 
 ```text
 next-server=192.168.40.1
-boot-file-name=snponly-x86_64.efi
+boot-file-name=ipxe-x86_64.efi
 ```
 
-The current firewall classifies `vlan400-home-cloud` as `LAN`, so TFTP input to
-the router is permitted by the existing policy. When security zones replace
-the generic `LAN` classification, explicitly allow UDP/69 from the CLOUD zone
-to the router.
+The numbered firewall uses explicit `Cloud DNS and native TFTP` input rules
+for UDP/53,69 and TCP/53, plus established/related handling for replies.
+`LAN` membership alone is not an input permission. Confirm these rules precede
+the input drop and test negotiated TFTP transfers.
 
 ## 4. Test
 
@@ -131,7 +140,7 @@ Create a disposable Synology VMM test VM with:
 - a blank or disposable disk.
 
 It should receive an address from `192.168.40.100-199`, download
-`snponly-x86_64.efi`, automatically retrieve `autoexec.ipxe`, and display the
+the configured `ipxe-x86_64.efi` (verify the live mapping), automatically retrieve `autoexec.ipxe`, and display the
 Home Cloud Network Boot menu.
 
 Useful RouterOS observations during the test:
@@ -153,8 +162,10 @@ PXE script for the current schematic/version is:
 https://talos.home.antonu.org/pxe/c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac/v1.14.2/metal-amd64
 ```
 
-The current menu labels are `Talos v1.14.2 maintenance (Image Factory)` and
-`Talos v1.14.2 WIPE SYSTEM DISK`. It no longer has the previously documented
+The current menu labels include `Talos v1.14.2 maintenance (Image Factory)`,
+`Talos v1.14.2 Raspberry Pi 4 maintenance (Image Factory)`, and
+`Talos v1.14.2 WIPE SYSTEM DISK`. The ARM64 iPXE menu entry does not prove
+the Pi firmware can reach or boot this x86-64 EFI chainloader. It no longer has the previously documented
 public-factory fallback. Local boot is the default after ten seconds.
 
 For a blank/disposable VM: boot the normal entry, inspect disks and identity,
@@ -171,8 +182,8 @@ The separate wipe schematic has `talos.experimental.wipe=system` and ID:
 9acd4f2454d4969f5351e85d824eb5d27f8124b56d281d8a03c924fa1a7cfd2f
 ```
 
-It was successfully used for clean reprovisioning. **Selecting the wipe menu
-entry is destructive**, unlike ordinary maintenance boot: confirm the exact
+It was successfully used for clean reprovisioning. **DESTRUCTIVE: selecting the wipe menu
+entry erases the selected node system disk**, unlike ordinary maintenance boot: confirm the exact
 VM/node and system disk, preserve required backups, and plan control-plane
 membership changes first. Never use it to add an extension to an existing
 cluster. Use a rolling `talosctl upgrade --image` instead. Keep wipe separate
@@ -194,5 +205,6 @@ installed, update it in place:
 Native RouterOS TFTP is intentionally limited to the small bootstrap files.
 It is not a dynamic inventory or general HTTP artifact server. The current
 cluster uses locally generated Talos machine configurations with persistent
-secrets; Omni/inventory automation is not deployed. Raspberry Pi network boot
-and migration remain future work, not covered by this x86-64 UEFI runbook.
+secrets; Omni/inventory automation is not deployed. The Pi workers already
+joined VLAN400 and Kubernetes. The Pi 4 ARM64 menu entry exists, but verified Raspberry Pi firmware
+network boot remains outside this x86-64 UEFI chainloader runbook; Quantum's SD/NVMe boot is covered by [its history](quantum-talos-build-history.md).

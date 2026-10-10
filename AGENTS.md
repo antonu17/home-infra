@@ -67,3 +67,20 @@
 - Validate the smallest relevant scope first, then the broader render check when justified. Do not run documented live checks or mutations unless the user separately requests an observation and the command is unquestionably read-only.
 - Report exactly what was inspected, changed, and validated; state what was not tested. Never claim deployment, reconciliation, DNS propagation, certificate issuance, storage behavior, routing, or live health from a successful local render.
 - When handing off operator commands, order them as preflight, diff/review, change, readiness check, acceptance check, and rollback/stop conditions. Separate read-only checks from mutating commands, and label all live changes as operator-run.
+
+## Incident history and operational memory
+
+- Treat this homelab as production infrastructure for Anton; outages are customer
+  incidents. Read `incidents/postmortems/README.md` and the relevant incident before
+  troubleshooting recurring network or storage failures.
+- 2026-10-10 DLNA: a running relay did not prove discovery. TV replies needed the
+  missing live NAS-to-IoT rule; Mac discovery additionally needed VLAN100 attached
+  to SSDP. Verify applied rules and both packet directions. Native mDNS is separate.
+- 2026-10-10 CSI: worker-02 failed DSM registration on a DNS timeout; healthy LUNs
+  subsequently appeared as `Volume not found` to the driver. Inspect startup logs
+  and DNS before changing storage. CSI readiness/VolumeAttachment status alone is
+  insufficient. The original DNS timeout cause and exact recovery steps remain
+  unconfirmed; do not assert a firewall cause or delete volumes based on this error.
+- Record operator-confirmed outcomes separately from agent validation; preserve
+  unknown incident timings and causes rather than inventing them. Historical
+  postmortems do not establish current live health.

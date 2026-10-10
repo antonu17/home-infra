@@ -1,17 +1,20 @@
 # Gateway bootstrap after Argo CD installation
 
 This supersedes the TLS import and Gateway deployment sequence in `gitops.md`.
-Repository preparation only: no commands below have been executed by the agent.
+The operator reports `gateway`, `argocd`, `cilium` and `cert-manager`
+Synced/Healthy on 2026-10-10. The sequence below is fresh-bootstrap/recovery
+guidance, not pending adoption. No commands were executed by the agent; live
+HTTPS/renewal acceptance is separate from the supplied Argo health list.
 
 ## Ownership
 
-- Operator: initial Argo CD Kustomize bootstrap and Git-ignored Route53
-  credential Secret.
+- Operator: initial Argo CD Kustomize bootstrap and Vault credential provisioning.
+  ESO maintains the Route53 credential Secret.
 - cert-manager: generated frontend TLS Secret and renewals.
-- Argo root `home-cloud`: AppProjects and child Applications.
+- Argo root `gitops`: AppProjects and child Applications.
 - Argo child `argocd`: Argo CD itself after bootstrap.
 - Argo child `cert-manager`: upstream Helm chart, CRDs and ClusterIssuers.
-- Argo child `home-cloud-gateway`: frontend Certificate, Gateway and two Argo
+- Argo child `gateway`: frontend Certificate, Gateway and two Argo
   routes.
 
 Frontend: `gateway/home-cloud`, VIP `10.40.0.10`, Secret
@@ -52,13 +55,14 @@ credentials privately if necessary. Ensure VIP `10.40.0.10` is unused.
 
 The root Application is installed with Argo CD by the bootstrap command in
 `gitops.md`; do not apply the GitOps catalog separately. In the port-forwarded
-Argo UI, sync `home-cloud`, then `argocd`, complete the cert-manager credential
+Argo UI, sync `gitops`, then `argocd`, complete the cert-manager credential
 bootstrap, combined sync and readiness checks, and only then sync
-`home-cloud-gateway`.
+`gateway`.
 Do not separately apply `kubernetes/gateway`. Root sync also registers the existing
-ExternalDNS child; **do not sync ExternalDNS yet**. Syncs remain manual, with no
-automatic prune. The `home-cloud` project's existing namespaced-resource policy
-allows the Certificate; generated Secrets remain outside Argo ownership.
+ExternalDNS child; on a fresh bootstrap, defer its sync until the checks in [ExternalDNS](external-dns.md) pass.
+On the existing cluster ExternalDNS is present but crash-looping (2026-10-10). Syncs remain manual, with no
+automatic prune. The `gateway` project allows all resource kinds in its
+destination; generated Secrets remain outside Argo ownership.
 
 ```sh
 kubectl -n gateway wait --for=condition=Ready certificate/home-antonu-org --timeout=10m
@@ -74,7 +78,7 @@ otherwise wait for the separately reviewed DNS step. Use `--grpc-web` for the
 Argo CLI through HTTPRoute. Keep the port-forward as recovery access until all
 checks pass. No ExternalDNS or router changes are part of this task.
 
-## Hubble UI route — operator-managed Cilium resources
+## Hubble UI route — Argo-owned Cilium resources
 
 Cilium Kustomize includes `kube-system/hubble-ui` and
 `kube-system/hubble-ui-redirect` HTTPRoutes for `hubble.home.antonu.org`.
@@ -85,30 +89,36 @@ forwards HTTP to `kube-system/hubble-ui:80`. No route authentication is configur
 keep access within the trusted home network. ExternalDNS derives the hostname
 from the route under its existing activation and ownership procedure.
 
-For an Argo-adopted Cilium installation, commit/push the route changes and manually
-sync `cilium` after syncing `gateway`; follow the Cilium adoption guide for checks.
-The direct-apply sequence below is pre-adoption only.
+For current changes, load repository direnv and inspect the existing Service,
+Gateway and route status first. Review `argocd app diff cilium` and, only if
+listener permissions also change, `argocd app diff gateway` privately. Publish
+reviewed source and manually sync the affected Applications without pruning;
+do not separately apply `kubernetes/cilium/manifests` on the adopted cluster.
 
-Operator-run deployment, after loading the repository direnv environment:
+Read-only acceptance checks:
 
-1. Review `kubectl -n kube-system get service hubble-ui` and
-   `kubectl -n gateway get gateway home-cloud`. Stop if the Service does not
-   expose port 80 or the Gateway is not ready.
-2. Review and commit/push only the intended source changes, then manually sync
-   the Argo `home-cloud-gateway` Application to admit `kube-system`.
-3. Review `kubectl diff -k kubernetes/cilium/manifests` (exit 1 means differences).
-   This includes existing BGP/LB-IPAM resources but excludes the Helm chart and Gateway API CRDs; stop if
-   the diff includes unintended changes.
-4. Live change: run `kubectl apply -k kubernetes/cilium/manifests` only after reviewing
-   the full diff. This package remains operator-managed, separate from Helm.
-5. Check `kubectl -n kube-system get httproute hubble-ui hubble-ui-redirect -o yaml`.
-   Require current-generation Accepted and ResolvedRefs on `gateway/home-cloud`.
-   Verify TLS/UI with `curl --resolve hubble.home.antonu.org:443:10.40.0.10
-   https://hubble.home.antonu.org/` (put the command on one line), and confirm
-   TCP 80 redirects to HTTPS. Verify DNS separately once ExternalDNS is active.
+```sh
+kubectl -n kube-system get service hubble-ui
+kubectl -n gateway get gateway home-cloud -o yaml
+kubectl -n kube-system get httproute hubble-ui hubble-ui-redirect -o yaml
+curl --fail --resolve hubble.home.antonu.org:443:10.40.0.10 https://hubble.home.antonu.org/
+curl -I --resolve hubble.home.antonu.org:80:10.40.0.10 http://hubble.home.antonu.org/
+```
 
-If acceptance fails, stop and retain existing recovery access. To roll back,
-remove only the two Hubble routes from source and delete exactly those resources
-with `kubectl -n kube-system delete httproute hubble-ui hubble-ui-redirect`
-(operator-run live change). Remove `kube-system` from the Gateway allowlists only
-if no other routes need it, then commit/push and manually sync the Gateway.
+Require current-generation Accepted/ResolvedRefs, valid TLS/UI and HTTP→HTTPS
+redirect. DNS is separate and currently affected by the ExternalDNS crash loop;
+`--resolve` tests the Gateway path without relying on current DNS reconciliation.
+
+If acceptance fails, retain recovery access and revert the source change, then
+manually sync `cilium` and any affected `gateway` changes without pruning. This
+restores declared configuration but does not delete removed source objects.
+Deleting the two Hubble routes is **DESTRUCTIVE** to that UI path and requires a
+separately reviewed exact-resource prune/deletion; do not treat it as routine
+rollback. Keep `kube-system` in listener allowlists if other routes still need it.
+
+## Other current listeners
+
+The source also declares HTTPS port8443 for deCONZ WebSocket traffic, terminating
+at the same wildcard Secret and admitting only the `deconz` namespace. Ports80
+and443 admit the explicitly listed application namespaces. This listener does
+not change Argo's HTTP backend or introduce a second Gateway/Application.

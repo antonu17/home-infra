@@ -5,9 +5,12 @@ GitOps. See [bootstrap and recovery](docs/gitops.md) for the executable sequence
 ownership, TLS renewal and acceptance checks. These files prepare the next stage;
 they do **not** mean Argo CD or the Gateway has been deployed.
 
+- [Production incident postmortems](incidents/postmortems/README.md)
 - [Network addressing](docs/addressing.md) and [topology](docs/network-topology.svg)
 - [Talos and storage](docs/talos-cluster.md)
 - [PXE](docs/pxe.md), [Image Factory / registry](docs/talos-mirror.md)
+- [Quantum Pi 5 experimental GPIO UART kernel backport](talos/custom-rpi5/README.md)
+- [Quantum custom Talos build history and current SD-dependent boot state](docs/quantum-talos-build-history.md)
 - [Home Assistant Kubernetes deployment and deferred migration](kubernetes/apps/home-assistant/README.md)
 - [ADS-B receiver Kubernetes deployment](kubernetes/apps/adsb/README.md)
 - [Anki Sync Server Kubernetes deployment and data migration](kubernetes/apps/anki-sync/README.md)

@@ -4,15 +4,24 @@ Use a separate namespaced SecretStore and Vault policy/role for each workload.
 Secret values are kept in Vault KV v2, not Git or Terraform resources/state.
 Kubernetes receives them through ESO; existing target names and keys are preserved.
 
-## Migration status (2026-10-04)
+## Recorded ownership and adoption — 2026-10-10
 
-| Consumer | Vault path beneath `home-cloud` | Kubernetes target | Status |
+The operator reports all corresponding Applications adopted and Synced. ESO,
+cert-manager, CSI, ADS-B and Anki are Healthy; ExternalDNS is Progressing and its
+controller crash-loops awaiting webhook `/records`. The table records source
+ownership plus Argo evidence, not a direct check of every SecretStore/ExternalSecret.
+
+| Consumer | Vault path beneath `home-cloud` | Kubernetes target | Recorded status |
 |---|---|---|---|
-| ADS-B | `adsb/feeders` | `adsb/adsb-config` | References prepared; placeholder/real values and Terraform apply operator-pending |
-| Anki Sync | `anki-sync/credentials` | `anki-sync/anki-sync-credentials` | References prepared; secret value and Terraform apply operator-pending |
-| cert-manager | `cert-manager/route53-credentials` | `cert-manager/route53-credentials` | ESO Ready and operator sync confirmed |
-| ExternalDNS | `external-dns/mikrotik-credentials` | `external-dns/mikrotik-credentials` | Values verified in Vault; Terraform applied, Argo sync pending |
-| Synology CSI | `synology-csi/client-info` | `synology-csi/client-info-secret` | Values verified in Vault; Terraform applied, Argo sync pending |
+| ADS-B | `adsb/feeders` | `adsb/adsb-config` | Application Synced/Healthy; ESO references in source |
+| Anki Sync | `anki-sync/credentials` | `anki-sync/anki-sync-credentials` | Application Synced/Healthy; ESO references in source |
+| cert-manager | `cert-manager/route53-credentials` | `cert-manager/route53-credentials` | Application Synced/Healthy; ESO Ready also reported 2026-10-04 |
+| ExternalDNS | `external-dns/mikrotik-credentials` | `external-dns/mikrotik-credentials` | Application Synced/Progressing; current DNS reconciliation fails |
+| Synology CSI | `synology-csi/client-info` | `synology-csi/client-info-secret` | Application Synced/Healthy; DNS-startup incident recovered |
+
+ExternalDNS reconciliation, ESO credential refresh and DSM registration are
+separate checks. See [ExternalDNS](external-dns.md) and the
+[CSI postmortem](../incidents/postmortems/2026-10-10-synology-csi-dns-startup.md).
 
 ExternalDNS keeps `MIKROTIK_BASEURL`, `MIKROTIK_USERNAME`, `MIKROTIK_PASSWORD`.
 CSI keeps the single `client-info.yml` key and the exact live configuration bytes.
@@ -25,7 +34,7 @@ and Talos identity remain with their existing owners. They are not local deploym
 credential manifests and are not adopted by these ExternalSecrets. Home Assistant
 currently has no repository-managed deployment credentials to migrate.
 
-## Operator-run activation
+## Fresh onboarding / recovery — operator-run
 
 From the repository root, load direnv (`VAULT_ADDR`, `VAULT_TOKEN`, `KUBECONFIG`
 are preconfigured) and verify the NAS state share remains mounted. Terraform
@@ -84,12 +93,15 @@ network access or workload health. Inspect errors privately if readiness fails.
 
 ## Retention, bootstrap and rotation
 
-Targets use `creationPolicy: Owner` / `deletionPolicy: Retain`. ESO attaches an
+Targets use ESO Owner/Retain lifecycle, explicitly for ADS-B/Anki and by
+default for cert-manager/ExternalDNS/CSI. ESO attaches an
 owner reference to each target Secret so Argo can display it as a child.
 Deleting an ExternalSecret can garbage-collect its Secret. Retain protects only
 against provider-entry deletion; existing values remain during Vault outages.
-Do not delete ExternalSecrets or Secrets to force reconciliation. Storage-backed Vault/ESO need functioning cluster storage,
-so CSI's existing credential Secret is also a recovery dependency. Keep independent
+Do not delete ExternalSecrets or Secrets to force reconciliation.
+Vault runs on the NAS; ESO runs in Kubernetes. Both share dependencies on the
+NAS/network/control plane, and CSI's existing credential Secret is a recovery
+dependency. Do not describe Vault as a Kubernetes-hosted PVC consumer. Keep independent
 Vault backups; a fresh-cluster rebuild may need a reviewed bootstrap sequence.
 
 Rotate values through the Vault UI or authenticated CLI, then wait for ESO refresh.
@@ -106,43 +118,28 @@ ESO does not automatically rotate it.
 References: [Vault provider](https://external-secrets.io/latest/provider/hashicorp-vault/)
 and [Secret lifecycle](https://external-secrets.io/latest/guides/ownership-deletion-policy/).
 
-## Owner-reference activation (prepared 2026-10-05)
+## Owner-reference verification (source reviewed 2026-10-10)
 
-This change updates only the three ExternalSecret target creation policies;
-Vault paths, Secret names/keys, refresh settings and Retain policies stay the same.
-No ESO Deployment rollout or Vault changes are needed.
+ADS-B/Anki explicitly select Owner/Retain; current cert-manager, ExternalDNS
+and CSI ExternalSecrets omit these fields and rely on ESO Owner/Retain defaults.
+The old explicit-policy migration is no longer the current source diff. Verify
+owner metadata without deleting/recreating targets; a change to defaults or
+ownership must be reviewed separately. These Applications are already adopted.
 
-Operator-run sequence, with repository direnv loaded:
+Read-only checks, with repository direnv loaded:
 
-1. Confirm the intended context with `kubectl config current-context`. Ensure
-   recovery access to the corresponding Vault entries. Review Git changes and
-   commit/push only the intended files.
-2. Review `argocd app diff cert-manager`, `argocd app diff external-dns` and
-   `argocd app diff synology-csi` privately. Stop on unrelated workload changes,
-   replacements, deletions or Secret payload differences.
-3. Live changes, operator-run: sync each affected application without pruning:
+```sh
+kubectl config current-context
+kubectl -n cert-manager wait --for=condition=Ready --timeout=180s externalsecret/route53-credentials
+kubectl -n external-dns wait --for=condition=Ready --timeout=180s externalsecret/mikrotik-credentials
+kubectl -n synology-csi wait --for=condition=Ready --timeout=180s externalsecret/client-info-secret
+kubectl -n cert-manager get secret route53-credentials -o jsonpath='{.metadata.ownerReferences}'
+kubectl -n external-dns get secret mikrotik-credentials -o jsonpath='{.metadata.ownerReferences}'
+kubectl -n synology-csi get secret client-info-secret -o jsonpath='{.metadata.ownerReferences}'
+```
 
-   ```sh
-   argocd app sync cert-manager
-   argocd app sync external-dns
-   argocd app sync synology-csi
-   ```
-
-4. Verify ESO reconciliation and only Secret owner metadata:
-
-   ```sh
-   kubectl -n cert-manager wait --for=condition=Ready --timeout=180s externalsecret/route53-credentials
-   kubectl -n external-dns wait --for=condition=Ready --timeout=180s externalsecret/mikrotik-credentials
-   kubectl -n synology-csi wait --for=condition=Ready --timeout=180s externalsecret/client-info-secret
-   kubectl -n cert-manager get secret route53-credentials -o jsonpath='{.metadata.ownerReferences}'
-   kubectl -n external-dns get secret mikrotik-credentials -o jsonpath='{.metadata.ownerReferences}'
-   kubectl -n synology-csi get secret client-info-secret -o jsonpath='{.metadata.ownerReferences}'
-   ```
-
-   Require an ExternalSecret owner reference with the corresponding name and UID.
-   Refresh the Argo application tree. Stop on ownership conflicts; do not delete
-   or replace a Secret to resolve them.
-
-For rollback, restore `creationPolicy: Orphan` in Git and sync without pruning,
-then verify the owner reference has been removed before deleting any ExternalSecret.
-Do not delete the CSI credential Secret: it is a storage recovery dependency.
+Require the corresponding ExternalSecret owner reference and successful refresh.
+These metadata checks do not print Secret payloads. Stop on ownership conflicts;
+do not delete or replace a Secret. Detaching ownership via `creationPolicy:
+Orphan` is a separate reviewed live change, not a generic rollback command.
+Preserve CSI credentials during every storage recovery.

@@ -10,15 +10,29 @@ in Synology Container Manager, published through Web Station/nginx with valid TL
 |---|---|---|
 | Image Factory | `https://talos.home.antonu.org` | Schematic-derived kernel, initramfs, PXE script and installer archive |
 | OCI registry | `https://registry.home.antonu.org` | Promoted Talos installer images |
-| NAS | `192.168.100.5` | VLAN 100, routed access from Home Cloud VLAN 400 |
+| NAS (observed 2026-10-10) | `192.168.40.5` | VLAN400 / Home Cloud, gateway `192.168.40.1` |
+
+Operator evidence on 2026-10-10 confirms NAS `192.168.40.5` on VLAN400.
+Previously the NAS used `192.168.100.5` in VLAN100. Factory/registry
+hostnames remain the same; their DNS, reverse-proxy bindings and any IP-based
+references need separate post-move verification; NAS addressing alone does not
+prove every service binding is correct. No service or DNS
+configuration is changed by this documentation.
 
 The historical `synology/talos-mirror/compose.yaml`, `nginx.conf`, `sync.sh`
 and `assets/` described the **legacy static nginx mirror**, not the deployed
-Image Factory or registry. Those files are deleted in the current working tree;
+Image Factory or registry. Those files are absent from the current repository;
 do not restore/redeploy that Compose project over the current service.
-Factory/registry deployment manifests and certificate renewal hooks
-have not yet been captured here. Backend ports, volumes and registry image
-version must be obtained from the Synology deployment, not inferred.
+Image Factory configuration is captured in
+[`synology/talos-image-factory`](../synology/talos-image-factory/README.md).
+Its directory mount and one-shot key initializer are repository-prepared
+changes, not confirmation of deployment. Copy the existing key and deployed config into
+project-local `data/` before updating;
+follow that README before updating the NAS project. Registry Compose configuration
+is captured in [`synology/oci-registry`](../synology/oci-registry/README.md), using
+`registry:3`, host port 5005 and project-local `data/`. These are prepared settings,
+not verification of the live registry version or storage mount. Certificate
+renewal hooks remain uncaptured; obtain them from the deployment.
 
 The old static mirror's `/healthz` and version-directory asset URLs are not
 the current factory API contract.
@@ -43,27 +57,31 @@ c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac
 The separate `schematic-amd64-wipe.yaml` and `.id` are for destructive clean
 reprovisioning, not normal installs or upgrades. See [PXE](pxe.md).
 
-Current installer:
+AMD64 VM installer (not the ARM64 Raspberry Pi installer):
 
 ```text
 registry.home.antonu.org/talos/metal-installer/c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac:v1.14.2
 ```
 
-Registry digest verified during implementation (operator-reported):
+AMD64 registry digest verified during the original implementation (operator-reported):
 
 ```text
 sha256:f3f9ee5846a54ebef99c98f5070bd821fe5042155f043bd5aa19e0f902d5418e
 ```
 
 This is **not air-gapped Kubernetes**. The factory may fetch upstream build
-inputs; workload/CSI images and the Cilium OCI Helm chart still use public
-registries. Local installers avoid the slow public-factory pull experienced
+inputs; workload/CSI images still use public registries, and Helm rendering downloads
+pinned charts.
+Raspberry Pi 4 uses its ARM64 schematic; Quantum Pi 5 uses the
+custom installer lineage in [its build history](quantum-talos-build-history.md).
+Local installers avoid the slow public-factory pull experienced
 during initial provisioning, not every external dependency.
 
 ## Artifact generation and promotion
 
-Run from the repository root. Register a changed schematic with the local
-factory, verify the returned ID, then update its corresponding `.id` file:
+**Operator-run remote changes:** registration writes to Image Factory and
+promotion writes to the registry. Run from the repository root. Register a changed
+schematic with the local factory, verify the returned ID, then update its corresponding `.id` file:
 
 ```sh
 curl --fail --silent --show-error \
@@ -96,8 +114,10 @@ API reference: [Image Factory v1.7.0](https://github.com/siderolabs/image-factor
 
 ## TLS and connectivity
 
-Wildcard TLS covers `home.antonu.org` and `*.home.antonu.org`.
-`acme.sh` on Synology uses Route53 DNS validation for issuance/renewal.
+The original Synology handoff recorded wildcard TLS for `home.antonu.org` and
+`*.home.antonu.org`, with `acme.sh`/Route53 DNS validation. Current renewal hooks
+and successful renewal have not been confirmed in this audit; Gateway certificate
+renewal is independently cert-manager-owned.
 AWS credentials, certificate private keys and sensitive renewal configuration
 must not enter plaintext Git.
 

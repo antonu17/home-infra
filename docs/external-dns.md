@@ -1,242 +1,174 @@
-# ExternalDNS → MikroTik: staged activation
+# ExternalDNS → MikroTik
 
-## Current operation (2026-10-03)
+## Current state — open failure, 2026-10-10
 
-Normal write-enabled operation is selected: `dry-run: false`, one replica,
-`upsert-only`, TXT owner `home-cloud`. The pinned webhook path does not enforce
-ExternalDNS dry-run; the historical preview procedure below must NOT be used as
-a no-write guarantee. A and TXT records for Argo were already created and should
-be retained. Route removal does not delete DNS under upsert-only; stale-record
-cleanup remains deliberate. Name exclusions continue to protect legacy apps.
+The operator reports `external-dns` Synced/Progressing in Argo and the controller
+still crash-looping. At `2026-10-10T19:26:24Z`, it exited with:
 
-Commit/push the values and sync the existing `external-dns` Argo Application.
-Sync restores the paused Deployment to one replica. No Helm installation or
-record recreation is needed. Confirm both containers are Ready and reconciliation
-completes without authentication, ownership or provider errors.
+```text
+failed to do run once: Get "http://127.0.0.1:8888/records": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
 
-The current router endpoint uses HTTP port 80 by operator choice; the CA mount
-was removed. This sends credentials unencrypted on the LAN. It is a remaining
-hardening task, not production-grade transport security. Keep the dedicated
-account/source restrictions and migrate to verified HTTPS separately.
+The controller created Kubernetes/Gateway API clients, then timed out awaiting
+its local webhook response. This establishes the failing controller→webhook call,
+not the underlying cause. A blocked/slow webhook→RouterOS request, provider
+failure or another webhook problem remains to be diagnosed. Do not assert a DNS,
+credential, Cilium or router-firewall cause from this log alone. This issue remains
+open; no recovery or successful current reconciliation has been reported.
 
-The rest of this document contains the original staged/HTTPS bootstrap guidance;
-the operation mode and transport described in this section supersede it.
+Argo sync status is desired-resource convergence, not DNS reconciliation health.
+Health probes do not prove `/records` completes. The earlier 2026-10-03 handoff
+recorded creation of Argo A/TXT records; it does not establish current automation.
+The agent has performed source/doc review only, with no live queries or changes.
 
-Prepared 2026-10-02, not deployed or end-to-end verified. Operator performs all
-router/cluster changes. Existing manual records must remain untouched.
+## Pinned source and ownership
 
-## Pinned implementation and ownership
+Argo `external-dns` renders `kubernetes/external-dns` with official chart
+`1.22.0`, controller `0.22.0`, and webhook
+`ghcr.io/mirceanton/external-dns-provider-mikrotik:v1.6.3`. The catalog is
+`kubernetes/gitops/external-dns.yaml`; the root is `gitops`. Do not install a
+second Helm release or separately apply the already adopted package.
 
-Official ExternalDNS chart **1.22.0**, app **0.22.0**; webhook
-`mirceanton/external-dns-provider-mikrotik:v1.6.3`. The provider is listed upstream,
-has a June 2026 release and subsequent repository activity. It requires
-ExternalDNS >=0.15 and documents RouterOS 7.16 as tested (7.12 does not work).
-Our exact RouterOS/Kubernetes/provider combination still requires the tests below.
-The provider explicitly warns it has not had extensive production testing.
+Current values select one replica, `dry-run: false`, `policy: upsert-only`,
+TXT registry owner `home-cloud`, prefix `external-dns-`, and A records. The
+webhook does not enforce ExternalDNS dry-run; **dry-run is not a no-write guarantee**.
+`upsert-only` avoids reconciliation deletions, but is not a read-only mode and
+provider updates may involve delete/create operations. Do not switch to `sync`
+or change owner/prefix while diagnosing the current failure.
 
-Argo Application `external-dns` uses the official chart plus values from this repo
-and a CiliumNetworkPolicy. Helm is used by Argo for rendering, **not** a second
-operator-installed Helm release. Its separate AppProject permits chart RBAC without
-granting the Gateway project cluster-wide RBAC rights. Namespaces, router account,
-credential synchronization is prepared through ESO. The router account remains
-operator-owned; no SOPS/age component is added.
+Only `gateway-httproute` is watched, for Gateway `home-cloud` in namespace
+`gateway`. HTTPRoute hostnames and Gateway status provide names/targets. The
+regex permits a single label under `home.antonu.org`, rejecting wildcards,
+zone apex and nested subdomains. A wildcard Gateway listener is not a wildcard
+DNS record.
 
-Only `gateway-httproute` is watched, limited to Gateway `home-cloud` in
-`gateway`. Hostnames derive from HTTPRoute specs and targets from Gateway
-status; no IP override annotation or Service source. The exact-name regex rejects
-wildcards, the zone apex and nested subdomains. The Gateway wildcard **listener**
-is not a wildcard DNS record. If a future application needs nested names, review
-the regex and certificate coverage together.
+**Source drift:** the current values contain no `regex-domain-exclusion`.
+The older documentation's claims that pulsar/router/printer/registry/legacy
+application names were excluded are false for this source. TXT ownership still
+matters, but no extra name-deny filter is configured. Before creating/changing
+routes, review existing manual records and managed TXT ownership privately.
+Do not adopt or overwrite a manual record merely because a route uses its name.
+The provider is not itself an ownership-enforcing boundary; avoid duplicate
+manual/managed records for the same name/type/target.
 
-TXT registry: owner `home-cloud`, prefix `external-dns-`, A records only. TXT
-ownership records are still created by the registry; they are not a separate
-source of application TXT records. Keep owner/prefix stable and back up DNS state.
-Do not fabricate ownership TXT records or use `registry: noop`.
+## Router API, source address and policy
 
-Initial state: `dry-run: true`, `policy: upsert-only`. After the reviewed dry run,
-set `dry-run: false` in Git and sync. `upsert-only` suppresses reconciliation
-deletions, but updates inside this provider can be implemented as delete/create;
-it does not mean the account is incapable of deleting records.
+The current operator-selected endpoint is RouterOS REST over **HTTP port80** at
+`192.168.40.1`, not binary API8728/8729. The CiliumNetworkPolicy in
+`resources/network-policy.yaml` allows that exact router IP/port, Kubernetes API
+and cluster DNS. There is no CA mount. Credentials cross the LAN unencrypted;
+verified HTTPS is a separate hardening change requiring endpoint, certificate,
+Cilium policy and RouterOS input-rule alignment. This audit does not change them.
 
-### Protect manual records and handle collisions
+The webhook API listens at `127.0.0.1:8888` inside the Pod; health checks use
+port8080. No Service exposes the webhook. Kubelet probe identities are allowed.
+The numbered RouterOS filter has an `ExternalDNS current HTTP REST` **input**
+exception, separate from inter-VLAN **forward** traffic.
 
-The regex exclusion protects known infrastructure and legacy names: pulsar,
-router, printer, talos, registry, k8s, quantum, pihole, adsb, anki-anton, fr24,
-grocy, ha, mealie, grafana. It also excludes matching prefixed TXT names. Review
-against a current router DNS export before enabling writes; the repo is not a
-complete inventory. Add other infrastructure names to this exclusion as needed.
+Verify the actual router-visible source and account allowed-address restrictions;
+Cilium source NAT/placement can affect which address is seen. Do not open an
+entire subnet or change the firewall without that evidence. RouterOS group
+`read,write,api,rest-api` is not DNS-only permission; keep a dedicated account
+and source restrictions. Read-only diagnostics must never expose its password.
 
-ExternalDNS TXT code filters updates/deletes by owner. The provider itself does
-not enforce ownership; its delete lookup matches name, record type and target,
-not the record comment. Consequently, **never mix manual and managed duplicate
-records for the same name/type/value**, and never claim an existing manual record
-merely because the new HTTPRoute uses its name. Treat a collision as a migration
-gate, not as something ExternalDNS should overwrite. RouterOS regexp DNS records
-are an upstream limitation; inventory them and stop if they cause plan errors.
+## Vault-backed credentials and lifecycle
 
-Legacy HA/mealie/grafana names intentionally remain excluded. Their cutover needs
-a separate reviewed backup/removal of the old manual record, then removal from
-the exclusion and creation by ExternalDNS. Unrelated manual records are never
-part of that operation. For *new* non-conflicting app names, resources plus an
-HTTPRoute are sufficient once its namespace is admitted to the shared Gateway.
+A namespaced `home-cloud-vault` SecretStore authenticates as `vault-eso`, role
+`eso-external-dns`, through Vault auth mount `kubernetes-home-cloud`. The
+ExternalSecret targets `external-dns/mikrotik-credentials` with keys
+`MIKROTIK_BASEURL`, `MIKROTIK_USERNAME`, `MIKROTIK_PASSWORD`, sourced from
+`home-cloud/external-dns/mikrotik-credentials`. Values were privately verified
+in Vault on 2026-10-04; the Application is now adopted according to the operator
+list. ESO readiness and successful DNS reconciliation remain separate checks.
 
-## Router prerequisites: HTTPS REST, not TCP8728/8729
+The current ExternalSecret omits explicit creation/deletion policies, relying on
+ESO defaults (Owner/Retain). Deleting an ExternalSecret can garbage-collect its
+owned Secret; Retain does not prevent that deletion. Preserve both during
+troubleshooting. Credentials are not stored in a plaintext repository manifest.
+ExternalDNS reads environment credentials at startup: actual rotation needs an
+operator-reviewed rollout after ESO refresh. Identical-value adoption alone does
+not require a restart. See [secret management](secret-management.md).
 
-Pinned source calls `/rest/system/resource` and `/rest/ip/dns/static` with Basic
-authentication over HTTPS. Enable/review `www-ssl`, with a valid certificate;
-binary `api`/`api-ssl` network services are not needed. Do not enable plaintext
-HTTP or copy the upstream example's `MIKROTIK_SKIP_TLS_VERIFY=true`.
+## Read-only diagnosis — operator-run
 
-The documented minimal practical group is:
+Load repository direnv and confirm the intended context. Collect both sides of
+the local call, including previous controller termination, without Secret payloads:
+
+```sh
+kubectl config current-context
+kubectl -n external-dns get pods -o wide
+kubectl -n external-dns logs deployment/external-dns -c external-dns --previous --tail=100
+kubectl -n external-dns logs deployment/external-dns -c external-dns --since=15m
+kubectl -n external-dns logs deployment/external-dns -c webhook --since=15m
+kubectl -n external-dns get secretstore,externalsecret
+kubectl -n external-dns get secret mikrotik-credentials
+kubectl -n external-dns get ciliumnetworkpolicy external-dns
+```
+
+Review logs privately and redact credentials/Authorization headers before sharing.
+Correlate `/records` with webhook errors and router request timings. Check whether
+its failure is startup, API authentication, timeout, policy drop or provider
+processing. If a container lacks diagnostic tools, do not assume `curl` exists
+or install tools into a live container as part of this read-only sequence.
+
+Router-side read-only checks:
 
 ```routeros
-/user group add name=external-dns policy=read,write,api,rest-api
+/ip service print detail
+/ip firewall filter print stats where chain=input
+/ip firewall filter print detail where comment="ExternalDNS current HTTP REST"
 ```
 
-Check whether the group already exists before adding. Create a dedicated user
-in that group through WinBox, with a strong unique password and an allowed source
-address restricted to the verified workload egress source. Do not use your admin
-account. These permissions are **not DNS-only**; RouterOS cannot scope this group
-to a DNS name/zone. The credential is sensitive even though Git scope is narrow.
+Account allowed-address and observed egress source must match. A network-policy
+or input accept counter alone is not proof of a successful REST response.
+Do not repeatedly sync/restart the workload as a substitute for finding the
+webhook failure. The current evidence does not justify a specific repair yet.
 
-The prepared egress policy allows only router `192.168.40.1:443`, Kubernetes API
-and cluster DNS. Webhook mutation endpoint listens on **127.0.0.1:8888** inside
-the Pod; its separate health server uses Pod port8080. There is no Service or
-Ingress for either. Kubelet probes are allowed from node identities.
+## Acceptance after a separately reviewed repair
 
-Inspect `/ip service print detail`, input firewall and the actual source address
-seen at the router. With Cilium masquerading this may be the hosting node address;
-otherwise it may be a routed pod address. Do not guess. Permit TCP443 to `.40.1`
-only from that source, before the relevant input drop; it is **input**, not forward.
-For example, only if the source has been confirmed as `.40.40`:
+The operator publishes reviewed source and syncs only `external-dns` without
+pruning. Require both containers Ready **and** a complete successful reconciliation
+with no provider timeout/authentication/ownership error. Compare A/TXT records
+against a private baseline and verify unrelated manual records are unchanged.
+Use an existing, approved HTTPRoute with a non-conflicting hostname; the old
+`kubernetes/external-dns/test/` directory no longer exists.
 
-```routeros
-/ip firewall filter add chain=input action=accept protocol=tcp src-address=192.168.40.40/32 dst-address=192.168.40.1 dst-port=443 comment="ExternalDNS HTTPS REST"
-```
-
-Review placement before enabling; appending below a drop does not help. Preserve
-existing management sources in `www-ssl address=` restrictions. If Pod placement
-changes, reevaluate the source restriction rather than opening all VLANs. Do not
-add the example if existing scoped rules already permit access. Cilium policy is
-defense in depth, not a replacement for RouterOS account/firewall restrictions.
-
-Use `https://192.168.40.1:443` only if the certificate includes that **IP SAN**.
-Otherwise use an independently/manual-resolvable router hostname whose SAN matches
-and whose address is `.40.1`; keep that infrastructure hostname excluded. Do not
-depend on ExternalDNS to create its own management endpoint. A changed API port
-requires matching egress/firewall changes before deployment.
-
-## Vault-backed MikroTik credentials
-
-The source now includes a namespaced `home-cloud-vault` SecretStore, a
-`vault-eso` identity with scoped TokenRequest RBAC, and a `mikrotik-credentials`
-ExternalSecret. Values are stored at `home-cloud/external-dns/mikrotik-credentials`
-with properties `MIKROTIK_BASEURL`, `MIKROTIK_USERNAME`, and `MIKROTIK_PASSWORD`.
-They were copied into Vault and verified privately against the live Secret on
-2026-10-04. Terraform role `eso-external-dns` reads only the `external-dns/` prefix.
-
-Apply the new Terraform role, then commit/push and sync the existing ExternalDNS
-Application without pruning, following [the secret migration guide](secret-management.md).
-The target name and environment references are unchanged. The Secret has an owner reference to the ExternalSecret for Argo child visibility.
-Deleting the ExternalSecret can garbage-collect the Secret. `deletionPolicy: Retain`
-protects against provider-entry deletion only. Do not delete/recreate it to migrate.
-Credentials are managed through Vault; no local plaintext credential file is needed.
-
-The current router endpoint still uses HTTP by operator choice. This migration
-does not change transport, RouterOS accounts, DNS ownership or record filters.
-Future credentials changed in Vault reach the Kubernetes Secret on refresh, but
-ExternalDNS's environment variables are read at startup: schedule an operator
-rollout after a real rotation. No restart is needed to adopt identical values.
-
-## Activate through Argo
-
-1. Back up static DNS records and note unrelated record IDs/types/values/comments,
-   including a manually owned name **not excluded** to prove TXT behavior.
-2. Confirm Gateway `.10`, HTTPS and CRDs work; review existing `argocd` DNS records.
-   If Argo's name already exists manually, leave it alone and explicitly exclude
-   `argocd` until you authorize a separate migration. Port-forward still bootstraps.
-3. Review/push Git, apply updated `kubernetes/gitops/bootstrap`, sync `home-cloud`,
-   then `external-dns` after credentials and API access are ready.
-4. Review both container logs. Readiness only proves the health server responds,
-   not successful DNS reconciliation. Require successful router connection and
-   Kubernetes watches with no TLS/RBAC/policy errors.
+For Argo, after confirming that its record is managed and Gateway is ready:
 
 ```sh
-kubectl -n external-dns get pods
-kubectl -n external-dns logs deployment/external-dns -c external-dns --tail=100
-kubectl -n external-dns logs deployment/external-dns -c webhook --tail=100
+kubectl -n gateway get gateway home-cloud -o yaml
+kubectl -n argocd get httproutes -o yaml
+dig @192.168.40.1 argocd.home.antonu.org A +short
+dig argocd.home.antonu.org A +short
+curl --fail https://argocd.home.antonu.org/
 ```
 
-## Acceptance test — operator-run, results pending
+Expected service target is `10.40.0.10`; validate from a normal Home client.
+If direct and client DNS disagree, inspect resolver forwarding/cache without
+creating a Pi-hole↔MikroTik loop. Valid DNS does not prove current reconciliation:
+cached/pre-existing records can continue working during the crash loop.
 
-First confirm `test.home.antonu.org` and its prospective ownership names do not
-exist. If occupied, choose another unused exact hostname in the test manifest.
-The optional test is not included in the GitOps root:
+Record recovery evidence and time before marking this issue resolved. Do not
+run the old dry-run/deletion/collision test: it relied on absent resources and
+an unenforced no-write assumption. Any future DNS deletion or policy=`sync`
+test requires a separate reviewed plan with exact disposable records/backups.
+Emergency containment (operator-run live change) may pause this Deployment or
+disable its dedicated router account; preserve existing DNS records and document
+which setting must be restored. No containment has been executed by the agent.
 
-```sh
-kubectl apply -f kubernetes/external-dns/test/application.yaml
-argocd app sync dns-acceptance
-kubectl -n gateway-system get httproute dns-acceptance -o yaml
-```
+## Local validation limitations
 
-Require Argo Synced/Healthy and route Accepted/ResolvedRefs for the current
-generation. Dry-run logs must propose only the new test A/TXT and other reviewed
-non-conflicting route names, never manual infrastructure changes. Stop on any
-unexpected plan. Then change `dry-run` to false in Git, push, sync `external-dns`.
+`kubernetes/verify-gitops.sh` is absent. `kubernetes/external-dns/verify.rb` exists
+but is stale: it expects a missing exclusion argument and explicit Orphan/Retain
+policies while the source uses defaults. Do not claim it validates current source
+or bypass its failures. Fixing that verifier is separate from this documentation
+review. Local rendering downloads the pinned chart and does not prove live API,
+credentials, provider behavior or RouterOS ownership safety.
 
-On RouterOS inspect `/ip dns static print detail` for the exact test A and related
-TXT entries. Confirm TXT contains `external-dns/owner=home-cloud`; discover actual
-TXT names rather than assuming one format. Compare all unrelated entries against
-the baseline, including IDs/comments. Then from a normal LAN client:
+## Pinned implementation references
 
-```sh
-dig @192.168.40.1 test.home.antonu.org A +short
-dig test.home.antonu.org A +short
-curl --fail https://test.home.antonu.org/
-```
-
-Both DNS queries must return `10.40.0.10`; HTTP body must contain
-`home-cloud-dns-acceptance`, with valid TLS. If normal DNS differs, inspect client
-resolver/Pi-hole forwarding for `home.antonu.org`. Avoid a Pi-hole↔MikroTik loop.
-Test from the actual LAN, not only inside the cluster.
-
-### Deletion and ownership gate
-
-1. With `upsert-only`, remove `route.yaml` from the test Kustomization in Git,
-   push, and sync **dns-acceptance with prune explicitly enabled for this review**.
-   Confirm the HTTPRoute was actually removed (root apps do not auto-prune).
-2. Wait at least two reconciliation intervals. Test DNS A/TXT should remain;
-   unrelated manual entries must be unchanged. Restore the route in Git and sync.
-3. To test unowned collision protection, use a second disposable *manual* record
-   with a different test name/IP, not excluded and no ownership TXT. Temporarily
-   point the test route's hostname at it. Verify dry-run first, then upsert-only:
-   its original value/ID must remain unmodified. Restore the route afterward.
-4. Before `sync`, briefly set dry-run true and policy sync in Git and inspect
-   the full proposed plan. Audit all records owned by `home-cloud`, including
-   stale prior tests. Never change owner/prefix or remove ownership TXT as a shortcut.
-5. Only after explicit operator approval set dry-run false with sync. Repeat
-   route removal via Git/prune. Require only its owned A/TXT to disappear; unrelated
-   manual entries and the disposable unowned record remain unchanged. Check router
-   state directly; recursive DNS may cache the old answer until TTL expires.
-6. Restore upsert-only if anything is unexpected. For immediate containment scale
-   ExternalDNS to zero or disable its dedicated router account; investigate before
-   resuming. The app has no automated self-heal that would undo an emergency scale.
-
-Finally remove optional test workload/Application deliberately. Deleting Application
-alone does not cascade in this repo. Remove only identified disposable manual test
-records; never run a domain-wide delete. Record results/date and relevant IDs in
-this document before declaring `sync` safe. No test above has been performed yet.
-
-## Sources inspected
-
-Local verification: `bash kubernetes/verify-gitops.sh` renders all manifests and
-checks the initial DNS safety settings, image pin, credential references and
-hostname filters. Its assertions intentionally require dry-run/upsert-only;
-update those expectations explicitly when promoting the tested configuration.
-Rendering and source review are not evidence of live RouterOS ownership safety.
-
-- [Provider README at v1.6.3](https://github.com/mirceanton/external-dns-provider-mikrotik/blob/v1.6.3/README.md)
-- [Provider record deletion / TLS source](https://github.com/mirceanton/external-dns-provider-mikrotik/blob/v1.6.3/internal/mikrotik/client.go)
-- [ExternalDNS TXT ownership](https://github.com/kubernetes-sigs/external-dns/blob/v0.22.0/registry/txt/registry.go)
-- [Gateway source documentation](https://github.com/kubernetes-sigs/external-dns/blob/v0.22.0/docs/sources/gateway-api.md)
+- [Provider README v1.6.3](https://github.com/mirceanton/external-dns-provider-mikrotik/blob/v1.6.3/README.md)
+- [Provider RouterOS client](https://github.com/mirceanton/external-dns-provider-mikrotik/blob/v1.6.3/internal/mikrotik/client.go)
+- [ExternalDNS TXT registry v0.22.0](https://github.com/kubernetes-sigs/external-dns/blob/v0.22.0/registry/txt/registry.go)
+- [Gateway source v0.22.0](https://github.com/kubernetes-sigs/external-dns/blob/v0.22.0/docs/sources/gateway-api.md)
 - [Official chart 1.22.0](https://github.com/kubernetes-sigs/external-dns/tree/external-dns-helm-chart-1.22.0/charts/external-dns)
