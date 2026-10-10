@@ -2,8 +2,10 @@
 
 One home cluster, deliberately split between operator-controlled bootstrap and
 GitOps. See [bootstrap and recovery](docs/gitops.md) for the executable sequence,
-ownership, TLS renewal and acceptance checks. These files prepare the next stage;
-they do **not** mean Argo CD or the Gateway has been deployed.
+ownership, TLS renewal and acceptance checks. As confirmed by the operator on
+2026-10-10, Argo CD manages the platform and workloads, including Cilium,
+Synology CSI and Gateway. Sync is manual; ExternalDNS remains crash-looping.
+See the runbook for recorded application health and remaining acceptance checks.
 
 - [Production incident postmortems](incidents/postmortems/README.md)
 - [Network addressing](docs/addressing.md) and [topology](docs/network-topology.svg)
@@ -23,19 +25,18 @@ they do **not** mean Argo CD or the Gateway has been deployed.
 
 ```text
 kubernetes/
-  cilium/gateway-api/         # pinned upstream CRDs; Cilium child after adoption
-  cilium/                     # pinned Helm-in-Kustomize; prepared Argo adoption
+  cilium/gateway-api/         # pinned upstream CRDs owned by the Cilium Application
+  cilium/                     # Argo-managed pinned Helm-in-Kustomize
   argocd/                     # Kustomize bootstrap + pinned upstream Helm chart
   cert-manager/               # one Argo Kustomize package: chart + configuration
-  gitops/bootstrap/           # root owns AppProjects + child app catalog
-  gitops/applications/        # includes self-managed Argo and workload apps
+  gitops/                    # gitops root owns AppProjects + child Application catalog
   gateway/                   # child owns Gateway and routes
   external-dns/              # official chart values, scoped policy, optional test
   apps/home-assistant/        # Argo-managed fresh Home Assistant Container
   apps/adsb/                  # Argo-managed RTL-SDR decoder and feeder stack
   apps/anki-sync/             # Argo-managed Python-based Anki Sync Server, initially scaled to zero
   apps/deconz/                # Argo-managed deCONZ pinned to the RaspBee II node
-  synology-csi/               # Argo adoption: driver, retained StorageClass, ESO
+  synology-csi/               # Argo-managed driver, retained StorageClass and ESO
 ```
 
 Deployment credentials belong in Vault and are synchronized through namespaced
