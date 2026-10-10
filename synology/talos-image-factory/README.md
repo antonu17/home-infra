@@ -1,5 +1,10 @@
 # Image Factory on Synology
 
+Operator inspection 2026-10-10 confirms Image Factory v1.7.0 running, with
+`/volume3/labs/talos-image-factory/data` mounted read-only at `/etc/image-factory`.
+The key initializer mounts it writable and is exited; exit code/signing identity
+acceptance remain unconfirmed. See [NAS inventory](../../docs/nas-storage.md).
+
 The project uses upstream Image Factory v1.7.0 and a one-shot
 `alpine/openssl:3.5.8` key initializer. Both mount the same NAS directory at
 `/etc/image-factory/`; only the initializer can write it. Image Factory waits for

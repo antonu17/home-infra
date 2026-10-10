@@ -1,10 +1,17 @@
 # Install Vault on Synology
 
+Operator inspection 2026-10-10 confirms Vault2.1.1 and the unseal helper
+running, sharing `/volume3/labs/vault/storage` at `/vault/storage`. Vault also
+has anonymous Volume1 mounts at `/vault/file` and `/vault/logs`; their use and
+live Raft path need confirmation. See [NAS inventory](../../docs/nas-storage.md).
+
 Vault 2.1.1, single-node Raft, with automatic initialization and Shamir
 unsealing. Both services use the default Compose network and share `storage/`.
 All commands below are **operator-run on your NAS**. Replace `/path/to/vault-project`
 with your chosen project directory on a NAS volume in every example.
-The repository files are prepared configuration, not proof of deployment.
+The observed containers/mounts are deployed. Initialization, permissions and
+recovery behavior require their own checks; the setup procedures below are not
+an instruction to repeat initialization on this existing Vault.
 
 ## 1. Upload the project
 

@@ -1,7 +1,12 @@
 # Pi-hole on Synology
 
-Pi-hole provides DNS filtering and a web administration interface. This project
-is prepared configuration, not confirmation of a live deployment.
+Operator inspection 2026-10-10 confirms Pi-hole running from `pihole/pihole:latest`,
+with `/volume3/labs/pi-hole/etc-pihole` mounted at `/etc/pihole`, DNS53 and UI8081.
+The live tag differs from the source pin below; actual application version and
+backup/restore remain unconfirmed. See [NAS inventory](../../docs/nas-storage.md).
+
+Pi-hole provides DNS filtering and a web administration interface. The table below
+describes repository source; the live deployment/tag difference is recorded above.
 
 | Setting | Configuration |
 |---|---|

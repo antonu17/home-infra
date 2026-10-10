@@ -1,9 +1,14 @@
 # OCI registry on Synology
 
+Operator inspection 2026-10-10 confirms `registry:3` running as `registry`,
+NAS5005→container5000 and `/volume3/labs/oci-registry/data` mounted writable at
+`/var/lib/registry`. Current storage layout matches source; backup/restore is
+not established. See [NAS inventory](../../docs/nas-storage.md).
+
 A single CNCF Distribution registry for Image Factory schematics, cached assets,
-generated installers and promoted Talos installers. This project is prepared
-configuration; the existing NAS registry's version and storage path must be
-verified before adoption.
+generated installers and promoted Talos installers. Its current
+image tag/port/mount layout is operator-confirmed; deployment and storage-copy
+procedures below apply only to fresh setup or a separately reviewed change.
 
 | Setting | Compose configuration |
 |---|---|
