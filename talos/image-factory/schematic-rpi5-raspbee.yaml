@@ -1,0 +1,17 @@
+customization:
+  extraKernelArgs:
+    - "-console"
+    - "console=tty0"
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/iscsi-tools
+overlay:
+  image: siderolabs/sbc-raspberrypi
+  name: rpi_5
+  options:
+    configTxtAppend: |
+      [all]
+      # Enable the GPIO-header UART used by RaspBee II on Quantum.
+      # Retain the overlay's Pi 5 U-Boot compatibility settings.
+      dtparam=uart0=on
+      dtoverlay=uart0-pi5

@@ -1,0 +1,32 @@
+baseProfileName: rpi_5
+arch: arm64
+platform: metal
+secureboot: false
+version: v1.14.2
+customization:
+  extraKernelArgs:
+    - "-console"
+    - "console=tty0"
+input:
+  kernel:
+    path: /usr/install/arm64/vmlinuz
+  initramfs:
+    path: /usr/install/arm64/initramfs.xz
+  systemExtensions:
+    - imageRef: ghcr.io/siderolabs/iscsi-tools@sha256:8b0c13a73a0a82cbd7c458c170241c4bb08de3ec536d97fbde6bced24668d11e
+overlay:
+  name: rpi_5
+  image:
+    imageRef: ghcr.io/siderolabs/sbc-raspberrypi@sha256:af82d9f97241fb66c5b660b03e9154fd54ba4560b58ed3b53765bb930d564167
+  options:
+    configTxtAppend: |
+      [all]
+      dtparam=uart0=on
+      dtoverlay=uart0-pi5
+output:
+  kind: image
+  outFormat: .xz
+  imageOptions:
+    diskSize: 1306525696
+    diskFormat: raw
+    bootloader: grub

@@ -1,0 +1,13 @@
+diff --git a/cmd/installer/pkg/install/install.go b/cmd/installer/pkg/install/install.go
+--- a/cmd/installer/pkg/install/install.go
++++ b/cmd/installer/pkg/install/install.go
+@@ -232,6 +232,8 @@ func (i *Installer) detectBootloader(mode Mode) (bootloaderpkg.Bootloader, error) {
+ 	switch mode {
+ 	case ModeInstall:
+-		return bootloaderpkg.NewAuto(), nil
++		// Quantum-only installer: U-Boot exposes EFI but its variable writes
++		// are not assumed reliable. Use the SD-tested GRUB boot path.
++		return bootloaderpkg.New("grub", i.options.Version, i.options.Arch)
+ 	case ModeUpgrade:
+ 		return bootloaderpkg.Probe(i.options.DiskPath, bootloaderoptions.ProbeOptions{
+ 			// the disk is already locked
