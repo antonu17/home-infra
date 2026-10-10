@@ -100,6 +100,7 @@ individually, in alphabetical filename order (numeric prefixes encode dependenci
 /import file-name=08-firewall-nat.rsc
 /import file-name=09-firewall-filter.rsc
 /import file-name=10-dhcp.rsc
+/import file-name=11-mdns.rsc
 ```
 
 The same order is used on every reapplication; no separate first-run procedure.
@@ -174,6 +175,12 @@ INFRA-MGMT contains operator-confirmed Aruba 192.168.88.3 for unrestricted Home 
 No printer, HA or remote address is invented. Add verified addresses to the source before use.
 
 ## Firewall behavior
+
+**Current policy (2026-10-10): L3 forwarding.** Allowed routed paths use source
+networks, destination addresses/lists and VLAN interfaces, without protocol or
+port restrictions. The protocol/port-specific descriptions elsewhere below
+record earlier policy and are superseded by the L3 section at the end.
+Input rules for router services and mDNS remain separate and scoped.
 
 Rules live directly in built-in `input` and `forward` chains.
 
@@ -486,8 +493,8 @@ Manual Aruba procedure (not executed by the agent):
    IoT traffic. Add IPPS443/RAW9100/LPR515 only if actually required.
 7. Verify Home printing, Guest IPP to that exact printer, and denied Guest access
    to other IoT destinations. AP role/client-isolation rules must also permit
-   the intended routed print traffic. Discovery/mDNS/SSDP and DNS changes are
-   outside this procedure; use the known printer IP for testing.
+   the intended routed print traffic. IPv4 mDNS is now prepared by11 as described below. SSDP and DNS records
+   remain separate; use the known printer IP for direct printing tests.
 
 Rollback: reconnect the printer to its original SSID/settings. To retire the IoT
 SSID after reconnecting all affected clients, restore only its saved Aruba
@@ -528,7 +535,7 @@ Confirm address 192.168.30.3, server dhcp300-iot and bound status after reconnec
 Rollback requires moving this same lease back to dhcp1/address 192.168.100.26 and
 restoring its former client-id, then reconnecting to the former SSID. First revert
 this desired reservation in Git, otherwise the next import moves it to IoT again.
-No DNS record is created; discovery remains outside scope.
+No DNS record is created; IPv4 mDNS discovery is prepared separately in11.
 
 ### Aruba SSH and HTTPS redirect (2026-10-10)
 
@@ -561,3 +568,167 @@ destination-port selectors left by the previous restricted rule. Guests, IoT and
 Cloud receive no new access; other VLAN1 destinations remain unchanged.
 Upload and re-import09 only. No per-Mac address restriction is introduced:
 this authorizes the existing Home administrator zone as requested.
+
+## mDNS discovery across Home, IoT and Home Cloud
+
+Requested2026-10-10: `11-mdns.rsc` sets native RouterOS IPv4 mDNS repetition on
+vlan100-trusted, vlan300-iot and vlan400-home-cloud. Source09 has three input
+rules accepting UDP5353 to224.0.0.251 only on those interfaces and from their
+respective directly connected subnets. Guest/VLAN1/WAN are excluded. No forward
+multicast rule, SSDP, DNS record, NAT or bridge IP firewall is added. Existing
+unicast DNS upstreams and DHCP settings are untouched.
+
+The repeater is bidirectional among all three VLANs: IoT and Cloud also discover
+Home and one another. RouterOS does not provide directional/service-type filters
+through this interface list. Existing inter-VLAN service permissions still apply;
+seeing a service does not open its advertised port. Native repetition supports
+IPv4 only; IPv6 mDNS and the separate IPv6 segmentation findings remain unresolved.
+
+Upload the updated09 and new11, then manually apply:
+
+```routeros
+/import 09-firewall-filter.rsc
+/import 11-mdns.rsc
+```
+
+Read-only check on RouterOS:
+
+```routeros
+/ip dns print
+/ip firewall filter print stats where comment~"mDNS discovery"
+```
+
+On the Home Mac, browse the service types your devices actually advertise, e.g.:
+
+```sh
+dns-sd -B _ipp._tcp local.
+dns-sd -B _ipps._tcp local.
+dns-sd -B _http._tcp local.
+```
+
+Stop browsing with Ctrl-C. Resolve a discovered instance using
+`dns-sd -L "<instance name>" _ipp._tcp local.` and test its advertised destination
+under the existing access rules. AP multicast/SSID-role filtering and device
+advertisement settings can still suppress discovery; the router repeater cannot
+make a silent device advertise. Cluster Pods do not automatically advertise onto
+VLAN400 merely because their nodes are there.
+
+Rollback: set `mdns-repeat-ifaces=""` under `/ip dns` manually to stop repetition,
+then reflect that disabled desired state in11 before importing again. This property
+replaces the entire repeater interface list; retain its previous value privately
+if mDNS repetition was separately configured after the last export. The new input
+rules can be disabled in source09 when removing this feature.
+
+Reference: [MikroTik DNS/mDNS documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/37748767/DNS).
+The router locally receives/repeats mDNS, so allowances belong in input, not forward.
+
+### Synology DSM HTTPS access (2026-10-10)
+
+The Home NAS web rule now includes TCP5001 to192.168.40.5 for direct DSM HTTPS,
+in addition to80/443/8081. Its existing comment identity and Home-only source,
+Cloud egress and exact NAS destination remain unchanged. Re-import09 only after
+uploading the updated file. This does not enable DSM on the NAS or open other
+NAS protocols. Test from Home with `nc -vz pulsar.home.antonu.org 5001` and open
+https://pulsar.home.antonu.org:5001/.
+
+## L3 forwarding policy (2026-10-10)
+
+At the operator's request, managed forward accept rules now clear protocol,
+source/destination port, TCP flag and ICMP-type selectors. Existing source and
+destination addresses/lists, VLAN ingress/egress classification, established/
+related handling and final deny remain. This permits all IP protocols/ports
+**only on an already authorized network or host path**. It does not grant
+unrestricted access between every VLAN or to the router itself.
+
+In particular:
+
+- Home has full access to NAS192.168.40.5 and Aruba192.168.88.3, Home-to-IoT,
+  the Kubernetes service pool10.40.0.0/24, API VIP and known cluster nodes.
+- Guest has full access to the exact PRINTERS addresses (currently192.168.30.3),
+  plus its existing Internet path. Other IoT/Home/Cloud/management destinations
+  remain denied. Printer administration ports are included in this L3 choice.
+- HA exceptions remain limited to listed HA-EGRESS sources and HA-IOT
+  destinations but no longer restrict service ports. Empty lists still match
+  nothing. Remote service paths likewise retain existing source/destination scope.
+- Historical Cloud-to-.100.5 and resolver-.100.2 paths retain their exact
+  destinations but now permit all ports/protocols. Confirm/remove retired paths
+  separately. No broader Cloud initiation to Home/IoT/management is introduced.
+- IPv4 input protections, WAN NAT, disabled FastTrack and mDNS repetition are
+  unchanged. Existing IPv6 and MAC-management audit gaps remain unresolved.
+
+The full NAS rule adopts its old `Home NAS web services` identity and renames it
+`Home NAS access` in place. Duplicate old/new identities stop the import. The
+redundant `Home NAS diagnostics` rule is retired only after the full rules are
+ordered and terminal denies enabled.
+
+Upload/re-import09 only. **Scoped deletion:** this import removes exactly the
+obsolete managed filter rule with comment `Home NAS diagnostics`; it is replaced
+by full access to the same NAS, including ICMP. The import changes forwarding
+permissions on every existing allowed path as described above.
+
+Synology Drive sync uses TCP6690, documented by
+[Synology's service port reference](https://kb.synology.com/en-global/DSM/tutorial/What_network_ports_are_used_by_Synology_services).
+No separate6690 exception is needed under full Home-to-NAS access. Client check:
+
+```sh
+nc -vz pulsar.home.antonu.org 6690
+```
+
+A failure after import requires checking hostname resolution, NAS service health
+and DSM's own firewall. The router rule does not enable or configure NAS services.
+
+## IoT TV access to Synology DLNA (2026-10-10)
+
+Source09 now permits IoT192.168.30.0/24 to NAS192.168.40.5 on all protocols and
+ports, as requested under L3 forwarding. This includes NAS administration as
+well as media service access. It does not allow IoT initiation to other Cloud
+hosts, Home or VLAN1. Established/related replies remain permitted. Re-import09
+only to apply this path. No NAT or broad Cloud-to-IoT initiation rule is added.
+
+**SSDP discovery is not yet configured.** DLNA uses SSDP239.255.255.250 UDP1900,
+not the mDNS group/port. Existing11 already repeats mDNS among100/300/400.
+Opening firewall ports alone cannot repeat SSDP. An SSDP relay must handle
+M-SEARCH requests, multicast announcements and unicast discovery responses on
+both IoT and Cloud. IGMP proxy alone is not a bidirectional SSDP reflector and
+has only one upstream interface; no misleading IGMP configuration is provided.
+
+Relay deployment is pending the operator's host choice and interface inventory.
+Use an existing Linux host/VM with two actual L2 VLAN attachments, or a reviewed
+RouterOS container with container support, persistent storage and a veth on each
+VLAN. Preserve existing Synology untagged400 uplink; do not invent a tagged300
+DSM interface or silently extend its bond trunk. No Kubernetes/NAS resources,
+container privileges, addresses or images have been invented here.
+
+A candidate implementation is
+[alsmith/multicast-relay](https://github.com/alsmith/multicast-relay), which handles
+SSDP unicast answers as well as multicast. Pin/review its source and configure
+only SSDP between the two verified interfaces, leaving mDNS to RouterOS and
+excluding Guest/management; Home was subsequently added as documented below. Concrete installation and
+idempotent network configuration require the selected host's actual interfaces.
+
+Verify Synology Media Server is running and has media indexed, that DSM's own
+firewall permits the TV subnet, and that the TV sees/plays it once the relay is
+configured. Playback permission does not prove discovery. No live tests or
+configuration changes have been performed by the agent.
+
+## SSDP relay implementation prepared (2026-10-10)
+
+The pending SSDP host choice is resolved: RB5009 internal storage, with matching
+RouterOS/container7.24.4 and device-mode container=yes confirmed by the operator.
+See [the relay build/import/rollback guide](ssdp-relay/README.md). Source12 creates
+three VETH access attachments for Home/IoT/Cloud with existing DHCP; source13 imports a reviewed ARM64
+archive into persistent internal storage under `containers/ssdp-relay` (prefixed
+with `flash/` when that existing storage directory is present). Source04 preserves these optional bridge
+VLAN members on future imports. Source09 permits both IoT-to-NAS and the exact
+NAS-to-IoT and NAS-to-Home reverse paths required for SSDP unicast responses under the requested
+L3 policy. Native mDNS11 is unchanged. No Synology uplink change is required.
+
+Build/archive creation and router imports/start remain manual. This is not a
+claim of agent-performed live testing. The operator confirmed TV discovery after
+importing the NAS/IoT firewall rules; the new Home extension awaits validation.
+Full alphabetical application, after building/uploading the archive, continues
+with12 then13 after11. First container start remains a separate manual step.
+
+The existing image can be extended to VLAN100 without a rebuild: source13 sets
+explicit relay entrypoint/arguments for all three VETHs. Stop the relay before
+reapplying04/09/12/13, then start it; see the linked extension/rollback procedure.

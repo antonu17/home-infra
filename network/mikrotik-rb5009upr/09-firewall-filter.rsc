@@ -2,8 +2,13 @@
 # Final denies are enabled. Fill actual remote/service exception lists first.
 # WAN FastTrack is disabled until the main-table/mangle/IPsec/queue audit passes;
 # set disabled=no on its source rule here after that audit, then reimport.
-:if ([:len [/ip firewall filter find where comment="Home NAS web services"]] > 1) do={ :error "Duplicate firewall comment: Home NAS web services" }
-:if ([:len [/ip firewall filter find where comment="Home NAS diagnostics"]] > 1) do={ :error "Duplicate firewall comment: Home NAS diagnostics" }
+:if ([:len [/ip firewall filter find where comment="NAS Home access"]] > 1) do={ :error "Duplicate firewall comment: NAS Home access" }
+:if ([:len [/ip firewall filter find where comment="NAS IoT access"]] > 1) do={ :error "Duplicate firewall comment: NAS IoT access" }
+:if ([:len [/ip firewall filter find where comment="IoT NAS access"]] > 1) do={ :error "Duplicate firewall comment: IoT NAS access" }
+:if ([:len [/ip firewall filter find where comment="Home mDNS discovery"]] > 1) do={ :error "Duplicate firewall comment: Home mDNS discovery" }
+:if ([:len [/ip firewall filter find where comment="IoT mDNS discovery"]] > 1) do={ :error "Duplicate firewall comment: IoT mDNS discovery" }
+:if ([:len [/ip firewall filter find where comment="Cloud mDNS discovery"]] > 1) do={ :error "Duplicate firewall comment: Cloud mDNS discovery" }
+:if ([:len [/ip firewall filter find where comment="Home NAS access" or comment="Home NAS web services"]] > 1) do={ :error "Duplicate firewall comment: Home NAS access" }
 :if ([:len [/ip firewall filter find where comment="input established related"]] > 1) do={ :error "Duplicate firewall comment: input established related" }
 :if ([:len [/ip firewall filter find where comment="input invalid"]] > 1) do={ :error "Duplicate firewall comment: input invalid" }
 :if ([:len [/ip firewall filter find where comment="Home router management"]] > 1) do={ :error "Duplicate firewall comment: Home router management" }
@@ -174,6 +179,37 @@
     /ip firewall filter set $existing !dst-address !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 protocol=tcp dst-port=53 comment="Cloud DNS TCP" disabled=no log=no log-prefix=""
 }
 
+
+:do {
+    :local existing [/ip firewall filter find where comment="Home mDNS discovery"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: Home mDNS discovery" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=input disabled=yes comment="Home mDNS discovery"
+        :set existing [/ip firewall filter find where comment="Home mDNS discovery"]
+    }
+    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface-list !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface=vlan100-trusted src-address=192.168.100.0/24 dst-address=224.0.0.251 protocol=udp dst-port=5353 comment="Home mDNS discovery" disabled=no log=no log-prefix=""
+}
+
+:do {
+    :local existing [/ip firewall filter find where comment="IoT mDNS discovery"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: IoT mDNS discovery" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=input disabled=yes comment="IoT mDNS discovery"
+        :set existing [/ip firewall filter find where comment="IoT mDNS discovery"]
+    }
+    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface-list !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface=vlan300-iot src-address=192.168.30.0/24 dst-address=224.0.0.251 protocol=udp dst-port=5353 comment="IoT mDNS discovery" disabled=no log=no log-prefix=""
+}
+
+:do {
+    :local existing [/ip firewall filter find where comment="Cloud mDNS discovery"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: Cloud mDNS discovery" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=input disabled=yes comment="Cloud mDNS discovery"
+        :set existing [/ip firewall filter find where comment="Cloud mDNS discovery"]
+    }
+    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface-list !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface=vlan400-home-cloud src-address=192.168.40.0/24 dst-address=224.0.0.251 protocol=udp dst-port=5353 comment="Cloud mDNS discovery" disabled=no log=no log-prefix=""
+}
+
 :do {
     :local existing [/ip firewall filter find where comment="Cilium inbound BGP"]
     :if ([:len $existing] > 1) do={ :error "Duplicate /ip firewall filter object: comment=Cilium inbound BGP" }
@@ -265,25 +301,49 @@
 }
 
 
+
+
+# SSDP searches retain their original client source; NAS unicast answers need this path.
 :do {
-    :local existing [/ip firewall filter find where comment="Home NAS web services"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: Home NAS web services" }
+    :local existing [/ip firewall filter find where comment="NAS Home access"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: NAS Home access" }
     :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="Home NAS web services"
-        :set existing [/ip firewall filter find where comment="Home NAS web services"]
+        /ip firewall filter add chain=forward disabled=yes comment="NAS Home access"
+        :set existing [/ip firewall filter find where comment="NAS Home access"]
     }
-    /ip firewall filter set $existing chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.5 protocol=tcp dst-port=80,443,8081 disabled=no comment="Home NAS web services"
+    /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.5 out-interface-list=HOME dst-address=192.168.100.0/24 disabled=no comment="NAS Home access" log=no log-prefix=""
 }
 
 :do {
-    :local existing [/ip firewall filter find where comment="Home NAS diagnostics"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: Home NAS diagnostics" }
+    :local existing [/ip firewall filter find where comment="NAS IoT access"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: NAS IoT access" }
     :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="Home NAS diagnostics"
-        :set existing [/ip firewall filter find where comment="Home NAS diagnostics"]
+        /ip firewall filter add chain=forward disabled=yes comment="NAS IoT access"
+        :set existing [/ip firewall filter find where comment="NAS IoT access"]
     }
-    /ip firewall filter set $existing chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.5 protocol=icmp disabled=no comment="Home NAS diagnostics"
+    /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.5 out-interface-list=IOT dst-address=192.168.30.0/24 disabled=no comment="NAS IoT access" log=no log-prefix=""
 }
+
+:do {
+    :local existing [/ip firewall filter find where comment="IoT NAS access"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: IoT NAS access" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="IoT NAS access"
+        :set existing [/ip firewall filter find where comment="IoT NAS access"]
+    }
+    /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=IOT src-address=192.168.30.0/24 out-interface-list=CLOUD dst-address=192.168.40.5 disabled=no comment="IoT NAS access" log=no log-prefix=""
+}
+
+:do {
+    :local existing [/ip firewall filter find where comment="Home NAS access" or comment="Home NAS web services"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: Home NAS access" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Home NAS access"
+        :set existing [/ip firewall filter find where comment="Home NAS access" or comment="Home NAS web services"]
+    }
+    /ip firewall filter set $existing !icmp-options !tcp-flags !dst-port !src-port !protocol chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.5 disabled=no comment="Home NAS access"
+}
+
 
 :do {
     :local existing [/ip firewall filter find where comment="Home to routed cloud web services"]
@@ -292,7 +352,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Home to routed cloud web services"
         :set existing [/ip firewall filter find where comment="Home to routed cloud web services"]
     }
-    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=10.40.0.0/24 protocol=tcp dst-port=80,443 comment="Home to routed cloud web services" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=10.40.0.0/24 comment="Home to routed cloud web services" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -302,7 +362,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Home Kubernetes API VIP"
         :set existing [/ip firewall filter find where comment="Home Kubernetes API VIP"]
     }
-    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.20 protocol=tcp dst-port=6443 comment="Home Kubernetes API VIP" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.20 comment="Home Kubernetes API VIP" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -312,7 +372,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Home Talos known nodes"
         :set existing [/ip firewall filter find where comment="Home Talos known nodes"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address-list=BGP-PEERS protocol=tcp dst-port=50000 comment="Home Talos known nodes" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=HOME src-address-list=HOME-NETWORKS out-interface-list=CLOUD dst-address-list=BGP-PEERS comment="Home Talos known nodes" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -332,7 +392,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Guest IPP printers"
         :set existing [/ip firewall filter find where comment="Guest IPP printers"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=GUEST src-address-list=GUEST-NETWORKS out-interface-list=IOT dst-address-list=PRINTERS protocol=tcp dst-port=631 comment="Guest IPP printers" log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=GUEST src-address-list=GUEST-NETWORKS out-interface-list=IOT dst-address-list=PRINTERS comment="Guest IPP printers" log=no log-prefix=""
 }
 
 :do {
@@ -342,7 +402,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="measured HA integration HTTPS"
         :set existing [/ip firewall filter find where comment="measured HA integration HTTPS"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=CLOUD src-address-list=HA-EGRESS out-interface-list=IOT dst-address-list=HA-IOT protocol=tcp dst-port=443 comment="measured HA integration HTTPS" log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=CLOUD src-address-list=HA-EGRESS out-interface-list=IOT dst-address-list=HA-IOT comment="measured HA integration HTTPS" log=no log-prefix=""
 }
 
 :do {
@@ -352,7 +412,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="NAS HTTPS and iSCSI"
         :set existing [/ip firewall filter find where comment="NAS HTTPS and iSCSI"]
     }
-    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=HOME dst-address=192.168.100.5 protocol=tcp dst-port=443,3260 comment="NAS HTTPS and iSCSI" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=HOME dst-address=192.168.100.5 comment="NAS HTTPS and iSCSI" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -362,7 +422,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="checked-in PXE HTTP factory"
         :set existing [/ip firewall filter find where comment="checked-in PXE HTTP factory"]
     }
-    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=HOME dst-address=192.168.100.5 protocol=tcp dst-port=80 comment="checked-in PXE HTTP factory" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=HOME dst-address=192.168.100.5 comment="checked-in PXE HTTP factory" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -372,7 +432,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="existing Home resolver UDP"
         :set existing [/ip firewall filter find where comment="existing Home resolver UDP"]
     }
-    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=LAN src-address-list=LOCAL-NETWORKS out-interface-list=HOME dst-address=192.168.100.2 protocol=udp dst-port=53 comment="existing Home resolver UDP" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=LAN src-address-list=LOCAL-NETWORKS out-interface-list=HOME dst-address=192.168.100.2 comment="existing Home resolver UDP" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -382,7 +442,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="existing Home resolver TCP"
         :set existing [/ip firewall filter find where comment="existing Home resolver TCP"]
     }
-    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=LAN src-address-list=LOCAL-NETWORKS out-interface-list=HOME dst-address=192.168.100.2 protocol=tcp dst-port=53 comment="existing Home resolver TCP" disabled=no log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=LAN src-address-list=LOCAL-NETWORKS out-interface-list=HOME dst-address=192.168.100.2 comment="existing Home resolver TCP" disabled=no log=no log-prefix=""
 }
 
 :do {
@@ -432,7 +492,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Authorized remote cloud web services"
         :set existing [/ip firewall filter find where comment="Authorized remote cloud web services"]
     }
-    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=REMOTE src-address-list=REMOTE-MGMT-SOURCES out-interface-list=CLOUD dst-address=10.40.0.0/24 protocol=tcp dst-port=80,443 disabled=no comment="Authorized remote cloud web services" log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=REMOTE src-address-list=REMOTE-MGMT-SOURCES out-interface-list=CLOUD dst-address=10.40.0.0/24 disabled=no comment="Authorized remote cloud web services" log=no log-prefix=""
 }
 
 :do {
@@ -442,7 +502,7 @@
         /ip firewall filter add chain=forward disabled=yes comment="Cloud to routed cloud web services"
         :set existing [/ip firewall filter find where comment="Cloud to routed cloud web services"]
     }
-    /ip firewall filter set $existing !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=CLOUD dst-address=10.40.0.0/24 protocol=tcp dst-port=80,443 disabled=no comment="Cloud to routed cloud web services" log=no log-prefix=""
+    /ip firewall filter set $existing !dst-port !protocol !src-address-list !dst-address-list !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.0/24 out-interface-list=CLOUD dst-address=10.40.0.0/24 disabled=no comment="Cloud to routed cloud web services" log=no log-prefix=""
 }
 
 :do {
@@ -476,8 +536,10 @@
         "Home Talos known nodes";
         "Home Kubernetes API VIP";
         "Home to routed cloud web services";
-        "Home NAS diagnostics";
-        "Home NAS web services";
+        "NAS Home access";
+        "NAS IoT access";
+        "IoT NAS access";
+        "Home NAS access";
         "Home to IoT requested access";
         "forward established related";
         "verified main-table WAN FastTrack";
@@ -487,6 +549,9 @@
         "ExternalDNS current HTTP REST";
         "Cilium router-initiated BGP return";
         "Cilium inbound BGP";
+        "Cloud mDNS discovery";
+        "IoT mDNS discovery";
+        "Home mDNS discovery";
         "Cloud DNS TCP";
         "Cloud DNS and native TFTP";
         "IoT DNS TCP";
@@ -515,3 +580,6 @@
 # Enable terminal denies only after all managed allows are in their final order.
 /ip firewall filter enable [find where comment="input default deny"]
 /ip firewall filter enable [find where comment="forward default deny"]
+
+# Retire only the now-redundant managed NAS ICMP rule; full NAS L3 access includes ICMP.
+/ip firewall filter remove [find where dynamic=no and comment="Home NAS diagnostics"]

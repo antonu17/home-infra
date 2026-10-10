@@ -26,15 +26,19 @@
 }
 
 :do {
+    :local untagged "ether4,ether8"
+    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
+        :if ([:len [/interface veth find where name="veth-ssdp-home"]] = 1) do={ :set untagged "ether4,ether8,veth-ssdp-home" }
+    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "100") do={ :set existing ($existing, $row) }
     }
     :if ([:len $existing] > 1) do={ :error "Duplicate static VLAN100 on bridge" }
     :if ([:len $existing] = 0) do={
-        /interface bridge vlan add bridge=bridge vlan-ids=100 tagged=bridge,ether7 untagged="ether4,ether8" disabled=no comment="VLAN100 Home"
+        /interface bridge vlan add bridge=bridge vlan-ids=100 tagged=bridge,ether7 untagged=$untagged disabled=no comment="VLAN100 Home"
     } else={
-        /interface bridge vlan set $existing bridge=bridge vlan-ids=100 tagged=bridge,ether7 untagged="ether4,ether8" disabled=no comment="VLAN100 Home"
+        /interface bridge vlan set $existing bridge=bridge vlan-ids=100 tagged=bridge,ether7 untagged=$untagged disabled=no comment="VLAN100 Home"
     }
 }
 
@@ -52,28 +56,36 @@
 }
 
 :do {
+    :local untagged "ether3"
+    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
+        :if ([:len [/interface veth find where name="veth-ssdp-iot"]] = 1) do={ :set untagged "ether3,veth-ssdp-iot" }
+    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "300") do={ :set existing ($existing, $row) }
     }
     :if ([:len $existing] > 1) do={ :error "Duplicate static VLAN300 on bridge" }
     :if ([:len $existing] = 0) do={
-        /interface bridge vlan add bridge=bridge vlan-ids=300 tagged=bridge,ether7 untagged="ether3" disabled=no comment="VLAN300 IoT"
+        /interface bridge vlan add bridge=bridge vlan-ids=300 tagged=bridge,ether7 untagged=$untagged disabled=no comment="VLAN300 IoT"
     } else={
-        /interface bridge vlan set $existing bridge=bridge vlan-ids=300 tagged=bridge,ether7 untagged="ether3" disabled=no comment="VLAN300 IoT"
+        /interface bridge vlan set $existing bridge=bridge vlan-ids=300 tagged=bridge,ether7 untagged=$untagged disabled=no comment="VLAN300 IoT"
     }
 }
 
 :do {
+    :local untagged "syno1,ether5,ether6"
+    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
+        :if ([:len [/interface veth find where name="veth-ssdp-cloud"]] = 1) do={ :set untagged "syno1,ether5,ether6,veth-ssdp-cloud" }
+    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "400") do={ :set existing ($existing, $row) }
     }
     :if ([:len $existing] > 1) do={ :error "Duplicate static VLAN400 on bridge" }
     :if ([:len $existing] = 0) do={
-        /interface bridge vlan add bridge=bridge vlan-ids=400 tagged=bridge untagged="syno1,ether5,ether6" disabled=no comment="VLAN400 Cloud"
+        /interface bridge vlan add bridge=bridge vlan-ids=400 tagged=bridge untagged=$untagged disabled=no comment="VLAN400 Cloud"
     } else={
-        /interface bridge vlan set $existing bridge=bridge vlan-ids=400 tagged=bridge untagged="syno1,ether5,ether6" disabled=no comment="VLAN400 Cloud"
+        /interface bridge vlan set $existing bridge=bridge vlan-ids=400 tagged=bridge untagged=$untagged disabled=no comment="VLAN400 Cloud"
     }
 }
 
