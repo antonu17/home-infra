@@ -71,6 +71,31 @@ entire subnet or change the firewall without that evidence. RouterOS group
 `read,write,api,rest-api` is not DNS-only permission; keep a dedicated account
 and source restrictions. Read-only diagnostics must never expose its password.
 
+### Measured firewall gap — 2026-10-10
+
+See the [incident postmortem](../incidents/postmortems/2026-10-10-external-dns-router-rest.md)
+for customer impact, evidence, remediation and pending acceptance checks.
+
+The operator confirmed `EXTERNALDNS-EGRESS` was empty, its input accept counter
+was zero, and `www` was enabled on TCP80. ExternalDNS Pod `10.244.3.238` ran
+on worker-03. A router capture showed repeated inbound connections from
+`192.168.40.42` to `192.168.40.1:80`, with no replies in the supplied capture.
+The empty list prevents the existing REST accept rule from matching.
+
+`07-address-lists.rsc` now reconciles all three eligible worker sources:
+`192.168.40.40`, `192.168.40.41` and `192.168.40.42`, as authorized by the
+operator to survive Pod rescheduling. Only `.42` has been observed in the
+supplied packet capture; the other two are known worker addresses included
+under the same node-SNAT assumption. No control-plane or entire-subnet grant
+is added. The existing file09 input rule still permits only TCP80 to
+`192.168.40.1` from Cloud interfaces and this list.
+
+Re-import only file07. Observe the REST accept counter and webhook/controller
+recovery before declaring the incident resolved; recovery is not yet confirmed.
+Verify a new source if worker addressing or Cilium masquerading changes. This
+node-level permission also matches other traffic using these worker sources,
+not only ExternalDNS. Router API authentication and Cilium policy still apply.
+
 ## Vault-backed credentials and lifecycle
 
 A namespaced `home-cloud-vault` SecretStore authenticates as `vault-eso`, role

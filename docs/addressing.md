@@ -92,7 +92,7 @@ deployed Gateway's configured stable VIP, DNS and separate Tailscale prerequisit
 ## Common DHCP — operator export 2026-10-10
 
 `network/mikrotik-rb5009upr/10-dhcp.rsc` now covers Home100, Guests200, IoT300
-and Cloud400, retaining server names `dhcp1`, `dhcp2`, `dhcp300-iot` and
+and Cloud400, using server names `dhcp100-home`, `dhcp200-guest`, `dhcp300-iot` and
 `dhcp400-home-cloud`. Each scope advertises its `.1` gateway as DNS. Home also
 advertises DHCP domain `home.antonu.org`; no DNS record is created. Cloud retains
 next-server `192.168.40.1` and boot filename `ipxe-x86_64.efi` from the supplied

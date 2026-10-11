@@ -1,4 +1,4 @@
-# Common IPv4 DHCP. Names, networks, DNS, domain, PXE and original reservations
+# Common IPv4 DHCP. Networks, DNS, domain, PXE and original reservations
 # come from the operator export dated 2026-10-10 (RouterOS7.24.4).
 # Pool ranges were not included: preserve existing pools, create missing pools
 # using the documented plan below. Reconcile ranges with /ip pool export.
@@ -13,16 +13,16 @@
     :if ([:len $vlan] != 1) do={ :error "Missing/ambiguous vlan100-trusted; apply addressing first" }
     :if ([/interface vlan get $vlan vlan-id] != 100) do={ :error "Unexpected VLAN ID on vlan100-trusted" }
     :if ([:len [/ip address find where interface="vlan100-trusted" and address="192.168.100.1/24" and disabled=no]] != 1) do={ :error "Missing 192.168.100.1/24 gateway" }
-    :local named [/ip dhcp-server find where name="dhcp1"]
+    :local named [/ip dhcp-server find where name="dhcp100-home" or name="dhcp1"]
     :local attached [/ip dhcp-server find where interface="vlan100-trusted"]
     :if (([:len $named] > 1) || ([:len $attached] > 1)) do={ :error "Duplicate DHCP server for VLAN100" }
     :foreach row in=$named do={
-        :if ([/ip dhcp-server get $row interface] != "vlan100-trusted") do={ :error "dhcp1 is bound to another interface" }
+        :if ([/ip dhcp-server get $row interface] != "vlan100-trusted") do={ :error "dhcp100-home is bound to another interface" }
     }
     :foreach row in=$attached do={
-        :if ([/ip dhcp-server get $row name] != "dhcp1") do={ :error "VLAN100 DHCP has a different name; reconcile source without breaking leases" }
+        :if (([/ip dhcp-server get $row name] != "dhcp100-home") && ([/ip dhcp-server get $row name] != "dhcp1")) do={ :error "VLAN100 DHCP has a different name; reconcile source without breaking leases" }
     }
-    :if ([:len [/ip pool find where name="dhcp_pool1"]] > 1) do={ :error "Duplicate dhcp_pool1" }
+    :if ([:len [/ip pool find where name="pool100-home" or name="dhcp_pool1"]] > 1) do={ :error "Duplicate pool100-home" }
     :if ([:len [/ip dhcp-server network find where address="192.168.100.0/24"]] > 1) do={ :error "Duplicate VLAN100 DHCP network" }
 }
 
@@ -31,16 +31,16 @@
     :if ([:len $vlan] != 1) do={ :error "Missing/ambiguous vlan200-guest; apply addressing first" }
     :if ([/interface vlan get $vlan vlan-id] != 200) do={ :error "Unexpected VLAN ID on vlan200-guest" }
     :if ([:len [/ip address find where interface="vlan200-guest" and address="192.168.200.1/24" and disabled=no]] != 1) do={ :error "Missing 192.168.200.1/24 gateway" }
-    :local named [/ip dhcp-server find where name="dhcp2"]
+    :local named [/ip dhcp-server find where name="dhcp200-guest" or name="dhcp2"]
     :local attached [/ip dhcp-server find where interface="vlan200-guest"]
     :if (([:len $named] > 1) || ([:len $attached] > 1)) do={ :error "Duplicate DHCP server for VLAN200" }
     :foreach row in=$named do={
-        :if ([/ip dhcp-server get $row interface] != "vlan200-guest") do={ :error "dhcp2 is bound to another interface" }
+        :if ([/ip dhcp-server get $row interface] != "vlan200-guest") do={ :error "dhcp200-guest is bound to another interface" }
     }
     :foreach row in=$attached do={
-        :if ([/ip dhcp-server get $row name] != "dhcp2") do={ :error "VLAN200 DHCP has a different name; reconcile source without breaking leases" }
+        :if (([/ip dhcp-server get $row name] != "dhcp200-guest") && ([/ip dhcp-server get $row name] != "dhcp2")) do={ :error "VLAN200 DHCP has a different name; reconcile source without breaking leases" }
     }
-    :if ([:len [/ip pool find where name="dhcp_pool2"]] > 1) do={ :error "Duplicate dhcp_pool2" }
+    :if ([:len [/ip pool find where name="pool200-guest" or name="dhcp_pool2"]] > 1) do={ :error "Duplicate pool200-guest" }
     :if ([:len [/ip dhcp-server network find where address="192.168.200.0/24"]] > 1) do={ :error "Duplicate VLAN200 DHCP network" }
 }
 
@@ -82,11 +82,11 @@
 
 :do {
     :if ([:len [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="40:23:43:D9:F3:90"]] > 1) do={ :error "Duplicate printer IoT leases" }
-    :if ([:len [/ip dhcp-server lease find where server="dhcp1" and mac-address="40:23:43:D9:F3:90"]] > 1) do={ :error "Duplicate former printer Home leases" }
+    :if ([:len [/ip dhcp-server lease find where (server="dhcp100-home" or server="dhcp1") and mac-address="40:23:43:D9:F3:90"]] > 1) do={ :error "Duplicate former printer Home leases" }
     :foreach row in=[/ip dhcp-server lease find where mac-address="40:23:43:D9:F3:90"] do={
         :local server [/ip dhcp-server lease get $row server]
-        :if (($server != "dhcp300-iot") && ($server != "dhcp1")) do={ :error "Printer lease belongs to an unexpected server" }
-        :if (($server = "dhcp1") && ([/ip dhcp-server lease get $row address] != "192.168.100.26")) do={ :error "Former Home printer address differs; review before moving lease" }
+        :if (($server != "dhcp300-iot") && ($server != "dhcp100-home") && ($server != "dhcp1")) do={ :error "Printer lease belongs to an unexpected server" }
+        :if ((($server = "dhcp100-home") || ($server = "dhcp1")) && ([/ip dhcp-server lease get $row address] != "192.168.100.26")) do={ :error "Former Home printer address differs; review before moving lease" }
     }
     :foreach row in=[/ip dhcp-server lease find where address="192.168.30.3"] do={
         :if (([/ip dhcp-server lease get $row mac-address] != "40:23:43:D9:F3:90") || ([/ip dhcp-server lease get $row server] != "dhcp300-iot")) do={ :error "192.168.30.3 is reserved for another client/server" }
@@ -132,11 +132,46 @@
     }
 }
 
-# VLAN100
+# Reconcile old Home/Guest names in place after all identity preflights.
 :do {
     :local pool [/ip pool find where name="dhcp_pool1"]
+    :if ([:len $pool] = 1) do={
+        :local users [/ip dhcp-server find where address-pool="dhcp_pool1"]
+        :local chained [/ip pool find where next-pool="dhcp_pool1"]
+        /ip pool set $pool name="pool100-home"
+        :foreach row in=$users do={ /ip dhcp-server set $row address-pool="pool100-home" }
+        :foreach row in=$chained do={ /ip pool set $row next-pool="pool100-home" }
+    }
+    :local server [/ip dhcp-server find where name="dhcp1"]
+    :if ([:len $server] = 1) do={
+        :local leases [/ip dhcp-server lease find where server="dhcp1" and dynamic=no]
+        /ip dhcp-server set $server name="dhcp100-home"
+        :foreach row in=$leases do={ /ip dhcp-server lease set $row server="dhcp100-home" }
+    }
+}
+
+:do {
+    :local pool [/ip pool find where name="dhcp_pool2"]
+    :if ([:len $pool] = 1) do={
+        :local users [/ip dhcp-server find where address-pool="dhcp_pool2"]
+        :local chained [/ip pool find where next-pool="dhcp_pool2"]
+        /ip pool set $pool name="pool200-guest"
+        :foreach row in=$users do={ /ip dhcp-server set $row address-pool="pool200-guest" }
+        :foreach row in=$chained do={ /ip pool set $row next-pool="pool200-guest" }
+    }
+    :local server [/ip dhcp-server find where name="dhcp2"]
+    :if ([:len $server] = 1) do={
+        :local leases [/ip dhcp-server lease find where server="dhcp2" and dynamic=no]
+        /ip dhcp-server set $server name="dhcp200-guest"
+        :foreach row in=$leases do={ /ip dhcp-server lease set $row server="dhcp200-guest" }
+    }
+}
+
+# VLAN100
+:do {
+    :local pool [/ip pool find where name="pool100-home"]
     :if ([:len $pool] = 0) do={
-        /ip pool add name=dhcp_pool1 ranges=192.168.100.50-192.168.100.254
+        /ip pool add name=pool100-home ranges=192.168.100.50-192.168.100.254
     }
     # Existing ranges are deliberately unchanged pending the actual pool export.
     :local network [/ip dhcp-server network find where address="192.168.100.0/24"]
@@ -145,19 +180,19 @@
     } else={
         /ip dhcp-server network set $network address=192.168.100.0/24 gateway=192.168.100.1 dns-server=192.168.100.1 netmask=24 domain=home.antonu.org comment="Home DHCP network"
     }
-    :local server [/ip dhcp-server find where name="dhcp1"]
+    :local server [/ip dhcp-server find where name="dhcp100-home"]
     :if ([:len $server] = 0) do={
-        /ip dhcp-server add name=dhcp1 interface=vlan100-trusted address-pool=dhcp_pool1 lease-time=30m disabled=no comment="Home DHCP"
+        /ip dhcp-server add name=dhcp100-home interface=vlan100-trusted address-pool=pool100-home lease-time=30m disabled=no comment="Home DHCP"
     } else={
-        /ip dhcp-server set $server name=dhcp1 interface=vlan100-trusted address-pool=dhcp_pool1 lease-time=30m disabled=no comment="Home DHCP"
+        /ip dhcp-server set $server name=dhcp100-home interface=vlan100-trusted address-pool=pool100-home lease-time=30m disabled=no comment="Home DHCP"
     }
 }
 
 # VLAN200
 :do {
-    :local pool [/ip pool find where name="dhcp_pool2"]
+    :local pool [/ip pool find where name="pool200-guest"]
     :if ([:len $pool] = 0) do={
-        /ip pool add name=dhcp_pool2 ranges=192.168.200.2-192.168.200.254
+        /ip pool add name=pool200-guest ranges=192.168.200.2-192.168.200.254
     }
     # Existing ranges are deliberately unchanged pending the actual pool export.
     :local network [/ip dhcp-server network find where address="192.168.200.0/24"]
@@ -166,11 +201,11 @@
     } else={
         /ip dhcp-server network set $network address=192.168.200.0/24 gateway=192.168.200.1 dns-server=192.168.200.1 netmask=24 comment="Guests DHCP network"
     }
-    :local server [/ip dhcp-server find where name="dhcp2"]
+    :local server [/ip dhcp-server find where name="dhcp200-guest"]
     :if ([:len $server] = 0) do={
-        /ip dhcp-server add name=dhcp2 interface=vlan200-guest address-pool=dhcp_pool2 lease-time=30m disabled=no comment="Guests DHCP"
+        /ip dhcp-server add name=dhcp200-guest interface=vlan200-guest address-pool=pool200-guest lease-time=30m disabled=no comment="Guests DHCP"
     } else={
-        /ip dhcp-server set $server name=dhcp2 interface=vlan200-guest address-pool=dhcp_pool2 lease-time=30m disabled=no comment="Guests DHCP"
+        /ip dhcp-server set $server name=dhcp200-guest interface=vlan200-guest address-pool=pool200-guest lease-time=30m disabled=no comment="Guests DHCP"
     }
 }
 
@@ -219,7 +254,7 @@
 # DISRUPTIVE: printer moves from Home .100.26 to IoT .30.3; reconnect to IoT SSID.
 :do {
     :local existing [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="40:23:43:D9:F3:90"]
-    :local former [/ip dhcp-server lease find where server="dhcp1" and mac-address="40:23:43:D9:F3:90" and address="192.168.100.26"]
+    :local former [/ip dhcp-server lease find where server="dhcp100-home" and mac-address="40:23:43:D9:F3:90" and address="192.168.100.26"]
     :if (([:len $existing] = 0) && ([:len $former] = 1)) do={
         :set existing $former
         :set former [:toarray ""]

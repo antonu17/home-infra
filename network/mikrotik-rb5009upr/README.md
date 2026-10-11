@@ -243,10 +243,10 @@ stop before DHCP changes. Matching dynamic leases are made static before updatin
 reservations. Unrelated reservations/options are retained. The exact former printer Home
 reservation is moved or retired as described below.
 
-| VLAN | Existing server | Pool | Gateway and DNS | Lease time |
+| VLAN | Server | Pool | Gateway and DNS | Lease time |
 |---:|---|---|---|---|
-| 100 Home | dhcp1 | dhcp_pool1 | 192.168.100.1 | 30m (RouterOS default made explicit) |
-| 200 Guests | dhcp2 | dhcp_pool2 | 192.168.200.1 | 30m (RouterOS default made explicit) |
+| 100 Home | dhcp100-home | pool100-home | 192.168.100.1 | 30m (RouterOS default made explicit) |
+| 200 Guests | dhcp200-guest | pool200-guest | 192.168.200.1 | 30m (RouterOS default made explicit) |
 | 300 IoT | dhcp300-iot | pool300-iot | 192.168.30.1 | 1d |
 | 400 Cloud | dhcp400-home-cloud | pool400-home-cloud | 192.168.40.1 | 1h |
 
@@ -314,7 +314,7 @@ in 07-address-lists.rsc; keep those values in Git rather than adding them manual
 | INFRA-MGMT | Aruba 192.168.88.3; current rule additionally pins this exact IP and allows all protocols/ports from Home |
 | HA-EGRESS | Source /32 seen at RouterOS, not HA's Gateway VIP |
 | HA-IOT | Exact devices using the configured HTTPS 443 integration |
-| EXTERNALDNS-EGRESS | Observed REST workload source /32; current endpoint HTTP 80 |
+| EXTERNALDNS-EGRESS | Workers .40.40/.40.41/.40.42 for rescheduling; .42 observed; router HTTP80 only |
 | REMOTE-MGMT-SOURCES | Authorized source /32s actually seen at RouterOS |
 | REMOTE interface list | Actual ingress of existing routed remote access |
 
@@ -551,7 +551,7 @@ Read-only verification:
 ```
 
 Confirm address 192.168.30.3, server dhcp300-iot and bound status after reconnecting.
-Rollback requires moving this same lease back to dhcp1/address 192.168.100.26 and
+Rollback requires moving this same lease back to dhcp100-home/address 192.168.100.26 and
 restoring its former client-id, then reconnecting to the former SSID. First revert
 this desired reservation in Git, otherwise the next import moves it to IoT again.
 No DNS record is created; IPv4 mDNS discovery is prepared separately in11.
@@ -791,3 +791,35 @@ until their previous TTL expires. Rollback: restore the recorded properties of
 previous A records and remove only the exact names newly added by this import.
 Do not remove all static DNS records or ExternalDNS ownership TXT entries.
 The agent has not imported or tested this configuration on the live router.
+
+## DHCP server and pool names
+
+File10 adopts `dhcp1` as `dhcp100-home`, `dhcp2` as `dhcp200-guest`,
+`dhcp_pool1` as `pool100-home` and `dhcp_pool2` as `pool200-guest`.
+IoT stays `dhcp300-iot`/`pool300-iot`; Cloud stays
+`dhcp400-home-cloud`/`pool400-home-cloud`.
+
+Renames update existing objects instead of creating replacements. Existing
+pool ranges and next-pool chains are preserved; DHCP pool references and static
+lease server references are explicitly rebound. Dynamic leases are not converted
+or deleted by the rename. Review bound leases after import. Both old/new names
+existing simultaneously, unexpected server interfaces or ambiguous identities
+stop before renaming. No DHCP service restart or lease removal is used for naming.
+Lease scripts or external automation containing literal old names need operator
+review; the repository does not rewrite unknown scripts on the router.
+
+Operator-run naming update after saving current server/pool/lease state privately:
+
+```routeros
+/import file-name=10-dhcp.rsc verbose=yes dry-run=yes
+/import file-name=10-dhcp.rsc
+/ip dhcp-server print detail
+/ip pool print detail
+/ip dhcp-server lease print
+```
+
+Rollback naming only: rename the same server/pool objects back to the old names
+and rebind their recorded pool/static lease references; preserve ranges and lease
+addresses. Do not re-import the new source afterward unless restoring the new
+names. The entire file10 also reconciles its existing DHCP settings/reservations;
+this is not a name-only live command. No live validation was performed by the agent.

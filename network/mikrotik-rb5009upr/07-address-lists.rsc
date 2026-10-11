@@ -247,3 +247,39 @@
         /ip firewall address-list set $existing list=PRINTERS address=192.168.30.3 comment="Wi-Fi printer - IoT" disabled=no
     }
 }
+
+# ExternalDNS may run on any current worker; .40.42 was observed on 2026-10-10.
+# The operator authorizes all three worker sources for rescheduling resilience.
+# Node sources are shared by SNATed workloads, not per-Pod identities.
+:do {
+    :local existing [/ip firewall address-list find where list="EXTERNALDNS-EGRESS" and address="192.168.40.40"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate ExternalDNS worker-01 egress entry" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall address-list add list=EXTERNALDNS-EGRESS address=192.168.40.40 disabled=no comment="ExternalDNS worker-01 egress"
+    } else={
+        :if ([/ip firewall address-list get $existing dynamic] = true) do={ :error "ExternalDNS egress entry must be static" }
+        /ip firewall address-list set $existing list=EXTERNALDNS-EGRESS address=192.168.40.40 disabled=no comment="ExternalDNS worker-01 egress"
+    }
+}
+
+:do {
+    :local existing [/ip firewall address-list find where list="EXTERNALDNS-EGRESS" and address="192.168.40.41"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate ExternalDNS worker-02 egress entry" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall address-list add list=EXTERNALDNS-EGRESS address=192.168.40.41 disabled=no comment="ExternalDNS worker-02 egress"
+    } else={
+        :if ([/ip firewall address-list get $existing dynamic] = true) do={ :error "ExternalDNS egress entry must be static" }
+        /ip firewall address-list set $existing list=EXTERNALDNS-EGRESS address=192.168.40.41 disabled=no comment="ExternalDNS worker-02 egress"
+    }
+}
+
+:do {
+    :local existing [/ip firewall address-list find where list="EXTERNALDNS-EGRESS" and address="192.168.40.42"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate ExternalDNS worker-03 egress entry" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall address-list add list=EXTERNALDNS-EGRESS address=192.168.40.42 disabled=no comment="ExternalDNS worker-03 egress"
+    } else={
+        :if ([/ip firewall address-list get $existing dynamic] = true) do={ :error "ExternalDNS egress entry must be static" }
+        /ip firewall address-list set $existing list=EXTERNALDNS-EGRESS address=192.168.40.42 disabled=no comment="ExternalDNS worker-03 egress"
+    }
+}

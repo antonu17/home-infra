@@ -10,6 +10,8 @@ remaining work. They are historical evidence, not current health reports.
 | 2026-10-10 | [Pulsar DLNA discovery unavailable across VLANs](2026-10-10-pulsar-dlna-discovery.md) | TV and Mac discovery confirmed working by the operator |
 | 2026-10-10 | [Home Assistant and Matter storage mounts failed](2026-10-10-synology-csi-dns-startup.md) | Operator confirmed recovery; original DNS timeout cause remains unknown |
 
+| 2026-10-10 | [ExternalDNS could not reach router REST](2026-10-10-external-dns-router-rest.md) | Empty allow-list confirmed; remediation prepared, recovery unconfirmed |
+
 For future records, capture customer impact, evidence, cause, recovery, validation,
 contributing factors and follow-up work. Use local times with the timezone stated;
 mark unknown start/end times and duration rather than estimating them. Do not

@@ -86,6 +86,11 @@
   and DNS before changing storage. CSI readiness/VolumeAttachment status alone is
   insufficient. The original DNS timeout cause and exact recovery steps remain
   unconfirmed; do not assert a firewall cause or delete volumes based on this error.
+- 2026-10-10 ExternalDNS: router REST input depended on an empty
+  `EXTERNALDNS-EGRESS` list. Capture confirmed worker-03 source `.40.42`;
+  file07 now includes all three workers `.40.40/.40.41/.40.42` as authorized
+  for rescheduling. The rule remains router `.40.1` TCP80 only. Recovery is
+  unconfirmed; controller-to-webhook timeout alone does not locate the failure.
 - Record operator-confirmed outcomes separately from agent validation; preserve
   unknown incident timings and causes rather than inventing them. Historical
   postmortems do not establish current live health.
