@@ -211,11 +211,9 @@
 }
 
 # Add exact verified static addresses here using the same upsert blocks:
-# PRINTERS: VLAN300 printer /32s supporting IPP631.
+# PRINTERS: VLAN300 printer inventory; no Guest access.
 # INFRA-MGMT: verified infrastructure /32s (HTTPS management).
 # EXTERNALDNS-EGRESS: measured REST workload source /32s, current HTTP80.
-# HA-EGRESS: measured node/Pod egress /32s; shared-node source is not per-Pod trust.
-# HA-IOT: exact devices whose API uses the configured protocol/port.
 # REMOTE-MGMT-SOURCES: authorized remote sources as actually seen by RouterOS.
 # Remote ingress membership must also be supplied in 06-interface-lists.rsc.
 # Add any other routed internal prefixes to LOCAL-NETWORKS before Internet allows.
@@ -236,7 +234,7 @@
     }
 }
 
-# Operator-confirmed Wi-Fi printer reservation in VLAN300; Guest exception is IPP631.
+# Operator-confirmed Wi-Fi printer reservation in VLAN300; no Guest access.
 :do {
     :local existing [/ip firewall address-list find where list="PRINTERS" and address="192.168.30.3"]
     :if ([:len $existing] > 1) do={ :error "Duplicate printer address-list entry" }
@@ -283,3 +281,8 @@
         /ip firewall address-list set $existing list=EXTERNALDNS-EGRESS address=192.168.40.42 disabled=no comment="ExternalDNS worker-03 egress"
     }
 }
+
+# Exact superseded HA-specific entries; full Cloud-to-IoT uses network lists.
+/ip firewall address-list remove [find where list="HA-EGRESS" and address="192.168.40.41" and dynamic=no]
+/ip firewall address-list remove [find where list="HA-IOT" and address="192.168.30.3" and dynamic=no]
+/ip firewall address-list remove [find where list="HA-IOT" and address="192.168.30.0/24" and dynamic=no]

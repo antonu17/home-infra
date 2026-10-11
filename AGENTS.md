@@ -106,3 +106,11 @@
   acceptance gates. Persistent Tailscale state is credential-bearing and stays
   outside Git. iPhone delay disappeared with Tailscale disabled, but its cause
   and whether this replacement fixes it are unconfirmed.
+
+- 2026-10-11 network policy: Home and Home Cloud have unrestricted L3 initiation
+  to IoT. IoT must not initiate to Home or Cloud; established/related replies are
+  allowed. This supersedes HA-specific source lists and the IoT-to-NAS exception.
+  The operator explicitly authorizes all IoT sources to Synology `.40.5` for
+  multiple dynamically addressed TVs and DLNA. This L3 exception permits all
+  protocols/ports, including other NAS services. Other IoT-to-Home/Cloud initiation
+  remains blocked; no TV source-IP list is needed.

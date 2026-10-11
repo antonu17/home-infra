@@ -40,7 +40,7 @@
 :if ([:len [/ip firewall filter find where comment="Home Talos known nodes"]] > 1) do={ :error "Duplicate firewall comment: Home Talos known nodes" }
 :if ([:len [/ip firewall filter find where comment="Home verified infrastructure management"]] > 1) do={ :error "Duplicate firewall comment: Home verified infrastructure management" }
 :if ([:len [/ip firewall filter find where comment="Guest IPP printers"]] > 1) do={ :error "Duplicate firewall comment: Guest IPP printers" }
-:if ([:len [/ip firewall filter find where comment="measured HA integration HTTPS"]] > 1) do={ :error "Duplicate firewall comment: measured HA integration HTTPS" }
+:if ([:len [/ip firewall filter find where comment="Home Assistant selected IoT access"]] > 1) do={ :error "Duplicate firewall comment: Home Assistant selected IoT access" }
 :if ([:len [/ip firewall filter find where comment="NAS HTTPS and iSCSI"]] > 1) do={ :error "Duplicate firewall comment: NAS HTTPS and iSCSI" }
 :if ([:len [/ip firewall filter find where comment="checked-in PXE HTTP factory"]] > 1) do={ :error "Duplicate firewall comment: checked-in PXE HTTP factory" }
 :if ([:len [/ip firewall filter find where comment="existing Home resolver UDP"]] > 1) do={ :error "Duplicate firewall comment: existing Home resolver UDP" }
@@ -318,25 +318,9 @@
     /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.5 out-interface-list=HOME dst-address=192.168.100.0/24 disabled=no comment="NAS Home access" log=no log-prefix=""
 }
 
-:do {
-    :local existing [/ip firewall filter find where comment="NAS IoT access"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: NAS IoT access" }
-    :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="NAS IoT access"
-        :set existing [/ip firewall filter find where comment="NAS IoT access"]
-    }
-    /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.5 out-interface-list=IOT dst-address=192.168.30.0/24 disabled=no comment="NAS IoT access" log=no log-prefix=""
-}
 
-:do {
-    :local existing [/ip firewall filter find where comment="IoT NAS access"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate firewall comment: IoT NAS access" }
-    :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="IoT NAS access"
-        :set existing [/ip firewall filter find where comment="IoT NAS access"]
-    }
-    /ip firewall filter set $existing !protocol !src-port !dst-port !tcp-flags !icmp-options !src-address-list !dst-address-list !in-interface !out-interface !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !limit !dst-limit !time chain=forward action=accept in-interface-list=IOT src-address=192.168.30.0/24 out-interface-list=CLOUD dst-address=192.168.40.5 disabled=no comment="IoT NAS access" log=no log-prefix=""
-}
+
+
 
 :do {
     :local existing [/ip firewall filter find where comment="Home NAS access" or comment="Home NAS web services"]
@@ -390,15 +374,10 @@
 }
 
 
-:do {
-    :local existing [/ip firewall filter find where comment="measured HA integration HTTPS"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate /ip firewall filter object: comment=measured HA integration HTTPS" }
-    :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="measured HA integration HTTPS"
-        :set existing [/ip firewall filter find where comment="measured HA integration HTTPS"]
-    }
-    /ip firewall filter set $existing !dst-port !protocol !src-address !dst-address !in-interface !out-interface !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept disabled=no in-interface-list=CLOUD src-address-list=HA-EGRESS out-interface-list=IOT dst-address-list=HA-IOT comment="measured HA integration HTTPS" log=no log-prefix=""
-}
+
+
+
+
 
 :do {
     :local existing [/ip firewall filter find where comment="NAS HTTPS and iSCSI"]
@@ -510,6 +489,61 @@
     /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=drop disabled=yes comment="forward default deny" log=no log-prefix=""
 }
 
+# Retire exact previous exceptions; the network policy below supersedes them.
+/ip firewall filter disable [find where comment="NAS IoT access"]
+/ip firewall filter disable [find where comment="IoT NAS access"]
+/ip firewall filter disable [find where comment="Home Assistant selected IoT access"]
+/ip firewall filter disable [find where comment="measured HA integration HTTPS"]
+
+:do {
+    :local existing [/ip firewall filter find where comment="Home Cloud to IoT access"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate Home Cloud to IoT access rule" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Home Cloud to IoT access"
+        :set existing [/ip firewall filter find where comment="Home Cloud to IoT access"]
+    }
+    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD out-interface-list=IOT src-address-list=CLOUD-NETWORKS dst-address-list=IOT-NETWORKS disabled=no comment="Home Cloud to IoT access" log=no log-prefix=""
+}
+
+:do {
+    :local existing [/ip firewall filter find where comment="IoT to Home deny"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate IoT to Home deny rule" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="IoT to Home deny"
+        :set existing [/ip firewall filter find where comment="IoT to Home deny"]
+    }
+    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time !src-address-list !dst-address-list chain=forward action=drop in-interface-list=IOT out-interface-list=HOME disabled=no comment="IoT to Home deny" log=no log-prefix=""
+}
+
+:do {
+    :local existing [/ip firewall filter find where comment="IoT to Home Cloud deny"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate IoT to Home Cloud deny rule" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="IoT to Home Cloud deny"
+        :set existing [/ip firewall filter find where comment="IoT to Home Cloud deny"]
+    }
+    /ip firewall filter set $existing !src-address !dst-address !in-interface !out-interface !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time !src-address-list !dst-address-list chain=forward action=drop in-interface-list=IOT out-interface-list=CLOUD disabled=no comment="IoT to Home Cloud deny" log=no log-prefix=""
+}
+
+# Adopt a previously imported TV-only rule without creating another rule.
+:do {
+    :local oldRule [/ip firewall filter find where comment="TV Synology DLNA access"]
+    :local newRule [/ip firewall filter find where comment="IoT Synology DLNA access"]
+    :if (([:len $oldRule] + [:len $newRule]) > 1) do={ :error "Ambiguous IoT DLNA rules" }
+    :if ([:len $oldRule] = 1) do={ /ip firewall filter set $oldRule comment="IoT Synology DLNA access" }
+}
+
+# All IoT clients may reach the NAS for DLNA; no fixed TV addresses required.
+:do {
+    :local existing [/ip firewall filter find where comment="IoT Synology DLNA access"]
+    :if ([:len $existing] > 1) do={ :error "Duplicate TV DLNA rule" }
+    :if ([:len $existing] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="IoT Synology DLNA access"
+        :set existing [/ip firewall filter find where comment="IoT Synology DLNA access"]
+    }
+    /ip firewall filter set $existing !src-address !dst-address-list !in-interface !out-interface !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=IOT src-address-list=IOT-NETWORKS out-interface-list=CLOUD dst-address=192.168.40.5 disabled=no comment="IoT Synology DLNA access" log=no log-prefix=""
+}
+
 # Reverse moves order managed rules before other static rules.
 # Built-in dynamic rules (including FastTrack counters) stay untouched.
 :do {
@@ -527,16 +561,17 @@
         "existing Home resolver UDP";
         "checked-in PXE HTTP factory";
         "NAS HTTPS and iSCSI";
-        "measured HA integration HTTPS";
         "Home verified infrastructure management";
         "Home Talos known nodes";
         "Home Kubernetes API VIP";
         "Home to routed cloud web services";
         "NAS Home access";
-        "NAS IoT access";
-        "IoT NAS access";
         "Home NAS access";
+        "Home Cloud to IoT access";
         "Home to IoT requested access";
+        "IoT to Home Cloud deny";
+        "IoT to Home deny";
+        "IoT Synology DLNA access";
         "forward established related";
         "verified main-table WAN FastTrack";
         "forward invalid";

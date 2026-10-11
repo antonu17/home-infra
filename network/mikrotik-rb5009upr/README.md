@@ -210,7 +210,7 @@ required infrastructure router services if inventory establishes them.
 
 Forward: invalid drop, optional WAN FastTrack, established/related, Home->IoT,
 Home->LB HTTP(S), API VIP 6443, known Talos nodes 50000, selected infrastructure
-HTTPS, measured HA->selected IoT HTTPS 443, documented
+HTTPS, verified HA->entire IoT subnet L3 access, documented
 NAS/DNS dependencies, zone Internet access, authorized remote Cloud web access,
 Cloud->LB web access, then deny. Other Guest/IoT/Cloud cross-zone initiation is
 denied. MGMT has no blanket initiation allow; add verified management tuples only.
@@ -312,8 +312,6 @@ in 07-address-lists.rsc; keep those values in Git rather than adding them manual
 |---|---|
 | PRINTERS | Printer inventory /32s in VLAN300; no Guest access grant |
 | INFRA-MGMT | Aruba 192.168.88.3; current rule additionally pins this exact IP and allows all protocols/ports from Home |
-| HA-EGRESS | Source /32 seen at RouterOS, not HA's Gateway VIP |
-| HA-IOT | Exact devices using the configured HTTPS 443 integration |
 | EXTERNALDNS-EGRESS | Workers .40.40/.40.41/.40.42 for rescheduling; .42 observed; router HTTP80 only |
 | REMOTE-MGMT-SOURCES | Authorized source /32s actually seen at RouterOS |
 | REMOTE interface list | Actual ingress of existing routed remote access |
@@ -346,7 +344,11 @@ HA/REST traffic may appear as node or Pod addresses; measure it. A shared node
 source authorizes other workloads on that node to the same destination/ports.
 Per-workload egress isolation would need a separate Cilium policy task. Routed
 Pod sources require existing return routes; no Pod routing/SNAT is added here.
-Additional HA ports/callbacks need separate measured source/destination rules.
+HA-EGRESS sources have full L3 access to `192.168.30.0/24`, without protocol or
+port restrictions. File07 adopts the former printer-only destination in place.
+Printer polling was observed as `.40.41` to `.30.3` UDP161 on 2026-10-11.
+Other worker sources remain unapproved; recheck egress if HA is rescheduled.
+Device-initiated callbacks require separate review.
 WAN DHCP, BGP peers and other
 services remain unchanged. Common IPv4 DHCP is configured by 10-dhcp.rsc. The remote lists do not configure Tailscale routes,
 grants or underlay. If remote traffic is SNATed into Home, it may already match
@@ -666,7 +668,7 @@ In particular:
 - Guest retains Internet access and has no access to the printer
   (192.168.30.3), other IoT devices or Home/Cloud/management destinations.
   Guest is excluded from printer/multicast discovery.
-- HA exceptions remain limited to listed HA-EGRESS sources and HA-IOT
+- HA access uses listed HA-EGRESS sources and the complete HA-IOT subnet
   destinations but no longer restrict service ports. Empty lists still match
   nothing. Remote service paths likewise retain existing source/destination scope.
 - Historical Cloud-to-.100.5 and resolver-.100.2 paths retain their exact
@@ -834,3 +836,26 @@ confirmed deployed. It advertises Kubernetes services `10.40.0.0/24`, `192.168.4
 ordering of its optional rules. Confirm the proposed transit allocation, build
 and upload the image, then follow that runbook; these two optional files are not
 part of an unconditional import sequence. No physical LAN or BGP changes are needed.
+
+## Home / Home Cloud to IoT policy (2026-10-11)
+
+The operator superseded the HA-specific exception: Home `192.168.100.0/24`
+and Home Cloud `192.168.40.0/24` can initiate any IP protocol/port to IoT
+`192.168.30.0/24`. Home Assistant can reschedule among Cloud workers without
+changing source exceptions. File09 adds `Home Cloud to IoT access` and explicit
+IoT-to-Home/Cloud drops after established/related acceptance. File07 retires only
+the exact previous managed HA entries; file09 disables the previous HA and
+IoT-to-NAS exceptions. Replies to authorized connections continue working.
+Old tracked connections can survive until expiration; no conntrack flush is run.
+
+Multiple TVs have dynamic addresses. `IoT Synology DLNA access` permits all
+IoT `192.168.30.0/24` sources to initiate connections to Synology `192.168.40.5`
+before the IoT-to-Cloud drop, with all IP protocols/ports as requested for L3
+policy. This includes other NAS services. Other Home/Cloud destinations remain
+blocked for IoT initiation; established/related replies continue working.
+File09 adopts the former TV-only rule in place. No TV source-IP list is needed.
+SSDP/mDNS configuration stays unchanged; discovery and media access are distinct.
+
+Upload and re-import file07 followed by file09. Verify Home and Cloud connections
+to IoT succeed and fresh IoT-to-Home/Cloud connections fail except the authorized NAS path. No live tests were run.
+This section supersedes earlier HA-specific and IoT-to-NAS policy descriptions.
