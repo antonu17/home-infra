@@ -43,8 +43,8 @@ No internal RouterOS NAT or `100.64.0.0/10` return route is needed.
 
 The container can use the router transit address for UDP/TCP DNS and reach WAN.
 Existing WAN masquerading covers its Internet traffic. No new WAN port-forward,
-BGP, DHCP, DNS-record, Cilium or Synology configuration is introduced. Keep the
-current FastTrack decision. No broad Cloud-to-router access is added.
+BGP, DHCP, DNS-record, Cilium or Synology configuration is introduced. The LAN-to-WAN FastTrack rule excludes this transit bridge because it is not in
+LAN. Tailscale subnet and exit-node traffic retains normal RouterOS processing. No broad Cloud-to-router access is added.
 
 The image uses `ghcr.io/tailscale/tailscale:v1.102.5`, locked to its published
 Linux/ARM64 digest, and a small daemon wrapper. The ARM64 digest was verified in

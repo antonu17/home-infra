@@ -1,11 +1,13 @@
+# Stable identity; adopt the former misleading comment without a duplicate.
+:if ([:len [/ip firewall filter find where comment="WAN FastTrack" or comment="verified main-table WAN FastTrack"]] > 1) do={ :error "Ambiguous WAN FastTrack rules" }
 # Optional file16 rules participate in ordering only when installed.
 :foreach identity in={"Tailscale transit DNS UDP";"Tailscale transit DNS TCP";"Tailscale advertised router access";"Tailscale advertised subnet access";"Tailscale container Internet"} do={
     :if ([:len [/ip firewall filter find where comment=$identity]] > 1) do={ :error "Duplicate optional Tailscale firewall rule" }
 }
 # Built-in input/forward chains only. Natural comments are unique rule keys.
 # Final denies are enabled. Fill actual remote/service exception lists first.
-# WAN FastTrack is disabled until the main-table/mangle/IPsec/queue audit passes;
-# set disabled=no on its source rule here after that audit, then reimport.
+# WAN FastTrack is enabled for unmarked main-table LAN Internet connections.
+# Internal/BGP service and Tailscale transit traffic retain normal processing.
 :if ([:len [/ip firewall filter find where comment="NAS Home access"]] > 1) do={ :error "Duplicate firewall comment: NAS Home access" }
 :if ([:len [/ip firewall filter find where comment="NAS IoT access"]] > 1) do={ :error "Duplicate firewall comment: NAS IoT access" }
 :if ([:len [/ip firewall filter find where comment="IoT NAS access"]] > 1) do={ :error "Duplicate firewall comment: IoT NAS access" }
@@ -32,7 +34,6 @@
 :if ([:len [/ip firewall filter find where comment="Authorized remote router management"]] > 1) do={ :error "Duplicate firewall comment: Authorized remote router management" }
 :if ([:len [/ip firewall filter find where comment="input default deny"]] > 1) do={ :error "Duplicate firewall comment: input default deny" }
 :if ([:len [/ip firewall filter find where comment="forward invalid"]] > 1) do={ :error "Duplicate firewall comment: forward invalid" }
-:if ([:len [/ip firewall filter find where comment="verified main-table WAN FastTrack"]] > 1) do={ :error "Duplicate firewall comment: verified main-table WAN FastTrack" }
 :if ([:len [/ip firewall filter find where comment="forward established related"]] > 1) do={ :error "Duplicate firewall comment: forward established related" }
 :if ([:len [/ip firewall filter find where comment="Home to IoT requested access"]] > 1) do={ :error "Duplicate firewall comment: Home to IoT requested access" }
 :if ([:len [/ip firewall filter find where comment="Home to routed cloud web services"]] > 1) do={ :error "Duplicate firewall comment: Home to routed cloud web services" }
@@ -261,7 +262,7 @@
         /ip firewall filter add chain=input disabled=yes comment="input default deny"
         :set existing [/ip firewall filter find where comment="input default deny"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=drop disabled=yes comment="input default deny" log=no log-prefix=""
+    /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=drop comment="input default deny" log=no log-prefix=""
 }
 
 :do {
@@ -274,14 +275,15 @@
     /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=drop connection-state=invalid comment="forward invalid" disabled=no log=no log-prefix=""
 }
 
+# Initial/new packets must pass the existing Internet policy; only established
+# connections qualify. Tailscale transit is deliberately outside the LAN list.
 :do {
-    :local existing [/ip firewall filter find where comment="verified main-table WAN FastTrack"]
-    :if ([:len $existing] > 1) do={ :error "Duplicate /ip firewall filter object: comment=verified main-table WAN FastTrack" }
+    :local existing [/ip firewall filter find where comment="WAN FastTrack" or comment="verified main-table WAN FastTrack"]
     :if ([:len $existing] = 0) do={
-        /ip firewall filter add chain=forward disabled=yes comment="verified main-table WAN FastTrack"
-        :set existing [/ip firewall filter find where comment="verified main-table WAN FastTrack"]
+        /ip firewall filter add chain=forward disabled=yes comment="WAN FastTrack"
+        :set existing [/ip firewall filter find where comment="WAN FastTrack"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !protocol !src-port !dst-port !connection-nat-state !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=fasttrack-connection disabled=yes connection-state=established,related in-interface-list=LAN out-interface-list=WAN connection-mark=no-mark ipsec-policy=out,none comment="verified main-table WAN FastTrack" log=no log-prefix=""
+    /ip firewall filter set $existing !src-address !dst-address !src-address-list !in-interface !out-interface !protocol !src-port !dst-port !connection-nat-state !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=fasttrack-connection connection-state=established,related connection-mark=no-mark in-interface-list=LAN out-interface-list=WAN dst-address-list=!LOCAL-NETWORKS ipsec-policy=out,none disabled=no comment="WAN FastTrack" log=no log-prefix=""
 }
 
 :do {
@@ -486,14 +488,19 @@
         /ip firewall filter add chain=forward disabled=yes comment="forward default deny"
         :set existing [/ip firewall filter find where comment="forward default deny"]
     }
-    /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=drop disabled=yes comment="forward default deny" log=no log-prefix=""
+    /ip firewall filter set $existing !src-address !dst-address !src-address-list !dst-address-list !in-interface !out-interface !in-interface-list !out-interface-list !protocol !src-port !dst-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=drop comment="forward default deny" log=no log-prefix=""
 }
 
-# Retire exact previous exceptions; the network policy below supersedes them.
-/ip firewall filter disable [find where comment="NAS IoT access"]
-/ip firewall filter disable [find where comment="IoT NAS access"]
-/ip firewall filter disable [find where comment="Home Assistant selected IoT access"]
-/ip firewall filter disable [find where comment="measured HA integration HTTPS"]
+# Remove exact superseded accepts; replacement network rules are reconciled below.
+# Reject changed identities; do not delete unrelated or dynamic rules.
+:foreach identity in={"NAS IoT access";"IoT NAS access";"Home Assistant selected IoT access";"measured HA integration HTTPS"} do={
+    :local existing [/ip firewall filter find where comment=$identity]
+    :if ([:len $existing] > 1) do={ :error "Duplicate superseded IoT exception" }
+    :if ([:len $existing] = 1) do={
+        :if (([/ip firewall filter get $existing dynamic] = true) || ([/ip firewall filter get $existing chain] != "forward") || ([/ip firewall filter get $existing action] != "accept")) do={ :error "Superseded IoT rule identity changed; review before removal" }
+        /ip firewall filter remove $existing
+    }
+}
 
 :do {
     :local existing [/ip firewall filter find where comment="Home Cloud to IoT access"]
@@ -573,7 +580,7 @@
         "IoT to Home deny";
         "IoT Synology DLNA access";
         "forward established related";
-        "verified main-table WAN FastTrack";
+        "WAN FastTrack";
         "forward invalid";
         "input default deny";
         "Tailscale advertised router access";
@@ -611,7 +618,8 @@
 # denies prevent old unconditional LAN accepts/FastTrack from bypassing policy.
 # No jumps, custom chains, notrack acceptance, generic dstnat or internal NAT.
 
-# Enable terminal denies only after all managed allows are in their final order.
+# Preserve existing deny enabled state throughout reconciliation.
+# Newly created denies start disabled and are enabled after final ordering.
 /ip firewall filter enable [find where comment="input default deny"]
 /ip firewall filter enable [find where comment="forward default deny"]
 

@@ -114,3 +114,19 @@
   multiple dynamically addressed TVs and DLNA. This L3 exception permits all
   protocols/ports, including other NAS services. Other IoT-to-Home/Cloud initiation
   remains blocked; no TV source-IP list is needed.
+
+- 2026-10-11 FastTrack: operator outputs show no routing rules, mangle, simple
+  queues or queue trees, and only the main VRF. File09 enables `WAN FastTrack`
+  for established/related unmarked main-table LAN-to-WAN connections, excluding
+  local destinations and outbound IPsec. It adopts the old misleading comment.
+  Inter-VLAN and Tailscale transit traffic is excluded; no live performance test
+  was run. Reassess when policy routing, IPsec, queues or VRFs change.
+  Superseded HA/NAS IoT exceptions are removed by exact owned identity, rather
+  than retained as disabled placeholders; active network rules replace them.
+
+- RouterOS 7.24.4 on this RB5009 rejected FastTrack `hw-offload=no` during actual
+  import on 2026-10-11. Omit that parameter; a successful dry-run checks syntax,
+  not every runtime parameter. File09 preserves existing default-deny enabled
+  state while reconciling, enabling newly created denies after final ordering.
+  WAN FastTrack clears explicit routing marks and relies on the operator-confirmed
+  main-only routing policy; throughput/runtime operation still requires validation.

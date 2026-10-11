@@ -42,8 +42,9 @@ The desired managed rule block is moved before other static rules in determinist
 **every** import. Built-in dynamic rules, such as FastTrack counter rows, remain
 untouched above the static rules. Other static filter rules are preserved below
 the managed block; output is untouched.
-Final input/forward denies are enabled automatically at the end. While assembling
-rule order their managed drops are disabled briefly; imports are **not atomic**.
+Final input/forward denies are enabled automatically at the end. Existing deny
+rules retain their enabled state during updates; only newly created deny rules
+start disabled until ordering is complete. Imports are **not atomic**.
 A disconnect or error can leave a partial application. Rerun after resolving the
 error; there is no transaction or automatic rollback framework.
 
@@ -208,7 +209,7 @@ remote management, then deny. An allow does not enable a RouterOS service;
 existing service ports/address restrictions remain authoritative. Add exact
 required infrastructure router services if inventory establishes them.
 
-Forward: invalid drop, optional WAN FastTrack, established/related, Home->IoT,
+Forward: invalid drop, WAN FastTrack, established/related, Home->IoT,
 Home->LB HTTP(S), API VIP 6443, known Talos nodes 50000, selected infrastructure
 HTTPS, verified HA->entire IoT subnet L3 access, documented
 NAS/DNS dependencies, zone Internet access, authorized remote Cloud web access,
@@ -224,14 +225,38 @@ Same-VLAN Cloud/NAS/VM traffic is switched and does not pass this routed filter.
 WAN masquerade is adopted in place using its known existing comment. A second
 WAN-list masquerade with a different identity stops that file. Other NAT rules
 are preserved and need review for internal SNAT; no internal/LB NAT is introduced.
-The existing broad FastTrack remains below the managed block and cannot bypass
-its terminal deny. A restricted established LAN->WAN FastTrack rule is present
-but disabled in source until main-table routes, mangle/connection marks, IPsec,
-queues/VRFs and Tailscale compatibility are verified. Enable it by changing its
-`disabled` value on its single set command, then reimport.
-No-mark alone does not prove main-table routing. Internal and LB flows use normal
-connection tracking. Existing cached flows need expiry or a separately reviewed
-exact-flow removal before testing changed isolation.
+`WAN FastTrack` is enabled for established/related, unmarked connections arriving
+from LAN and leaving WAN, with no connection mark, no outbound IPsec policy,
+and destinations outside LOCAL-NETWORKS. It is ordered after invalid drop and
+before established/related acceptance. Initial connections still pass the normal
+Internet policy; FastTrack does not grant new inter-VLAN access. The unsupported `hw-offload` parameter is omitted for this router. No hardware
+acceleration claim is made. The routing-mark selector is cleared: ordinary traffic
+has no explicit routing mark; main-table compatibility rests on the confirmed
+absence of policy routing and additional VRFs.
+File09 adopts the former `verified main-table WAN FastTrack` identity in place.
+
+The operator supplied empty routing rules, mangle, simple queues and queue trees,
+and only the main VRF on 2026-10-11. This supports enabling the scoped WAN rule;
+it is not a live throughput test. Review FastTrack if adding policy routing,
+IPsec, queues or VRFs later. Internal/LB traffic cannot match LAN-to-WAN scope.
+Tailscale transit is not in LAN and is excluded, including exit-node traffic.
+BGP sessions use input/output chains and are unaffected. Established acceptance
+remains immediately after FastTrack for non-accelerated packets.
+
+Operator-run update after uploading the revised file09:
+
+```routeros
+/import file-name=09-firewall-filter.rsc verbose=yes dry-run
+/import file-name=09-firewall-filter.rsc
+/ip firewall filter print stats where comment="WAN FastTrack"
+/ip firewall filter print where disabled
+```
+
+Generate normal Internet traffic from Home while checking counters. Stop sniffer
+or torch sessions during performance checks because they can inhibit FastTrack.
+For rollback, disable only `/ip firewall filter disable [find where comment="WAN FastTrack"]`;
+change the source too before importing again. Already FastTracked connections can
+retain acceleration until expiration; no blanket conntrack flush is prescribed.
 
 ## Common DHCP
 
@@ -674,7 +699,7 @@ In particular:
 - Historical Cloud-to-.100.5 and resolver-.100.2 paths retain their exact
   destinations but now permit all ports/protocols. Confirm/remove retired paths
   separately. No broader Cloud initiation to Home/IoT/management is introduced.
-- IPv4 input protections, WAN NAT, disabled FastTrack and mDNS repetition are
+- IPv4 input protections, WAN NAT and mDNS repetition are
   unchanged. Existing IPv6 and MAC-management audit gaps remain unresolved.
 
 The full NAS rule adopts its old `Home NAS web services` identity and renames it
@@ -844,7 +869,7 @@ and Home Cloud `192.168.40.0/24` can initiate any IP protocol/port to IoT
 `192.168.30.0/24`. Home Assistant can reschedule among Cloud workers without
 changing source exceptions. File09 adds `Home Cloud to IoT access` and explicit
 IoT-to-Home/Cloud drops after established/related acceptance. File07 retires only
-the exact previous managed HA entries; file09 disables the previous HA and
+the exact previous managed HA entries; file09 removes the exact previous HA, NAS-to-IoT and
 IoT-to-NAS exceptions. Replies to authorized connections continue working.
 Old tracked connections can survive until expiration; no conntrack flush is run.
 
@@ -859,3 +884,8 @@ SSDP/mDNS configuration stays unchanged; discovery and media access are distinct
 Upload and re-import file07 followed by file09. Verify Home and Cloud connections
 to IoT succeed and fresh IoT-to-Home/Cloud connections fail except the authorized NAS path. No live tests were run.
 This section supersedes earlier HA-specific and IoT-to-NAS policy descriptions.
+
+Superseded firewall rules are removed by exact managed comment/action/chain,
+rather than kept as disabled entries. `IoT NAS access` is replaced by active
+`IoT Synology DLNA access`; `NAS IoT access` and the former HA rules are replaced
+by active `Home Cloud to IoT access`. No blanket disabled-rule deletion is used.
