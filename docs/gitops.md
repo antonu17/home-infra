@@ -49,7 +49,7 @@ Most child projects restrict repository/destination namespaces, but the root
 administrative boundaries; the repo does not implement the older documented
 kind-level least-privilege restrictions. This audit does not change RBAC.
 
-Pins in source: Argo chart `10.9.6`, Cilium `1.20.2`, Gateway API CRDs `1.6.1`,
+Pins in source: Argo chart `10.9.7`, Cilium `1.20.2`, Gateway API CRDs `1.6.1`,
 cert-manager `v1.21.2`, ESO chart `2.10.0`, ExternalDNS chart `1.22.0` / app
 `0.22.0`, Synology CSI `v1.3.1`. Preserve pins unless performing a separate
 researched upgrade. See [cert-manager](cert-manager.md) for its Kubernetes
