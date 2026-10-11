@@ -94,3 +94,15 @@
 - Record operator-confirmed outcomes separately from agent validation; preserve
   unknown incident timings and causes rather than inventing them. Historical
   postmortems do not establish current live health.
+
+- 2026-10-11 Tailscale: the operator shut down the Synology subnet router and
+  requested a MikroTik container replacement. Optional files16/17 and
+  `network/mikrotik-rb5009upr/tailscale/` are prepared, not live-confirmed.
+  The operator requested Kubernetes services `10.40.0.0/24`, Home Cloud
+  `192.168.40.0/24` and Home `192.168.100.0/24`; this supersedes the previous
+  services /25. Use network-purpose comments, not former-host migration labels. Proposed
+  `172.31.255.0/30` transit requires overlap verification. Exit-node advertising
+  is enabled; kernel TUN/runtime capability and IPv6 exit connectivity remain
+  acceptance gates. Persistent Tailscale state is credential-bearing and stays
+  outside Git. iPhone delay disappeared with Tailscale disabled, but its cause
+  and whether this replacement fixes it are unconfirmed.

@@ -114,7 +114,7 @@ The same order is used on every reapplication; no separate first-run procedure.
 On the actual installed version, syntax-check each file first, e.g.:
 
 ```routeros
-/import file-name=09-firewall-filter.rsc verbose=yes dry-run=yes
+/import file-name=09-firewall-filter.rsc verbose=yes dry-run
 ```
 
 The saved export reports 7.24.4; RouterOS 7.16+ supports import dry-run. Check the
@@ -778,7 +778,7 @@ Operator-run, after reviewing existing records and saving their old values:
 
 ```routeros
 /ip dns static print detail where name~"home[.]antonu[.]org"
-/import file-name=14-static-dns.rsc verbose=yes dry-run=yes
+/import file-name=14-static-dns.rsc verbose=yes dry-run
 /import file-name=14-static-dns.rsc
 :put [:resolve "pulsar.home.antonu.org" server=192.168.100.1]
 :put [:resolve "talos.home.antonu.org" server=192.168.100.1]
@@ -811,7 +811,7 @@ review; the repository does not rewrite unknown scripts on the router.
 Operator-run naming update after saving current server/pool/lease state privately:
 
 ```routeros
-/import file-name=10-dhcp.rsc verbose=yes dry-run=yes
+/import file-name=10-dhcp.rsc verbose=yes dry-run
 /import file-name=10-dhcp.rsc
 /ip dhcp-server print detail
 /ip pool print detail
@@ -823,3 +823,14 @@ and rebind their recorded pool/static lease references; preserve ranges and leas
 addresses. Do not re-import the new source afterward unless restoring the new
 names. The entire file10 also reconciles its existing DHCP settings/reservations;
 this is not a name-only live command. No live validation was performed by the agent.
+
+## Optional Tailscale subnet router
+
+[The Tailscale runbook](tailscale/README.md) owns the optional addition in files
+`16-tailscale-network.rsc` and `17-tailscale-container.rsc`. Synology Tailscale was
+shut down by the operator on 2026-10-11; the replacement remains prepared, not
+confirmed deployed. It advertises Kubernetes services `10.40.0.0/24`, `192.168.40.0/24` and
+`192.168.100.0/24`, with exit-node advertising enabled. File09 integrates
+ordering of its optional rules. Confirm the proposed transit allocation, build
+and upload the image, then follow that runbook; these two optional files are not
+part of an unconditional import sequence. No physical LAN or BGP changes are needed.

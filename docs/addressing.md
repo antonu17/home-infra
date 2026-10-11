@@ -143,3 +143,13 @@ its current crash loop is recorded in [ExternalDNS](external-dns.md).
 Static infrastructure names in this table are owned by
 [`14-static-dns.rsc`](../network/mikrotik-rb5009upr/14-static-dns.rsc);
 Gateway HTTPRoute names such as `argocd` remain ExternalDNS-owned.
+
+## Prepared Tailscale transit (2026-10-11)
+
+Synology Tailscale was shut down by the operator. The MikroTik replacement is
+prepared in [the Tailscale runbook](../network/mikrotik-rb5009upr/tailscale/README.md),
+not confirmed deployed. Its isolated container transit proposes
+`172.31.255.0/30`: RouterOS `172.31.255.1`, container `172.31.255.2`.
+This is a proposed allocation requiring overlap checks, not a confirmed live subnet.
+Desired advertised routes are Kubernetes services `10.40.0.0/24`, Home Cloud
+`192.168.40.0/24` and Home `192.168.100.0/24`. Exit-node advertising is enabled in the prepared configuration.

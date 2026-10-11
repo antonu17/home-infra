@@ -1,3 +1,7 @@
+# Optional file16 rules participate in ordering only when installed.
+:foreach identity in={"Tailscale transit DNS UDP";"Tailscale transit DNS TCP";"Tailscale advertised router access";"Tailscale advertised subnet access";"Tailscale container Internet"} do={
+    :if ([:len [/ip firewall filter find where comment=$identity]] > 1) do={ :error "Duplicate optional Tailscale firewall rule" }
+}
 # Built-in input/forward chains only. Natural comments are unique rule keys.
 # Final denies are enabled. Fill actual remote/service exception lists first.
 # WAN FastTrack is disabled until the main-table/mangle/IPsec/queue audit passes;
@@ -511,6 +515,8 @@
 :do {
     :foreach ruleComment in={
         "forward default deny";
+        "Tailscale container Internet";
+        "Tailscale advertised subnet access";
         "Cloud to routed cloud web services";
         "Authorized remote cloud web services";
         "Cloud Internet";
@@ -535,6 +541,9 @@
         "verified main-table WAN FastTrack";
         "forward invalid";
         "input default deny";
+        "Tailscale advertised router access";
+        "Tailscale transit DNS TCP";
+        "Tailscale transit DNS UDP";
         "Authorized remote router management";
         "ExternalDNS current HTTP REST";
         "Cilium router-initiated BGP return";
@@ -558,7 +567,7 @@
     } do={
         :local rule [/ip firewall filter find where dynamic=no and comment=$ruleComment]
         :local first [:pick [/ip firewall filter find where dynamic=no] 0]
-        :if ($rule != $first) do={
+        :if (([:len $rule] > 0) && ($rule != $first)) do={
             /ip firewall filter move $rule destination=$first
         }
     }

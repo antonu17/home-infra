@@ -122,7 +122,7 @@ rule properties/order and the global block-size setting privately:
 /ip tftp print detail
 /ip tftp settings print
 /file print detail where name~"pxe"
-/import file-name=15-pxe.rsc verbose=yes dry-run=yes
+/import file-name=15-pxe.rsc verbose=yes dry-run
 /import file-name=15-pxe.rsc verbose=yes
 ```
 
