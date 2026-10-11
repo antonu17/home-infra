@@ -127,8 +127,13 @@ for mDNS-based discovery. Direct printing is not authorized from Guest.
 
 ## Discovery and incident references
 
-IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. SSDP uses
-the separate ARM64 `ssdp-relay` container with one VETH in each of those VLANs.
+IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. Historically,
+SSDP uses the ARM64 `ssdp-relay` container with one VETH in each VLAN.
+Requested 2026-10-11: native IPv4 PIM-SM is prepared as its replacement, not
+applied or live-tested. See [migration and rollback](../network/mikrotik-rb5009upr/ssdp-pim.md).
+The target routes SSDP searches from VLAN100/300 to400 and NAS announcements
+back to100/300; other routed multicast is denied. Keep the stopped container
+and VETHs for rollback, with start-on-boot disabled in PIM mode.
 Guests and Management are excluded. The operator confirmed Pulsar DLNA discovery
 on both the TV and Mac after the firewall and relay interface fixes. NAS-to-Home
 and NAS-to-IoT exceptions allow all protocols from the exact NAS IP; they do not

@@ -1,3 +1,16 @@
+:if ([:len [/ip firewall filter find where comment="Home SSDP IGMP membership"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Home SSDP multicast input"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT SSDP IGMP membership"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT SSDP multicast input"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud SSDP IGMP membership"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud SSDP multicast input"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Home SSDP search to Cloud"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="NAS SSDP announcement to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT SSDP search to Cloud"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="NAS SSDP announcement to IoT"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Home other routed multicast deny"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT other routed multicast deny"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud other routed multicast deny"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 # Stable identity; adopt the former misleading comment without a duplicate.
 :if ([:len [/ip firewall filter find where comment="WAN FastTrack" or comment="verified main-table WAN FastTrack"]] > 1) do={ :error "Ambiguous WAN FastTrack rules" }
 # Optional file16 rules participate in ordering only when installed.
@@ -605,7 +618,20 @@
         "Home router diagnostics";
         "Home router management";
         "input invalid";
-        "input established related"
+        "input established related";
+        "Cloud other routed multicast deny";
+        "IoT other routed multicast deny";
+        "Home other routed multicast deny";
+        "NAS SSDP announcement to IoT";
+        "IoT SSDP search to Cloud";
+        "NAS SSDP announcement to Home";
+        "Home SSDP search to Cloud";
+        "Cloud SSDP multicast input";
+        "Cloud SSDP IGMP membership";
+        "IoT SSDP multicast input";
+        "IoT SSDP IGMP membership";
+        "Home SSDP multicast input";
+        "Home SSDP IGMP membership"
     } do={
         :local rule [/ip firewall filter find where dynamic=no and comment=$ruleComment]
         :local first [:pick [/ip firewall filter find where dynamic=no] 0]

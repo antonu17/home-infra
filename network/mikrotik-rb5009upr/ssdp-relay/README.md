@@ -1,5 +1,9 @@
 # SSDP relay on RB5009 internal storage
 
+2026-10-11: this is the legacy/rollback architecture. Native PIM-SM replacement
+is prepared, not deployed: see [migration and rollback](../ssdp-pim.md). Do not
+import13 or start the relay while PIM is active; use exactly one delivery path.
+
 Prepared 2026-10-10 for ARM64 RouterOS 7.24.4. The operator confirmed matching
 container package installed, device-mode container=yes and chose internal storage.
 No router change, container build or container execution was performed by the agent.

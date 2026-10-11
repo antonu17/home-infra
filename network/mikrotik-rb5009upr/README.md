@@ -105,7 +105,7 @@ individually, in alphabetical filename order (numeric prefixes encode dependenci
 /import file-name=09-firewall-filter.rsc
 /import file-name=10-dhcp.rsc
 /import file-name=11-mdns.rsc
-# SSDP files 12/13 have separate prerequisites documented below.
+# SSDP: choose native PIM file18 OR legacy container files12/13, never both.
 /import file-name=14-static-dns.rsc
 # Requires the three uploaded PXE files; see the PXE runbook.
 /import file-name=15-pxe.rsc
@@ -889,3 +889,19 @@ Superseded firewall rules are removed by exact managed comment/action/chain,
 rather than kept as disabled entries. `IoT NAS access` is replaced by active
 `IoT Synology DLNA access`; `NAS IoT access` and the former HA rules are replaced
 by active `Home Cloud to IoT access`. No blanket disabled-rule deletion is used.
+
+## Native SSDP PIM-SM migration
+
+Prepared 2026-10-11, not applied or live-tested. The requested target is native
+IPv4 PIM-SM on Home100/IoT300/Cloud400, replacing the historical container relay.
+See [migration, acceptance and rollback](ssdp-pim.md). Import reviewed09 then
+optional18 only after stopping ssdp-relay and disabling its start-on-boot.
+Keep12/13 and VETHs as the rollback path; do not import13 in PIM mode.
+
+File18 owns ssdp-pim, its one interface template, narrow SSDP/IGMP firewall
+permissions and TTL=1→2 rules. File09 preserves the optional filter identities
+and ordering on every import. Only clients in100/300→Cloud and NAS→100/300
+SSDP are routed; other multicast entering these VLANs is denied before broad
+unicast permissions. mDNS remains native and independent. No deployment or
+playback success is claimed. Older container instructions above describe the
+alternative rollback architecture, not the new requested target.
