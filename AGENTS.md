@@ -130,3 +130,13 @@
   state while reconciling, enabling newly created denies after final ordering.
   WAN FastTrack clears explicit routing marks and relies on the operator-confirmed
   main-only routing policy; throughput/runtime operation still requires validation.
+
+- 2026-10-11 SSDP: operator confirmed native IPv4 PIM-SM discovery and playback
+  after fixing file18 commands that simultaneously unset and assign properties.
+  File18 owns ssdp-pim across100/300/400 with NAS-only announcements back; file09
+  preserves multicast firewall ordering. Operator requested relay retirement:
+  files12/13 and ssdp-relay build assets are removed; file04 has no relay VETHs.
+  Container/VETH/storage cleanup is operator-run, not yet confirmed. Read
+  network/mikrotik-rb5009upr/ssdp-container-removal.md; no immediate container
+  rollback remains after removal. PIM success is operator evidence, not agent
+  live verification. mDNS remains independent.

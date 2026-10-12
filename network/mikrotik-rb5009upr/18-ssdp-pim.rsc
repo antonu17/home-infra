@@ -1,6 +1,6 @@
-# Prepared 2026-10-11 for RB5009 RouterOS 7.24.4; operator-run, not live-tested.
+# RouterOS 7.24.4: operator confirmed PIM-SM discovery/playback 2026-10-11.
 # IPv4 SSDP only. Stop ssdp-relay and disable its start-on-boot before import.
-# Keep the container/VETHs for rollback. Native mDNS is independent.
+# Legacy relay retired; see ssdp-container-removal.md. Native mDNS is independent.
 # Import reviewed 09 first; 09 knows these optional firewall identities.
 :foreach iface in={"vlan100-trusted";"vlan300-iot";"vlan400-home-cloud"} do={
     :if ([:len [/interface vlan find where name=$iface and disabled=no]] != 1) do={ :error "Missing SSDP VLAN interface" }

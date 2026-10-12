@@ -27,9 +27,6 @@
 
 :do {
     :local untagged "ether4,ether8"
-    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
-        :if ([:len [/interface veth find where name="veth-ssdp-home"]] = 1) do={ :set untagged "ether4,ether8,veth-ssdp-home" }
-    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "100") do={ :set existing ($existing, $row) }
@@ -57,9 +54,6 @@
 
 :do {
     :local untagged "ether3"
-    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
-        :if ([:len [/interface veth find where name="veth-ssdp-iot"]] = 1) do={ :set untagged "ether3,veth-ssdp-iot" }
-    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "300") do={ :set existing ($existing, $row) }
@@ -74,9 +68,6 @@
 
 :do {
     :local untagged "syno1,ether5,ether6"
-    :if ([:len [/system package find where name="container" and disabled=no]] = 1) do={
-        :if ([:len [/interface veth find where name="veth-ssdp-cloud"]] = 1) do={ :set untagged "syno1,ether5,ether6,veth-ssdp-cloud" }
-    }
     :local existing [:toarray ""]
     :foreach row in=[/interface bridge vlan find where bridge="bridge" and dynamic=no] do={
         :if ([:tostr [/interface bridge vlan get $row vlan-ids]] = "400") do={ :set existing ($existing, $row) }

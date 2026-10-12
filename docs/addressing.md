@@ -127,18 +127,16 @@ for mDNS-based discovery. Direct printing is not authorized from Guest.
 
 ## Discovery and incident references
 
-IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. Historically,
-SSDP uses the ARM64 `ssdp-relay` container with one VETH in each VLAN.
-Requested 2026-10-11: native IPv4 PIM-SM is prepared as its replacement, not
-applied or live-tested. See [migration and rollback](../network/mikrotik-rb5009upr/ssdp-pim.md).
-The target routes SSDP searches from VLAN100/300 to400 and NAS announcements
-back to100/300; other routed multicast is denied. Keep the stopped container
-and VETHs for rollback, with start-on-boot disabled in PIM mode.
-Guests and Management are excluded. The operator confirmed Pulsar DLNA discovery
-on both the TV and Mac after the firewall and relay interface fixes. NAS-to-Home
-and NAS-to-IoT exceptions allow all protocols from the exact NAS IP; they do not
-open the whole Cloud subnet. Discovery success does not establish every playback
-or IPv6 path. See the [DLNA postmortem](../incidents/postmortems/2026-10-10-pulsar-dlna-discovery.md).
+IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. SSDP uses
+native IPv4 PIM-SM: clients in100/300 search into400, and NAS192.168.40.5 sends
+announcements back. Other routed multicast is denied; Guests and Management
+are excluded. The operator confirmed discovery and playback on2026-10-11.
+See [PIM configuration](../network/mikrotik-rb5009upr/ssdp-pim.md). The former
+ARM64 relay sources are retired; [container/VETH/storage removal](../network/mikrotik-rb5009upr/ssdp-container-removal.md)
+is prepared for the operator, not confirmed complete. Existing NAS unicast
+permissions remain; IPv6 has not been validated. The
+[DLNA postmortem](../incidents/postmortems/2026-10-10-pulsar-dlna-discovery.md)
+describes the historical relay incident, not the current delivery mechanism.
 
 The numbered, idempotent router source is
 [network/mikrotik-rb5009upr](../network/mikrotik-rb5009upr/README.md).

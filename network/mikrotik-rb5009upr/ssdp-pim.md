@@ -1,7 +1,8 @@
 # Native SSDP routing on RB5009
 
-Prepared 2026-10-11 for RouterOS 7.24.4. Not applied or tested on the router.
-The existing relay deployment is operator-confirmed historically; it remains the rollback path.
+Operator confirmed discovery and playback with native PIM-SM on 2026-10-11,
+after the file18 unset/assignment syntax fix. Agent live verification was not
+performed. Legacy relay sources are retired. See [container removal](ssdp-container-removal.md).
 
 ## Scope and operation
 
@@ -67,7 +68,7 @@ independent management session, preferably RouterOS Safe Mode. Upload reviewed
 Stop if dry-run fails, another active PIM instance or IGMP proxy exists, or
 unreviewed raw/mangle rules could intercept SSDP/IGMP. Scripts are not atomic.
 Dry-run is syntax validation, not proof of runtime parameter support. No agent
-has run these checks. File18 refuses another active instance/proxy and duplicate
+has run these checks. The operator subsequently confirmed successful operation. File18 refuses another active instance/proxy and duplicate
 owned identities, but does not replace review of the full live configuration.
 
 The server must join 239.255.255.250 in VLAN400. Clients need membership in that
@@ -94,8 +95,7 @@ Confirm the container is stopped. Then:
 /import file-name=18-ssdp-pim.rsc
 ```
 
-Stop on any error; inspect the exact failing line and roll back below. Do not
-reimport 13-ssdp-container.rsc in PIM mode: it restores relay start-on-boot.
+Stop on any error; inspect the exact failing line and roll back below. Historical13 is retired and must not be reimported: it restores relay start-on-boot.
 For later reapplications, 09 preserves optional PIM firewall rule ordering;
 18 owns PIM and TTL settings. Reimporting18 temporarily disables its instance
 while updating, briefly interrupting discovery.
@@ -130,29 +130,19 @@ this one-router topology. Group state alone does not prove packet delivery.
 If discovery is missing, distinguish absent IGMP membership, TTL, firewall drops
 and device subnet restrictions. A successful PIM setup cannot guarantee every
 DLNA implementation accepts cross-subnet discovery. Roll back if acceptance fails.
-Keep the dormant VETHs: removing them is a separate reviewed cleanup, and would
-require updating 04/12/13. Do not run container cleanup during this migration.
+The operator accepted PIM and requested removal of the dormant container/VETHs.
+File04 is updated; historical12/13 and the relay build directory are retired.
+Follow [cleanup](ssdp-container-removal.md) after acceptance.
 
-## Rollback (operator-run, reversible)
+## Recovery after relay retirement
 
-Disable PIM before restarting the relay. Disable only the three owned TTL rules;
-file09 multicast filter rules can remain because the old relay delivers across
-VETHs at L2 and the bridge IP firewall is disabled in this design. Unicast policy
-and native mDNS are untouched.
-
-```routeros
-/routing pimsm instance disable [find where name="ssdp-pim"]
-/ip firewall mangle disable [find where comment="Home SSDP TTL one hop"]
-/ip firewall mangle disable [find where comment="IoT SSDP TTL one hop"]
-/ip firewall mangle disable [find where comment="Cloud SSDP TTL one hop"]
-/container set [find where name="ssdp-relay"] start-on-boot=yes
-/container start [find where name="ssdp-relay"]
-```
-
-Confirm PIM disabled, relay running, and fresh discovery/playback in both client
-VLANs. Do not reimport18 while keeping PIM disabled; it reenables the instance
-and TTL rules. Existing custom live settings need the saved private backup if
-restoration beyond these scoped objects is necessary.
+Before container removal, the old relay could be restarted after disabling
+ssdp-pim and the three owned TTL rules. After removal, immediate container
+rollback is unavailable. Save a private router backup and relay settings before
+cleanup. Restore legacy sources from Git history only if a separate reviewed
+recovery requires rebuilding/redeploying the relay; do not enable it concurrently
+with PIM. PIM/TTL can be disabled by exact identity for diagnosis, but disabling
+them stops cross-VLAN SSDP. Existing unicast and native mDNS remain independent.
 
 ## Sources
 

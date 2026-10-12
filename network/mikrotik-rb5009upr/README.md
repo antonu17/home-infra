@@ -105,10 +105,11 @@ individually, in alphabetical filename order (numeric prefixes encode dependenci
 /import file-name=09-firewall-filter.rsc
 /import file-name=10-dhcp.rsc
 /import file-name=11-mdns.rsc
-# SSDP: choose native PIM file18 OR legacy container files12/13, never both.
+# SSDP PIM-SM follows core configuration; legacy files12/13 are retired.
 /import file-name=14-static-dns.rsc
 # Requires the three uploaded PXE files; see the PXE runbook.
 /import file-name=15-pxe.rsc
+/import file-name=18-ssdp-pim.rsc
 ```
 
 The same order is used on every reapplication; no separate first-run procedure.
@@ -731,53 +732,11 @@ well as media service access. It does not allow IoT initiation to other Cloud
 hosts, Home or VLAN1. Established/related replies remain permitted. Re-import09
 only to apply this path. No NAT or broad Cloud-to-IoT initiation rule is added.
 
-**SSDP discovery is not yet configured.** DLNA uses SSDP239.255.255.250 UDP1900,
-not the mDNS group/port. Existing11 already repeats mDNS among100/300/400.
-Opening firewall ports alone cannot repeat SSDP. An SSDP relay must handle
-M-SEARCH requests, multicast announcements and unicast discovery responses on
-both IoT and Cloud. IGMP proxy alone is not a bidirectional SSDP reflector and
-has only one upstream interface; no misleading IGMP configuration is provided.
-
-Relay deployment is pending the operator's host choice and interface inventory.
-Use an existing Linux host/VM with two actual L2 VLAN attachments, or a reviewed
-RouterOS container with container support, persistent storage and a veth on each
-VLAN. Preserve existing Synology untagged400 uplink; do not invent a tagged300
-DSM interface or silently extend its bond trunk. No Kubernetes/NAS resources,
-container privileges, addresses or images have been invented here.
-
-A candidate implementation is
-[alsmith/multicast-relay](https://github.com/alsmith/multicast-relay), which handles
-SSDP unicast answers as well as multicast. Pin/review its source and configure
-only SSDP between the two verified interfaces, leaving mDNS to RouterOS and
-excluding Guest/management; Home was subsequently added as documented below. Concrete installation and
-idempotent network configuration require the selected host's actual interfaces.
-
-Verify Synology Media Server is running and has media indexed, that DSM's own
-firewall permits the TV subnet, and that the TV sees/plays it once the relay is
-configured. Playback permission does not prove discovery. No live tests or
-configuration changes have been performed by the agent.
-
-## SSDP relay implementation prepared (2026-10-10)
-
-The pending SSDP host choice is resolved: RB5009 internal storage, with matching
-RouterOS/container7.24.4 and device-mode container=yes confirmed by the operator.
-See [the relay build/import/rollback guide](ssdp-relay/README.md). Source12 creates
-three VETH access attachments for Home/IoT/Cloud with existing DHCP; source13 imports a reviewed ARM64
-archive into persistent internal storage under `containers/ssdp-relay` (prefixed
-with `flash/` when that existing storage directory is present). Source04 preserves these optional bridge
-VLAN members on future imports. Source09 permits both IoT-to-NAS and the exact
-NAS-to-IoT and NAS-to-Home reverse paths required for SSDP unicast responses under the requested
-L3 policy. Native mDNS11 is unchanged. No Synology uplink change is required.
-
-Build/archive creation and router imports/start remain manual. This is not a
-claim of agent-performed live testing. The operator confirmed TV discovery after
-importing the NAS/IoT firewall rules; the new Home extension awaits validation.
-Full alphabetical application, after building/uploading the archive, continues
-with12 then13 after11. First container start remains a separate manual step.
-
-The existing image can be extended to VLAN100 without a rebuild: source13 sets
-explicit relay entrypoint/arguments for all three VETHs. Stop the relay before
-reapplying04/09/12/13, then start it; see the linked extension/rollback procedure.
+SSDP now uses native IPv4 PIM-SM between Home100/IoT300 and Cloud400. The operator
+confirmed discovery and playback on 2026-10-11. See [PIM configuration](ssdp-pim.md)
+and [retired container cleanup](ssdp-container-removal.md). The earlier ARM64
+relay implementation and files12/13 were removed from the working tree at the
+operator's request. Historical DLNA incident evidence remains in the postmortem.
 
 ## Static infrastructure DNS
 
@@ -890,18 +849,15 @@ rather than kept as disabled entries. `IoT NAS access` is replaced by active
 `IoT Synology DLNA access`; `NAS IoT access` and the former HA rules are replaced
 by active `Home Cloud to IoT access`. No blanket disabled-rule deletion is used.
 
-## Native SSDP PIM-SM migration
+## Native SSDP PIM-SM
 
-Prepared 2026-10-11, not applied or live-tested. The requested target is native
-IPv4 PIM-SM on Home100/IoT300/Cloud400, replacing the historical container relay.
-See [migration, acceptance and rollback](ssdp-pim.md). Import reviewed09 then
-optional18 only after stopping ssdp-relay and disabling its start-on-boot.
-Keep12/13 and VETHs as the rollback path; do not import13 in PIM mode.
+Operator confirmed discovery and playback on 2026-10-11 after correcting conflicting
+unset/assignment syntax in file18. The agent did not perform live checks.
+[PIM configuration and checks](ssdp-pim.md); [container removal](ssdp-container-removal.md).
 
-File18 owns ssdp-pim, its one interface template, narrow SSDP/IGMP firewall
-permissions and TTL=1→2 rules. File09 preserves the optional filter identities
-and ordering on every import. Only clients in100/300→Cloud and NAS→100/300
-SSDP are routed; other multicast entering these VLANs is denied before broad
-unicast permissions. mDNS remains native and independent. No deployment or
-playback success is claimed. Older container instructions above describe the
-alternative rollback architecture, not the new requested target.
+File18 owns ssdp-pim, one interface template, SSDP/IGMP permissions and TTL=1→2
+rules. File09 preserves filter ordering on repeat imports. Clients in100/300
+send SSDP toCloud; only NAS192.168.40.5 sends routed SSDP back. Other routed
+multicast is denied. Native mDNS is independent. File04 no longer retains relay
+VETHs. Do not upload/import historical12/13; they recreate the retired relay.
+Container/VETH/storage deletion is operator-run and remains unconfirmed.

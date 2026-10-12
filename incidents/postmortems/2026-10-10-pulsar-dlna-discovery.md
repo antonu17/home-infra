@@ -50,9 +50,11 @@ Exact event times were not captured; the order was:
 
 Source files: [VLAN table](../../network/mikrotik-rb5009upr/04-vlans.rsc),
 [firewall](../../network/mikrotik-rb5009upr/09-firewall-filter.rsc),
-[VETH attachments](../../network/mikrotik-rb5009upr/12-ssdp-network.rsc), and
-[container](../../network/mikrotik-rb5009upr/13-ssdp-container.rsc).
-See the [manual procedure and rollback](../../network/mikrotik-rb5009upr/ssdp-relay/README.md).
+historical `12-ssdp-network.rsc` VETH attachments, and
+historical `13-ssdp-container.rsc` container definition (retired from the working tree).
+The legacy source12/13 and build guide were retired on2026-10-11 after operator-
+confirmed native PIM-SM operation; historical source is recoverable from Git.
+See [current PIM guide](../../network/mikrotik-rb5009upr/ssdp-pim.md).
 
 The three attachments are Home100, IoT300 and Cloud400. Guest and management are
 excluded. SSDP discovery is mutual across those three VLANs; it is not restricted
