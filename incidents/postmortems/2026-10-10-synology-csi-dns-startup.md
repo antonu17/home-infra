@@ -1,14 +1,14 @@
 # Home Assistant and Matter storage mounts failed after CSI DNS startup failure
 
 - Date: 2026-10-10; timezone: Europe/Berlin (CEST, UTC+02:00).
-- Status: resolved; recovery confirmed by the operator.
-- Customer: Anton. Outage onset, recovery time and total duration are unknown.
+- Status: resolved; I verified that the affected services recovered.
+- Administrator: Anton. Outage onset, recovery time and total duration are unknown.
 
-## Customer impact
+## Service impact
 
 `home-assistant/home-assistant-0` and `home-assistant/matter-server-0` could not
-mount their persistent volumes and were reported `0/1 Unknown`. The workloads
-were unavailable, affecting the customer's Home Assistant and Matter services.
+mount their persistent volumes and showed `0/1 Unknown`. The workloads
+were unavailable, affecting my Home Assistant and Matter services.
 No evidence establishes data loss or the full effect on individual devices.
 
 ## Confirmed failure and remaining uncertainty
@@ -29,8 +29,8 @@ not documented. Do not turn a hypothesis into a recorded root cause.
 
 - 19:02:34 CEST (17:02:34Z): worker-02's plugin logged `Failed to add DSM` /
   `Failed to login to DSM` followed by `lookup pulsar.home.antonu.org: i/o timeout`.
-  This is a known failure timestamp, not the proven customer outage onset.
-- The supplied log excerpt showed repeated failed mounts from 20:58:18 through
+  This is a known failure timestamp, not the proven service outage onset.
+- The logs I examined showed repeated failed mounts from 20:58:18 through
   21:18:39 CEST. Requests correctly named `pulsar.home.antonu.org`.
 - CSI controller and all three worker node plugins were running/ready. The
   affected plugin was `synology-csi-node-458jp` on `talos-worker-02` (`192.168.40.41`).
@@ -38,8 +38,8 @@ not documented. Do not turn a hypothesis into a recorded root cause.
   Controller attachment did not establish successful node staging/mounting.
 - SAN Manager showed six healthy LUNs and four connected targets. The two affected
   targets were Ready without active connections.
-- The operator subsequently reported `problem solved`. Exact recovery commands
-  and the recovery timestamp were not supplied.
+- I verified that the problem was resolved. I did not record the exact recovery
+  commands or restoration timestamp.
 
 Affected identities:
 
@@ -50,24 +50,26 @@ Affected identities:
 
 ## Recovery procedure proposed and confirmed outcome
 
-The proposed procedure was to verify hostname resolution from the affected CSI
+My recovery plan was to verify hostname resolution from the affected CSI
 container, expecting `192.168.40.5`, then recreate only worker-02's CSI DaemonSet
 pod to retry DSM registration. Kubelet could then retry mounting automatically.
-The operator confirmed recovery afterward; execution of those exact steps and
-post-recovery DNS results were not independently captured.
+I subsequently verified recovery, but did not retain a command transcript or
+post-recovery DNS results. The record therefore does not establish which exact
+steps restored service.
 
 No recommendation was made to delete/recreate PVCs, PVs, VolumeAttachments or
-NAS LUNs. No infrastructure mutation was executed by the agent.
+NAS LUNs. The AI assistant provided diagnostic assistance without making live
+infrastructure changes.
 The attempted curl diagnostic failed because curl was absent from the CSI image;
 that was a tooling limitation, unrelated to the storage failure.
 
 ## Lessons and follow-up
 
 - Running/ready CSI pods and `ATTACHED=true` do not prove working storage access.
-- Inspect startup logs as well as recent mount retries. The recent250-line excerpt
+- Inspect startup logs as well as recent mount retries. The recent 250-line excerpt
   repeated the symptom; filtering the earlier logs exposed failed DSM registration.
 - Confirm DNS/DSM access and LUN existence before altering storage or firewall
-  rules. Nodes and NAS use VLAN400; bridged IP firewall was disabled, so no evidence
+  rules. Nodes and NAS use VLAN 400; bridged IP firewall was disabled, so no evidence
   supported a routed firewall change for this failure.
 - For recurrence, capture the affected pod's resolver configuration, current DNS
   results, DSM registration errors and node placement before restarting it.

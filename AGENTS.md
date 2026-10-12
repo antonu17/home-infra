@@ -171,3 +171,11 @@
   SSDP-SUBNET-CLIENTS list selects NAS40.5 UDPdst3942 out300 SNATto30.1.
   Port3942 observed, not guaranteed across firmware; capture before broadening.
   File19 adopts TEMP source rule, removes failed TEMP TTL test. Import unconfirmed.
+
+- Samsung SSDP incident recorded in the existing postmortem format:
+  incidents/postmortems/2026-10-12-samsung-ssdp-source-subnet.md. Operator
+  reported permanent19 import complete after confirming temporary source-NAT
+  on Ethernet/Wi-Fi and wired playback/seek. No post-import live readback or
+  acceptance recorded. Prior port1900 capture falsely suggested no NAS reply;
+  actual MediaServer replies use ephemeral source ports to3942. Exact Samsung
+  subnet check remains inferred. Consult this postmortem before recurrence work.

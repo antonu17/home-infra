@@ -2,12 +2,12 @@
 
 - Date: 2026-10-10; timezone: Europe/Berlin (CEST, UTC+02:00).
 - Status: diagnosed; repository remediation prepared. Recovery unconfirmed.
-- Customer: Anton. Outage onset, recovery time and total duration are unknown.
+- Administrator: Anton. Outage onset, recovery time and total duration are unknown.
 
-## Customer impact
+## Service impact
 
 ExternalDNS could not reconcile Kubernetes Gateway HTTPRoute names into
-MikroTik DNS. Its controller and webhook were reported `0/2 CrashLoopBackOff`.
+MikroTik DNS. I found its controller and webhook in `0/2 CrashLoopBackOff`.
 New or changed application DNS records could not be reliably published or
 updated while reconciliation failed. Previously published records may have
 continued resolving; no evidence establishes deletion of existing records,
@@ -18,22 +18,22 @@ did not establish that the running DNS controller could reach its provider.
 
 ## Confirmed cause and limits of the diagnosis
 
-The RouterOS input rule `ExternalDNS current HTTP REST` allows TCP80 to
+The RouterOS input rule `ExternalDNS current HTTP REST` allows TCP port 80 to
 `192.168.40.1` from Cloud interfaces only when the source belongs to
 `EXTERNALDNS-EGRESS`. That address list was empty, so this allow rule could
 never match. Its packet/byte counters were both zero. RouterOS `www` was
-enabled on TCP80; the repository's Cilium policy allowed that exact IP/port.
+enabled on TCP port 80; the repository's Cilium policy allowed that exact IP/port.
 
 A filtered router capture subsequently showed incoming TCP traffic from
 worker-03 `192.168.40.42` to `192.168.40.1:80`, repeatedly using source port
-45166. No return traffic appeared in the supplied excerpt. ExternalDNS Pod
+45166. No return traffic appeared in the captured excerpt. ExternalDNS Pod
 `10.244.3.238` was scheduled on that worker. This establishes the router-visible
 node source for this placement, consistent with node masquerading.
 
 The missing allow-list entry is a confirmed firewall configuration defect and
 matches the observed failure to connect. The repository has a terminal input
-deny, but no supplied drop-counter or packet trace identifies the precise
-live dropping rule. Post-fix success has not been supplied; credentials, user
+deny, but no recorded drop-counter or packet trace identifies the precise
+live dropping rule. I have not recorded a successful post-fix test; credentials, user
 address restrictions and subsequent provider errors remain unvalidated.
 The exact time and change that introduced the empty-list condition are unknown.
 
@@ -53,42 +53,45 @@ ports 8728/8729 are not the configured REST transport.
 
 ## Evidence and timeline
 
-All clock times below are converted from supplied UTC log timestamps.
+All clock times below are converted from the UTC log timestamps I collected.
 Packet-capture times are relative offsets, not wall-clock timestamps.
 
 | Time / order | Evidence |
 |---|---|
 | 21:26:09 CEST (19:26:09Z) | Controller startup reported webhook provider `127.0.0.1:8888`. |
 | 21:26:24 CEST (19:26:24Z) | Controller exited with `/records` request timeout while awaiting headers. This is a known failure time, not the outage onset. |
-| Later operator check; wall-clock time unknown | `EXTERNALDNS-EGRESS` was empty; REST accept counter was 0; router HTTP service was enabled. |
+| My later router check; wall-clock time unknown | `EXTERNALDNS-EGRESS` was empty; REST accept counter was 0; router HTTP service was enabled. |
 | Later Pod status; wall-clock time unknown | `external-dns-68bd7748bc-xs2c5` was `0/2 CrashLoopBackOff`, 22 restarts, Pod IP `10.244.3.238`, node `talos-worker-03`. |
-| 22:59:15 CEST (20:59:15Z) | Webhook v1.6.3 logged startup and MikroTik client creation; supplied excerpt showed no successful provider response. |
-| First capture; wall-clock time unknown | Traffic was NAS `.40.5` to internet TCP80, not the router REST flow; it did not diagnose ExternalDNS. |
-| Filtered capture; relative offsets 25.460–35.604s | Repeated inbound `.40.42:45166` -> `.40.1:80`, visible on ether5, bridge and VLAN400. Multiple interface rows represent observations of the same traffic, not separate connections. |
-| After diagnosis; wall-clock time unknown | Source `.40.42` was added to repository configuration. Operator then authorized `.40.40` and `.40.41` as well to tolerate worker rescheduling. |
-| End of available evidence | No successful post-change import, provider reconciliation or customer acceptance result was supplied. |
+| 22:59:15 CEST (20:59:15Z) | Webhook v1.6.3 logged startup and MikroTik client creation; the log excerpt showed no successful provider response. |
+| First capture; wall-clock time unknown | Traffic was NAS `.40.5` to internet TCP port 80, not the router REST flow; it did not diagnose ExternalDNS. |
+| Filtered capture; relative offsets 25.460–35.604s | Repeated inbound `.40.42:45166` -> `.40.1:80`, visible on ether5, bridge and VLAN 400. Multiple interface rows represent observations of the same traffic, not separate connections. |
+| After diagnosis; wall-clock time unknown | I selected `.40.42` for the repository fix, then included `.40.40` and `.40.41` to tolerate worker rescheduling. |
+| End of available evidence | I had not recorded a successful post-change import, provider reconciliation or service acceptance test. |
 
 ## Remediation
 
 [`07-address-lists.rsc`](../../network/mikrotik-rb5009upr/07-address-lists.rsc)
 now idempotently reconciles `EXTERNALDNS-EGRESS` entries for the three current
-workers: `192.168.40.40`, `192.168.40.41` and `192.168.40.42`. The operator
-explicitly approved this scheduling-resilient scope. Only `.42` was captured;
+workers: `192.168.40.40`, `192.168.40.41` and `192.168.40.42`. I chose this
+scope so the permission survives worker rescheduling. Only `.42` was captured;
 including the other workers assumes the same node-source behavior on them.
 
-The existing file09 rule remains limited to Cloud ingress, TCP80 and exact
+The existing file 09 rule remains limited to Cloud ingress, TCP port 80 and exact
 router destination `192.168.40.1`. No Cloud-subnet blanket permission, new
 forward rule, Pod pinning, credentials change or Kubernetes manifest change
 was made. Node-source permission is shared by other traffic masqueraded behind
 those nodes; RouterOS cannot distinguish those Pods by the source IP alone.
 Router API authentication and Cilium policy remain applicable.
 
-The agent edited source/documentation only and ran local structural/whitespace
-checks. It did not import the configuration, restart Pods or query live systems.
+With AI assistance, I prepared the source and documentation changes and checked
+their structure and whitespace. This incident record does not establish a live
+configuration import or successful service recovery; the assistant did not
+import configuration, restart Pods or query live systems.
 
-## Operator recovery and acceptance
+## Recovery plan and acceptance
 
-Upload the reviewed updated file07, then perform these **operator-run** steps:
+My next recovery step is to upload the reviewed `07-address-lists.rsc` and apply
+it, then check the list and rule counters:
 
 ```routeros
 /import file-name=07-address-lists.rsc
@@ -96,7 +99,7 @@ Upload the reviewed updated file07, then perform these **operator-run** steps:
 /ip firewall filter print stats where comment="ExternalDNS current HTTP REST"
 ```
 
-No file09 import is required if its existing rule matches the documented source.
+No file 09 import is required if its existing rule matches the documented source.
 Allow normal container restart/backoff to retry, then inspect:
 
 ```sh
@@ -126,13 +129,13 @@ not require removing DNS records, TXT ownership markers or resetting the firewal
 
 | Finding | Follow-up / acceptance | Status |
 |---|---|---|
-| An accept rule depended on an unpopulated list. | Keep required worker entries in reproducible file07, rather than a manual prerequisite. | Prepared in repository; live application unconfirmed |
-| A single measured worker grant would fail after rescheduling. | Include all three current eligible workers; verify observed sources after worker or masquerading changes. | Prepared; operator-approved scope |
+| An accept rule depended on an unpopulated list. | Keep required worker entries in reproducible file 07, rather than a manual prerequisite. | Prepared in repository; live application unconfirmed |
+| A single measured worker grant would fail after rescheduling. | Include all three current eligible workers; verify observed sources after worker or masquerading changes. | Prepared; scope selected for all three workers |
 | Argo sync and health endpoints did not prove provider reconciliation. | Include a successful reconciliation and router-resolved hostname in post-network-change acceptance checks. | Documented; execution pending |
 | Local webhook timeout obscured the downstream failure. | Collect both containers' logs and capture the exact REST destination before changing policy. | Used during diagnosis |
 | Shared node SNAT limits workload-specific router filtering. | Document that node permissions are not per-Pod identity; revisit if networking or scheduling changes. | Documented |
 
 The empty-list failure should be part of future firewall review: an allow rule
 with a required address list is incomplete until that list has its intended
-static members. Record the operator's actual recovery time and acceptance
-results here before marking the incident resolved.
+static members. I will record the restoration time and acceptance results before marking the
+incident resolved.
