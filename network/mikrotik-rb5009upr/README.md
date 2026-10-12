@@ -857,7 +857,15 @@ unset/assignment syntax in file18. The agent did not perform live checks.
 
 File18 owns ssdp-pim, one interface template, SSDP/IGMP permissions and TTL=1→2
 rules. File09 preserves filter ordering on repeat imports. Clients in100/300
-send SSDP toCloud; only NAS192.168.40.5 sends routed SSDP back. Other routed
+send SSDP toCloud; clients100 also discover IoT300 providers. SSDP announcements
+from Cloud/IoT and scoped UDP source1900 replies reach Home. Other routed
 multicast is denied. Native mDNS is independent. File04 no longer retains relay
 VETHs. Do not upload/import historical12/13; they recreate the retired relay.
 Container/VETH/storage deletion is operator-run and remains unconfirmed.
+
+2026-10-12 SSDP expansion (prepared, not live-tested): clients100→servers400,
+clients300→servers400 and clients100→servers300. File18 now permits Cloud-wide
+SSDP announcements and UDP source1900 discovery replies from Cloud/IoT toHome.
+IoT general initiation remains denied; new source1900 exceptions are stateless.
+Non-NAS400 HTTP/media/control may still need separate unicast permissions.
+See the PIM runbook for application, checks and rollback.

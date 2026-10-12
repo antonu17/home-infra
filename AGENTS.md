@@ -140,3 +140,12 @@
   network/mikrotik-rb5009upr/ssdp-container-removal.md; no immediate container
   rollback remains after removal. PIM success is operator evidence, not agent
   live verification. mDNS remains independent.
+
+- 2026-10-12 SSDP expansion prepared: clients100→servers400, clients300→servers400,
+  clients100→servers300. Cloud SSDP source scope is now full192.168.40.0/24.
+  File18 adds Home→IoT searches, IoT→Home announcements and UDP source1900
+  unicast exceptions from IoT/Cloud→Home before existing denies; these are
+  stateless and allow unsolicited UDP from1900, not arbitrary L3 initiation.
+  New paths remain unconfirmed; prior NAS discovery/playback is operator-confirmed.
+  HTTP/media/control for non-NAS400 providers needs existing or separately
+  reviewed unicast permissions. File09 preserves new/adopted rule ordering.

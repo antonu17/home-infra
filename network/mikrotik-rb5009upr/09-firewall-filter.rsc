@@ -1,3 +1,9 @@
+:if ([:len [/ip firewall filter find where comment="Cloud SSDP announcement to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud SSDP announcement to IoT"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Home SSDP search to IoT"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT SSDP announcement to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="IoT SSDP unicast response to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud SSDP unicast response to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 :if ([:len [/ip firewall filter find where comment="Home SSDP IGMP membership"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 :if ([:len [/ip firewall filter find where comment="Home SSDP multicast input"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 :if ([:len [/ip firewall filter find where comment="IoT SSDP IGMP membership"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
@@ -631,7 +637,13 @@
         "IoT SSDP multicast input";
         "IoT SSDP IGMP membership";
         "Home SSDP multicast input";
-        "Home SSDP IGMP membership"
+        "Home SSDP IGMP membership";
+        "Cloud SSDP announcement to Home";
+        "Cloud SSDP announcement to IoT";
+        "Home SSDP search to IoT";
+        "IoT SSDP announcement to Home";
+        "IoT SSDP unicast response to Home";
+        "Cloud SSDP unicast response to Home"
     } do={
         :local rule [/ip firewall filter find where dynamic=no and comment=$ruleComment]
         :local first [:pick [/ip firewall filter find where dynamic=no] 0]

@@ -128,8 +128,9 @@ for mDNS-based discovery. Direct printing is not authorized from Guest.
 ## Discovery and incident references
 
 IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. SSDP uses
-native IPv4 PIM-SM: clients in100/300 search into400, and NAS192.168.40.5 sends
-announcements back. Other routed multicast is denied; Guests and Management
+native IPv4 PIM-SM: clients in100/300 search into400; expansion prepared2026-10-12
+also permits100→300 discovery and Cloud/IoT announcements and source1900 UDP
+replies back toHome. Other routed multicast is denied; Guests and Management
 are excluded. The operator confirmed discovery and playback on2026-10-11.
 See [PIM configuration](../network/mikrotik-rb5009upr/ssdp-pim.md). The former
 ARM64 relay sources are retired; [container/VETH/storage removal](../network/mikrotik-rb5009upr/ssdp-container-removal.md)
@@ -156,3 +157,10 @@ not confirmed deployed. Its isolated container transit proposes
 This is a proposed allocation requiring overlap checks, not a confirmed live subnet.
 Desired advertised routes are Kubernetes services `10.40.0.0/24`, Home Cloud
 `192.168.40.0/24` and Home `192.168.100.0/24`. Exit-node advertising is enabled in the prepared configuration.
+
+2026-10-12 SSDP expansion (prepared, not live-tested): clients100→servers400,
+clients300→servers400 and clients100→servers300. File18 now permits Cloud-wide
+SSDP announcements and UDP source1900 discovery replies from Cloud/IoT toHome.
+IoT general initiation remains denied; new source1900 exceptions are stateless.
+Non-NAS400 HTTP/media/control may still need separate unicast permissions.
+See the PIM runbook for application, checks and rollback.
