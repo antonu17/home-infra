@@ -71,8 +71,8 @@
         # RouterOS owns the host clock; disable container NTP client/server.
         # Disable on-disk query history and per-query text logs to reduce flash writes.
         :set phase "local DNS dependency"
-        :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import prepare-dns.rsc before configuring conditional forwarding" }
-        :if ([/ip dns get use-doh-server] != "") do={ :error "Import prepare-dns.rsc to clear RouterOS DoH" }
+        :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import 20-pihole-prepare-dns.rsc before configuring conditional forwarding" }
+        :if ([/ip dns get use-doh-server] != "") do={ :error "Import 20-pihole-prepare-dns.rsc to clear RouterOS DoH" }
         # RouterOS owns infrastructure, ExternalDNS application records and reverse DNS.
         :local settings {"TZ"="Europe/Berlin";"FTLCONF_ntp_sync_active"="false";"FTLCONF_ntp_ipv4_active"="false";"FTLCONF_ntp_ipv6_active"="false";"DNSMASQ_USER"="root";"FTLCONF_dns_listeningMode"="ALL";"FTLCONF_dns_upstreams"="1.1.1.1";"FTLCONF_dns_revServers"="true,192.168.100.0/24,172.31.254.1,home.antonu.org;true,192.168.200.0/24,172.31.254.1;true,192.168.30.0/24,172.31.254.1;true,192.168.40.0/24,172.31.254.1;true,192.168.88.0/24,172.31.254.1;true,10.40.0.0/24,172.31.254.1";"FTLCONF_dns_rateLimit_count"="1000";"FTLCONF_dns_rateLimit_interval"="60";"FTLCONF_webserver_domain"="pihole.home.antonu.org";"FTLCONF_webserver_port"="80r,443s";"FTLCONF_webserver_tls_cert"="/etc/pihole/tls.pem";"FTLCONF_webserver_tls_validity"="0";"FTLCONF_database_maxDBdays"="0";"FTLCONF_files_log_dnsmasq"="/dev/null"}
         :set phase "environment validation/reconciliation"

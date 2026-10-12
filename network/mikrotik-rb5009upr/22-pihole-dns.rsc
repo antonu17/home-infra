@@ -4,8 +4,8 @@
     :if ([:len $instance] != 1) do={ :error "One Pi-hole container required" }
     :if ([/container get $instance interface] != "veth-pihole") do={ :error "Unexpected Pi-hole interface" }
     :if ([:len [/interface veth find where name="veth-pihole" and address="172.31.254.2/30"]] != 1) do={ :error "Unexpected Pi-hole endpoint" }
-    :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import prepare-dns.rsc first; RouterOS must not forward back to Pi-hole" }
-    :if ([/ip dns get use-doh-server] != "") do={ :error "RouterOS DoH must be cleared by prepare-dns.rsc" }
+    :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import 20-pihole-prepare-dns.rsc first; RouterOS must not forward back to Pi-hole" }
+    :if ([/ip dns get use-doh-server] != "") do={ :error "RouterOS DoH must be cleared by 20-pihole-prepare-dns.rsc" }
     :if ([/ip dns get allow-remote-requests] != true) do={ :error "RouterOS local DNS must be enabled" }
     :if ([:len [/ip dhcp-client find where disabled=no and use-peer-dns=yes]] > 0) do={ :error "Unexpected DHCP peer DNS" }
     :if ([:len [/ipv6 dhcp-client find where disabled=no and use-peer-dns=yes]] > 0) do={ :error "Unexpected DHCPv6 peer DNS" }

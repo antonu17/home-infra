@@ -187,4 +187,4 @@ ExternalDNS retains application A records on RouterOS; Pi-hole forwards
 Data and image root use built-in flash (`flash/volumes/pihole`,
 `flash/containers/pihole`). Home administration, NAS TLS verification and
 DNS forwarding have separate scoped rules.
-See [deployment and rollback](../network/mikrotik-rb5009upr/pihole/README.md).
+See [deployment and rollback](../network/mikrotik-rb5009upr/README.md#router-local-pi-hole).
