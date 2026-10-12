@@ -1,0 +1,13 @@
+Host rb5009-pihole-acme
+    HostName 192.168.40.1
+    User pihole-acme
+    Port 22
+    IdentityFile ~/.ssh/pihole-acme
+    IdentitiesOnly yes
+    BatchMode yes
+    PasswordAuthentication no
+    StrictHostKeyChecking yes
+    UserKnownHostsFile ~/.ssh/known_hosts
+    ConnectTimeout 10
+    ServerAliveInterval 10
+    ServerAliveCountMax 3

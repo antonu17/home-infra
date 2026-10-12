@@ -55,6 +55,15 @@
 - Cilium, Synology CSI, cert-manager and application resources are Argo-owned. Route53 credentials are ESO-managed. The single `synology-csi` Application owns the CSI driver, StorageClass and ESO resources; PVCs/PVs and NAS LUNs retain their existing owners. Any further ownership transfer requires an explicit plan for field managers, adoption, ordering, rollback, and data preservation.
 - Gateway TLS terminates at the shared Gateway and routes to selected HTTP backends. cert-manager owns the current frontend certificate Secret. Read `docs/gateway-bootstrap.md` and `docs/cert-manager.md` before changing namespaces, listeners, `certificateRefs`, issuers, or Secrets.
 
+## Documentation voice and engineering preferences
+
+- Use language for experienced network and cloud SRE engineer building and developing his own home infrastructure. Write documentation in his voice as the infrastructure author, for an experienced technical reader.
+- Use concise, direct technical language. Describe the architecture, configuration, rationale, prerequisites, commands, verification and rollback. Skip basic tutorials unless requested.
+- Do not narrate collaboration or distinguish an agent from an operator in documentation. Avoid phrases such as "as requested", "the operator executes", "the agent has not", "proposed configuration" and repeated preparation disclaimers. Use neutral headings such as "Configuration", "Deployment", "Verification" and "Rollback"; label read-only checks and live changes where useful.
+- Keep status and evidence accurate without conversational framing. Describe what source files configure; do not imply deployment or successful validation without evidence. Record a material unverified condition once, concisely, where it affects a decision.
+- Follow practical network, cloud and SRE best practices: reproducible IaC, clear ownership, scoped access, explicit dependencies, useful observability and recoverable changes. Match complexity and reliability measures to the actual home-infrastructure failure domains.
+- Keep costs reasonably low. Prefer existing hardware and simple maintainable solutions when suitable; explain meaningful reliability, capacity, operational-effort and cost tradeoffs. Do not default to enterprise-scale complexity or unnecessary purchases, and do not compromise essential security or data safety merely to minimize cost.
+
 ## Editing conventions
 
 - Prefer small, declarative, reviewable changes. Keep versions, image tags, chart releases, upstream URLs, names, namespaces, addresses, and storage classes explicit and pinned.

@@ -104,9 +104,9 @@
 :do {
     :local existing [/ip dns static find where name="pihole.home.antonu.org"]
     :if ([:len $existing] = 0) do={
-        /ip dns static add name="pihole.home.antonu.org" type=A address=192.168.40.5 ttl=5m match-subdomain=no disabled=no comment="Synology Pi-hole"
+        /ip dns static add name="pihole.home.antonu.org" type=A address=172.31.254.2 ttl=5m match-subdomain=no disabled=no comment="MikroTik Pi-hole"
     } else={
-        /ip dns static set $existing name="pihole.home.antonu.org" type=A address=192.168.40.5 ttl=5m match-subdomain=no disabled=no comment="Synology Pi-hole" regexp=""
+        /ip dns static set $existing name="pihole.home.antonu.org" type=A address=172.31.254.2 ttl=5m match-subdomain=no disabled=no comment="MikroTik Pi-hole" regexp=""
     }
 }
 

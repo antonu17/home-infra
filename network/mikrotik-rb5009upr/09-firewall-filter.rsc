@@ -1,3 +1,11 @@
+# Optional file23 certificate delivery rules survive core re-imports.
+:foreach identity in={"Pi-hole ACME SSH";"Pi-hole ACME HTTPS verification"} do={
+    :if ([:len [/ip firewall filter find where comment=$identity]] > 1) do={ :error "Duplicate optional Pi-hole ACME rule" }
+}
+# Optional file20 Pi-hole rules are preserved before forward default deny.
+:foreach identity in={"Pi-hole Home administration";"Pi-hole Home DNS UDP";"Pi-hole Home DNS TCP";"Pi-hole upstream DNS UDP";"Pi-hole upstream DNS TCP";"Pi-hole blocklist downloads"} do={
+    :if ([:len [/ip firewall filter find where comment=$identity]] > 1) do={ :error "Duplicate optional Pi-hole firewall rule" }
+}
 :if ([:len [/ip firewall filter find where comment="Home multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
 :if ([:len [/ip firewall filter find where comment="IoT multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
 :if ([:len [/ip firewall filter find where comment="Cloud multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
@@ -584,6 +592,12 @@
 :do {
     :foreach ruleComment in={
         "forward default deny";
+        "Pi-hole blocklist downloads";
+        "Pi-hole upstream DNS TCP";
+        "Pi-hole upstream DNS UDP";
+        "Pi-hole Home DNS TCP";
+        "Pi-hole Home DNS UDP";
+        "Pi-hole Home administration";
         "Tailscale container Internet";
         "Tailscale advertised subnet access";
         "Cloud to routed cloud web services";
@@ -610,6 +624,7 @@
         "forward established related";
         "WAN FastTrack";
         "forward invalid";
+        "Pi-hole ACME HTTPS verification";
         "input default deny";
         "Tailscale advertised router access";
         "Tailscale transit DNS TCP";
@@ -632,6 +647,7 @@
         "DHCP client requests incl 0.0.0.0";
         "Home router diagnostics";
         "Home router management";
+        "Pi-hole ACME SSH";
         "input invalid";
         "input established related";
         "Cloud other routed multicast deny";

@@ -59,7 +59,7 @@ already in VLAN400 at `.41` and `.42`. Aruba/ether7 does not need VLAN400.
 | `printer.home.antonu.org` | `192.168.30.3` | IoT Wi-Fi printer, existing DHCP reservation |
 | `3dprinter.home.antonu.org` | `192.168.30.4` | Bambu P2S; DHCP reservation for Wi-Fi MAC `EC:B5:0A:86:6F:30` |
 | `pulsar.home.antonu.org` | `192.168.40.5` | Synology DSM; CSI API access over hostname-based HTTPS/443 |
-| `pihole.home.antonu.org` | `192.168.40.5` | Synology Pi-hole frontend |
+| `pihole.home.antonu.org` | `172.31.254.2` | MikroTik Pi-hole frontend; Home access only |
 | `vault.home.antonu.org` | `192.168.40.5` | Synology Vault frontend |
 | `talos.home.antonu.org` | `192.168.40.5` | Self-hosted Image Factory, HTTPS |
 | `registry.home.antonu.org` | `192.168.40.5` | OCI registry for promoted Talos installers, HTTPS |
@@ -173,3 +173,16 @@ Samsung UE43RU7099UXZG: reserved Wi-Fi192.168.30.107 (8C:79:F5:A5:C6:E8),
 Ethernet192.168.30.110 (00:C3:F4:8B:7C:92), prepared2026-10-12. Both belong
 to SSDP-SUBNET-CLIENTS for NAS UDP3942 reply SNAT to192.168.30.1. Temporary
 workaround confirmed on both interfaces; permanent file19 import remains unconfirmed.
+
+## Pi-hole container subnet
+
+Files20/21/22 configure `172.31.254.0/30`: `bridge-pihole` gateway
+`172.31.254.1`, `veth-pihole` endpoint `172.31.254.2`. Verify overlap before
+import; this is separate from Tailscale `172.31.255.0/30`. RouterOS forwards
+public DNS to Pi-hole, which uses public `1.1.1.1` and `9.9.9.9` directly.
+Local static/ExternalDNS records remain on RouterOS, and DHCP still advertises
+the existing per-VLAN `.1` resolvers. Pi-hole data and image root use built-in
+flash (`flash/volumes/pihole`, `flash/containers/pihole`). Home-only HTTP80,
+HTTPS443 and direct DNS53 are allowed to the container; Guest/IoT/Cloud use
+RouterOS DNS input rules.
+See [deployment and rollback](../network/mikrotik-rb5009upr/pihole/README.md).

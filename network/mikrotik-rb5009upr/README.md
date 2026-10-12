@@ -406,7 +406,7 @@ for any still-valid routed dependencies, but cannot make an absent old address w
 The current filter still references old NAS `.100.5`; those rules are historical
 compatibility allowances, not the new target address. After the move, Cloud nodes
 reach NAS `.40.5` directly at L2. Home-to-NAS forward rules now allow only `.40.5` TCP80/443 (web/reverse proxy),
-TCP8081 (documented Pi-hole admin UI), and ICMP diagnostics. Vault backend8200
+TCP8081 (historical allowance; no NAS Pi-hole is assumed), and ICMP diagnostics. Vault backend8200
 remains private; use its HTTPS reverse proxy. These rules do not configure the
 NAS address or services. Other DSM/SSH/SMB ports need separately verified
 exceptions if required.
@@ -741,7 +741,8 @@ operator's request. Historical DLNA incident evidence remains in the postmortem.
 ## Static infrastructure DNS
 
 `14-static-dns.rsc` owns exact A records for `pulsar`, `pihole`, `vault`,
-`talos` and `registry` under `home.antonu.org`, all pointing to `192.168.40.5`.
+`talos` and `registry` under `home.antonu.org`. NAS services point to
+`192.168.40.5`; `pihole` points to the prepared router container `172.31.254.2`.
 `k8s.home.antonu.org` points to the Kubernetes API VIP `192.168.40.20`.
 `router` points to `192.168.88.1`, `aruba` to `192.168.88.3`,
 `printer` to `192.168.30.3` and `3dprinter` to `192.168.30.4`.
@@ -869,3 +870,15 @@ File19 applies the confirmed SSDP source-NAT workaround with static Wi-Fi/Ethern
 IoT leases and SSDP-SUBNET-CLIENTS. Core07/08/10 own the same persistent objects.
 Use19 for the existing router to avoid reapplying unrelated DHCP settings.
 See [PIM runbook](ssdp-pim.md) for evidence, destination-port limitation and checks.
+
+## Router-local Pi-hole
+
+[Pi-hole deployment](pihole/README.md) uses files20/21/22; file23 adds
+[Synology acme.sh certificate delivery](pihole/tls.md) and renewal. File20 reconciles
+an isolated container subnet and scoped firewall rules; file21 installs the
+upstream Pi-hole image directly onto built-in flash; file22 switches recursion to
+Pi-hole after a DNS check. Import these after the core configuration. File09
+preserves firewall ordering on subsequent imports; file14 owns
+`pihole.home.antonu.org`. DHCP clients continue using their router DNS.
+Pi-hole uses public upstreams directly, so DNS recursion is independent of
+Synology. The runbook covers prerequisites, imports, verification and rollback.
