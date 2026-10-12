@@ -1,3 +1,7 @@
+:if ([:len [/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.107"]] > 1) do={ :error "Duplicate Samsung SSDP list entry" }
+:foreach row in=[/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.107"] do={ :if ([/ip firewall address-list get $row dynamic] = true) do={ :error "Samsung SSDP list entry must be static" } }
+:if ([:len [/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.110"]] > 1) do={ :error "Duplicate Samsung SSDP list entry" }
+:foreach row in=[/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.110"] do={ :if ([/ip firewall address-list get $row dynamic] = true) do={ :error "Samsung SSDP list entry must be static" } }
 # Static entries keyed by list + address; no fictional printer/HA/remote IPs.
 # No timeout on add means permanent; refuse dynamic matches rather than changing
 # their lifetime. Clear comments with an explicit empty string, not !comment.
@@ -286,3 +290,13 @@
 /ip firewall address-list remove [find where list="HA-EGRESS" and address="192.168.40.41" and dynamic=no]
 /ip firewall address-list remove [find where list="HA-IOT" and address="192.168.30.3" and dynamic=no]
 /ip firewall address-list remove [find where list="HA-IOT" and address="192.168.30.0/24" and dynamic=no]
+
+# Samsung SSDP source-subnet compatibility workaround.
+:do {
+    :local row [/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.107"]
+    :if ([:len $row] = 0) do={ /ip firewall address-list add list=SSDP-SUBNET-CLIENTS address=192.168.30.107 comment="Samsung TV Wi-Fi" } else={ /ip firewall address-list set $row list=SSDP-SUBNET-CLIENTS address=192.168.30.107 disabled=no comment="Samsung TV Wi-Fi" }
+}
+:do {
+    :local row [/ip firewall address-list find where list="SSDP-SUBNET-CLIENTS" and address="192.168.30.110"]
+    :if ([:len $row] = 0) do={ /ip firewall address-list add list=SSDP-SUBNET-CLIENTS address=192.168.30.110 comment="Samsung TV Ethernet" } else={ /ip firewall address-list set $row list=SSDP-SUBNET-CLIENTS address=192.168.30.110 disabled=no comment="Samsung TV Ethernet" }
+}

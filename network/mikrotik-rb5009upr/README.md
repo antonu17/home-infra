@@ -855,17 +855,17 @@ Operator confirmed discovery and playback on 2026-10-11 after correcting conflic
 unset/assignment syntax in file18. The agent did not perform live checks.
 [PIM configuration and checks](ssdp-pim.md); [container removal](ssdp-container-removal.md).
 
-File18 owns ssdp-pim, one interface template, SSDP/IGMP permissions and TTL=1→2
-rules. File09 preserves filter ordering on repeat imports. Clients in100/300
-send SSDP toCloud; clients100 also discover IoT300 providers. SSDP announcements
-from Cloud/IoT and scoped UDP source1900 replies reach Home. Other routed
-multicast is denied. Native mDNS is independent. File04 no longer retains relay
-VETHs. Do not upload/import historical12/13; they recreate the retired relay.
-Container/VETH/storage deletion is operator-run and remains unconfirmed.
+File18 now permits all routed IPv4 multicast between VLAN100/300/400 in all
+six directions without group, protocol, port or source-address restrictions.
+TTL=1 multicast is raised to2 for one hop; IGMP membership still controls delivery.
+Native mDNS is independent; local224.0.0.0/24 and IPv6 are not routed by this change.
+The broadening requested2026-10-12 is prepared, not deployed or validated.
+File09 preserves optional broad rule ordering. Existing unicast isolation and
+SSDP reply exceptions remain. See the PIM runbook for operator import and recovery.
 
-2026-10-12 SSDP expansion (prepared, not live-tested): clients100→servers400,
-clients300→servers400 and clients100→servers300. File18 now permits Cloud-wide
-SSDP announcements and UDP source1900 discovery replies from Cloud/IoT toHome.
-IoT general initiation remains denied; new source1900 exceptions are stateless.
-Non-NAS400 HTTP/media/control may still need separate unicast permissions.
-See the PIM runbook for application, checks and rollback.
+## Samsung DLNA compatibility
+
+File19 applies the confirmed SSDP source-NAT workaround with static Wi-Fi/Ethernet
+IoT leases and SSDP-SUBNET-CLIENTS. Core07/08/10 own the same persistent objects.
+Use19 for the existing router to avoid reapplying unrelated DHCP settings.
+See [PIM runbook](ssdp-pim.md) for evidence, destination-port limitation and checks.

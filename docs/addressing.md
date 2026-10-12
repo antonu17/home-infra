@@ -127,11 +127,13 @@ for mDNS-based discovery. Direct printing is not authorized from Guest.
 
 ## Discovery and incident references
 
-IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. SSDP uses
-native IPv4 PIM-SM: clients in100/300 search into400; expansion prepared2026-10-12
-also permits100→300 discovery and Cloud/IoT announcements and source1900 UDP
-replies back toHome. Other routed multicast is denied; Guests and Management
-are excluded. The operator confirmed discovery and playback on2026-10-11.
+IPv4 mDNS uses the RouterOS native repeater across VLAN100/300/400. File18 now
+prepares unrestricted routed IPv4 multicast between those three VLANs in all six
+directions, with TTL=1→2 and IGMP membership-driven delivery. IPv6 and local
+224.0.0.0/24 are outside PIM routing. Guests and Management remain excluded.
+Broad multicast policy was requested2026-10-12 and is not live-validated.
+The operator confirmed earlier DLNA discovery/playback on2026-10-11, but Samsung
+currently works only in VLAN400; other clients work across VLANs.
 See [PIM configuration](../network/mikrotik-rb5009upr/ssdp-pim.md). The former
 ARM64 relay sources are retired; [container/VETH/storage removal](../network/mikrotik-rb5009upr/ssdp-container-removal.md)
 is prepared for the operator, not confirmed complete. Existing NAS unicast
@@ -164,3 +166,10 @@ SSDP announcements and UDP source1900 discovery replies from Cloud/IoT toHome.
 IoT general initiation remains denied; new source1900 exceptions are stateless.
 Non-NAS400 HTTP/media/control may still need separate unicast permissions.
 See the PIM runbook for application, checks and rollback.
+
+2026-10-12: broad multicast policy supersedes the prepared SSDP-only expansion above.
+
+Samsung UE43RU7099UXZG: reserved Wi-Fi192.168.30.107 (8C:79:F5:A5:C6:E8),
+Ethernet192.168.30.110 (00:C3:F4:8B:7C:92), prepared2026-10-12. Both belong
+to SSDP-SUBNET-CLIENTS for NAS UDP3942 reply SNAT to192.168.30.1. Temporary
+workaround confirmed on both interfaces; permanent file19 import remains unconfirmed.

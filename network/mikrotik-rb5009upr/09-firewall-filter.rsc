@@ -1,3 +1,12 @@
+:if ([:len [/ip firewall filter find where comment="Home multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="IoT multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud multicast input"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="Home multicast to IoT"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="Home multicast to Cloud"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="IoT multicast to Home"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="IoT multicast to Cloud"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud multicast to Home"]] > 1) do={ :error "Duplicate optional multicast rule" }
+:if ([:len [/ip firewall filter find where comment="Cloud multicast to IoT"]] > 1) do={ :error "Duplicate optional multicast rule" }
 :if ([:len [/ip firewall filter find where comment="Cloud SSDP announcement to Home"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 :if ([:len [/ip firewall filter find where comment="Cloud SSDP announcement to IoT"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
 :if ([:len [/ip firewall filter find where comment="Home SSDP search to IoT"]] > 1) do={ :error "Duplicate optional SSDP PIM rule" }
@@ -643,7 +652,16 @@
         "Home SSDP search to IoT";
         "IoT SSDP announcement to Home";
         "IoT SSDP unicast response to Home";
-        "Cloud SSDP unicast response to Home"
+        "Cloud SSDP unicast response to Home";
+        "Home multicast input";
+        "IoT multicast input";
+        "Cloud multicast input";
+        "Home multicast to IoT";
+        "Home multicast to Cloud";
+        "IoT multicast to Home";
+        "IoT multicast to Cloud";
+        "Cloud multicast to Home";
+        "Cloud multicast to IoT"
     } do={
         :local rule [/ip firewall filter find where dynamic=no and comment=$ruleComment]
         :local first [:pick [/ip firewall filter find where dynamic=no] 0]

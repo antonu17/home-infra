@@ -149,3 +149,25 @@
   New paths remain unconfirmed; prior NAS discovery/playback is operator-confirmed.
   HTTP/media/control for non-NAS400 providers needs existing or separately
   reviewed unicast permissions. File09 preserves new/adopted rule ordering.
+
+- 2026-10-12 unrestricted multicast requested: file18 now prepares all IPv4
+  multicast protocols/ports/groups/sources between100/300/400 in six directions,
+  with three input accepts and multicast TTL=1→2. File09 preserves ordering.
+  IGMP subscriptions still determine forwarding; local224.0.0.0/24 and IPv6
+  remain outside this PIM change. Guest/Management/WAN boundaries and unicast
+  policy remain. This supersedes SSDP-only scope above; no live import performed.
+  Samsung sees Pulsar only in VLAN400 and enters NAS Device list there; VLAN100
+  and300 fail despite other clients succeeding. NAS sees Samsung search from300
+  without UDP response; local supplied capture had no Samsung search or reply.
+  Input firewall and rp_filter checks found no block. Cause remains unconfirmed.
+
+- 2026-10-12 Samsung DLNA: corrected all-port capture proves NAS MediaServer1
+  replies from ephemeral UDP ports reach TV wired MAC; TV doesn't fetch50001.
+  SourceNAT to30.1 restores discovery with LOCATION40.5 unchanged, on wired and
+  Wi-Fi; wired playback/seeking confirmed. Prior no-response inference invalid
+  because port1900 filter excluded replies. Exact firmware check inferred.
+  Permanent preparation: file19, owned also by07list/08NAT/10DHCP, reserves
+  Wi-Fi30.107 MAC8C:79:F5:A5:C6:E8 and Ethernet30.110 MAC00:C3:F4:8B:7C:92.
+  SSDP-SUBNET-CLIENTS list selects NAS40.5 UDPdst3942 out300 SNATto30.1.
+  Port3942 observed, not guaranteed across firmware; capture before broadening.
+  File19 adopts TEMP source rule, removes failed TEMP TTL test. Import unconfirmed.

@@ -1,3 +1,7 @@
+:if ([:len [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="8C:79:F5:A5:C6:E8"]] > 1) do={ :error "Duplicate Samsung lease" }
+:if ([:len [/ip dhcp-server lease find where server="dhcp300-iot" and address="192.168.30.107" and mac-address!="8C:79:F5:A5:C6:E8"]] > 0) do={ :error "Samsung reserved IP occupied by another MAC" }
+:if ([:len [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="00:C3:F4:8B:7C:92"]] > 1) do={ :error "Duplicate Samsung lease" }
+:if ([:len [/ip dhcp-server lease find where server="dhcp300-iot" and address="192.168.30.110" and mac-address!="00:C3:F4:8B:7C:92"]] > 0) do={ :error "Samsung reserved IP occupied by another MAC" }
 # Common IPv4 DHCP. Networks, DNS, domain, PXE and original reservations
 # come from the operator export dated 2026-10-10 (RouterOS7.24.4).
 # Pool ranges were not included: preserve existing pools, create missing pools
@@ -329,5 +333,25 @@
             /ip dhcp-server lease make-static $existing
         }
         /ip dhcp-server lease set $existing server=dhcp300-iot address=192.168.30.4 mac-address=EC:B5:0A:86:6F:30 client-id="" disabled=no comment="3dprinter"
+    }
+}
+
+# Samsung SSDP source-subnet compatibility workaround.
+:do {
+    :local row [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="8C:79:F5:A5:C6:E8"]
+    :if ([:len $row] = 0) do={
+        /ip dhcp-server lease add server=dhcp300-iot address=192.168.30.107 mac-address=8C:79:F5:A5:C6:E8 client-id="" disabled=no comment="Samsung TV Wi-Fi"
+    } else={
+        :if ([/ip dhcp-server lease get $row dynamic] = true) do={ /ip dhcp-server lease make-static $row }
+        /ip dhcp-server lease set $row server=dhcp300-iot address=192.168.30.107 mac-address=8C:79:F5:A5:C6:E8 client-id="" disabled=no comment="Samsung TV Wi-Fi"
+    }
+}
+:do {
+    :local row [/ip dhcp-server lease find where server="dhcp300-iot" and mac-address="00:C3:F4:8B:7C:92"]
+    :if ([:len $row] = 0) do={
+        /ip dhcp-server lease add server=dhcp300-iot address=192.168.30.110 mac-address=00:C3:F4:8B:7C:92 client-id="" disabled=no comment="Samsung TV Ethernet"
+    } else={
+        :if ([/ip dhcp-server lease get $row dynamic] = true) do={ /ip dhcp-server lease make-static $row }
+        /ip dhcp-server lease set $row server=dhcp300-iot address=192.168.30.110 mac-address=00:C3:F4:8B:7C:92 client-id="" disabled=no comment="Samsung TV Ethernet"
     }
 }
