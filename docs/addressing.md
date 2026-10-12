@@ -176,13 +176,15 @@ workaround confirmed on both interfaces; permanent file19 import remains unconfi
 
 ## Pi-hole container subnet
 
-Files20/21/22 configure `172.31.254.0/30`: `bridge-pihole` gateway
-`172.31.254.1`, `veth-pihole` endpoint `172.31.254.2`. Verify overlap before
-import; this is separate from Tailscale `172.31.255.0/30`. RouterOS forwards
-public DNS to Pi-hole, which uses public `1.1.1.1` and `9.9.9.9` directly.
-Local static/ExternalDNS records remain on RouterOS, and DHCP still advertises
-the existing per-VLAN `.1` resolvers. Pi-hole data and image root use built-in
-flash (`flash/volumes/pihole`, `flash/containers/pihole`). Home-only HTTP80,
-HTTPS443 and direct DNS53 are allowed to the container; Guest/IoT/Cloud use
-RouterOS DNS input rules.
+`bridge-pihole` uses `172.31.254.1/30`; `veth-pihole` uses `172.31.254.2/30`.
+This is separate from Tailscale `172.31.255.0/30`. Files20/21/22 keep DHCP's
+per-VLAN `.1` DNS addresses and DNAT client UDP/TCP53 to Pi-hole without SNAT.
+Home100, Guest200, IoT300 and Cloud400 retain their real source addresses.
+Public upstream is `1.1.1.1`; RouterOS independently uses the same public resolver.
+Pi-hole forwards infrastructure/local PTR queries to RouterOS at `.254.1`;
+ExternalDNS retains application A records on RouterOS; Pi-hole forwards
+`home.antonu.org` there through `.254.1`.
+Data and image root use built-in flash (`flash/volumes/pihole`,
+`flash/containers/pihole`). Home administration, NAS TLS verification and
+DNS forwarding have separate scoped rules.
 See [deployment and rollback](../network/mikrotik-rb5009upr/pihole/README.md).

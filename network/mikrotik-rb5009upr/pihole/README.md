@@ -7,10 +7,12 @@ remains the DHCP-advertised resolver and local DNS authority.
 
 | File | Configuration |
 | --- | --- |
-| `20-pihole-network.rsc` | `bridge-pihole`, `veth-pihole`, gateway, `PIHOLE-UPSTREAMS`, local-network classification and six scoped forward rules |
+| `20-pihole-network.rsc` | `bridge-pihole`, `veth-pihole`, gateway, `PIHOLE-UPSTREAMS`, local-network classification, scoped DNS rules and disabled gateway DNAT |
 | `21-pihole-container.rsc` | `pihole`, `pihole-env`, `pihole-data` mount; pull upstream image once, reconcile settings on later imports |
 | `23-pihole-tls.rsc` | Dedicated NAS-only SSH delivery user, renewal script and HTTPS verification access |
-| `22-pihole-dns.rsc` | Router DNS upstream `172.31.254.2`, empty DoH URL, remote DNS enabled, WAN DHCP peer DNS disabled |
+| `pihole/prepare-dns.rsc` | Independent RouterOS upstream `1.1.1.1`, no DoH, no WAN peer DNS |
+| `22-pihole-dns.rsc` | Readiness-gated gateway DNAT activation; DHCP unchanged |
+| `08-firewall-nat.rsc` | Preserve optional DNS DNAT ordering and enabled state on core re-import |
 | `09-firewall-filter.rsc` | Preserve optional Pi-hole rules before default deny on core re-import |
 | `14-static-dns.rsc` | `pihole.home.antonu.org` A record `172.31.254.2` |
 | `10-dhcp.rsc` | Existing router `.1` DNS address in each VLAN; unchanged |
@@ -18,27 +20,42 @@ remains the DHCP-advertised resolver and local DNS authority.
 The isolated container subnet is `172.31.254.0/30`: router `.1`, Pi-hole `.2`.
 It is separate from Tailscale and the VLAN bridge; no physical ports or
 LAN/REMOTE membership. Verify no LAN/WAN/VPN route overlaps before importing.
-All normal client lookups follow client → VLAN router DNS → Pi-hole → public
-`1.1.1.1`. Static and ExternalDNS-managed answers stay on RouterOS.
-Pi-hole must not forward queries back to RouterOS: that would create a loop.
-Container startup DNS also uses that public resolver, not the NAS or RouterOS.
+DHCP keeps advertising the per-VLAN router address. File22 enables UDP/TCP53
+DNAT from Home100, Guest200, IoT300 and Cloud400 to `172.31.254.2`:
+
+```text
+192.168.100.50 → 192.168.100.1:53
+192.168.100.50 → 172.31.254.2:53  (DNAT)
+```
+
+The source address stays intact. Pi-hole returns through `172.31.254.1` and
+connection tracking reverses DNAT; the client sees its original router resolver.
+No internal SNAT is needed. Pi-hole rate limiting is 1000 queries per 60 seconds
+per source IP. Loopback health checks and router-originated queries still appear
+as localhost or the router; Cilium node-SNAT can aggregate Kubernetes Pod clients.
+
+Pi-hole resolves public names through `1.1.1.1`. RouterOS also uses `1.1.1.1`,
+independently of Pi-hole, and retains file14 infrastructure records. Pi-hole
+conditionally forwards `home.antonu.org` and local PTR zones to RouterOS at
+`172.31.254.1`; ExternalDNS continues managing application records on RouterOS.
+RouterOS never forwards back to Pi-hole. Its transit address is outside the DNAT
+matches, preventing conditional-forwarding loops. Application record ownership and storage stay on RouterOS.
 
 | Path | Protocol / port | Policy |
 | --- | --- | --- |
-| Existing Home/Guest/IoT/Cloud → router `.1` | UDP/TCP53 input | Existing zone DNS rules |
-| Router → `172.31.254.2` | UDP/TCP53 output | Existing output policy must permit this; no output policy is overwritten |
-| Home100 → `172.31.254.2` | TCP80/443, UDP/TCP53 forward | Admin and direct DNS acceptance checks |
-| Pi-hole → `1.1.1.1` via WAN | UDP/TCP53 forward | Cloudflare upstream only |
-| Pi-hole → WAN outside LOCAL-NETWORKS | TCP80/443 forward | Gravity/blocklist and HTTPS downloads |
-| Guest/IoT/Cloud/WAN → container | New connections | No allow; forward default deny |
-| Container → internal networks/router | New connections | No allow; default deny |
+| Home/Guest/IoT/Cloud → own VLAN gateway | UDP/TCP53 | DNAT to Pi-hole, source preserved |
+| Home/Guest/IoT/Cloud → Pi-hole | UDP/TCP53 forward | Scoped interface and source subnet |
+| Home → Pi-hole | TCP80/443 | Administration |
+| Pi-hole → `172.31.254.1` | UDP/TCP53 input | Infrastructure and reverse DNS |
+| Pi-hole → `1.1.1.1` via WAN | UDP/TCP53 forward | Public upstream |
+| Pi-hole → WAN outside LOCAL-NETWORKS | TCP80/443 forward | Blocklist/image-related HTTPS downloads |
 
-Established/related replies use existing core rules. Existing WAN masquerade
-covers container egress; no new NAT, public port forwarding or internal SNAT.
-The transit stays outside LAN, so existing LAN-to-WAN FastTrack does not match.
-A client using RouterOS appears to Pi-hole as the router; per-device query
-reporting is not supplied by this design. Direct Pi-hole clients would also
-bypass RouterOS local DNS records, so DHCP remains pointed at RouterOS.
+Existing WAN masquerade covers container Internet egress. Administration remains
+blocked from Guest/IoT and other Cloud sources; NAS TLS verification retains its
+existing exception. DNAT does not intercept public DNS destinations, DoH, IPv6,
+Management or VPN traffic. Those paths retain their existing policy. Traffic from
+router applications bypasses DNAT and uses RouterOS DNS. No automatic fallback
+changes client blocking when Pi-hole fails.
 
 File21 pulls the upstream `pihole/pihole:2026.09.0` image directly from Docker
 Hub using `remote-image`. RouterOS selects ARM64 for this router. On first
@@ -60,9 +77,15 @@ usage with other containers before acceptance. On-disk query history is disabled
 (`FTLCONF_database_maxDBdays=0`) and dnsmasq text logs go to `/dev/null` to reduce
 flash writes. Recent in-memory query reporting remains available while running;
 query history does not survive a restart. Gravity/configuration still persist.
-A generated admin password persists in Pi-hole configuration; no password is
+The admin password persists in Pi-hole configuration; no password is
 stored in Git or managed environment. Logging is off to keep generated secrets
 out of RouterOS logs. Protect private backups of the persistent Pi-hole data directory.
+
+Pi-hole uses the RouterOS host clock. Its NTP client and IPv4/IPv6 NTP servers
+are disabled through `FTLCONF_ntp_sync_active`, `FTLCONF_ntp_ipv4_active` and
+`FTLCONF_ntp_ipv6_active`. No container UDP123 access is required. RouterOS NTP
+configuration is outside this package; verify its synchronization and system
+time before relying on DNSSEC or certificate validity.
 
 ## Preflight (read-only)
 
@@ -71,6 +94,8 @@ access to `192.168.100.1`. Check the prerequisites:
 
 ```routeros
 /system resource print
+/system clock print
+/system ntp client print
 /system package print
 /system device-mode print
 /file print detail where name="flash"
@@ -114,7 +139,8 @@ the Pi-hole frontend address.
 
 ## Upload configuration
 
-Upload files09,14,20,21,22 and `pihole/rollback-dns.rsc` to RouterOS.
+Upload files09,14,20,21,22 and both `pihole/prepare-dns.rsc` and
+`pihole/rollback-dns.rsc` to RouterOS as `prepare-dns.rsc` and `rollback-dns.rsc`.
 The router downloads the official image directly; no local Docker build,
 image export or image upload is required.
 
@@ -126,10 +152,15 @@ before importing file21.
 
 ## Import and start (live changes)
 
+Preparing RouterOS upstream temporarily restores unfiltered gateway DNS until
+DNAT is enabled. Reapplying file21 stops Pi-hole; active DNAT clients lose DNS
+during that restart. Use a maintenance window or run rollback-dns.rsc first.
+Preparation does not activate or disable existing DNAT rules.
+
 Import after the core configuration. On RouterOS7.24.4, dry-run each import
 before applying it; stop on the first error. Dry-run is a syntax check,
 not proof that package properties or runtime networking work.
-If reapplying, stop only `pihole` and wait for `status=stopped` before file21.
+If reapplying, stop only `pihole` and wait for the `S` (STOPPED) flag before file21.
 File21 preserves data and refuses an unexpected interface, root or mount. Runtime errors include
 the failing stage. File21 checks native `stopped`, `running` and `healthy` flags.
 Other states block reconciliation. File22 gates cutover on successful Pi-hole
@@ -145,12 +176,17 @@ DNS resolution rather than container flags. Inspect state with:
 /import file-name=09-firewall-filter.rsc
 /import file-name=20-pihole-network.rsc verbose=yes dry-run
 /import file-name=20-pihole-network.rsc
+/import file-name=prepare-dns.rsc verbose=yes dry-run
+/import file-name=prepare-dns.rsc
+# For an existing container: stop and wait for the S flag before file21.
+/container stop [find where name="pihole"]
+/container print detail where name="pihole"
 /import file-name=21-pihole-container.rsc verbose=yes dry-run
 /import file-name=21-pihole-container.rsc
 /container print detail where name="pihole"
 ```
 
-Wait until the download and extraction complete and status is `stopped`, then:
+Wait until the download and extraction complete and the `S` (STOPPED) flag is present, then:
 
 ```routeros
 /container start [find where name="pihole"]
@@ -158,7 +194,8 @@ Wait until the download and extraction complete and status is `stopped`, then:
 /container shell [find where name="pihole"]
 ```
 
-Inside the container, verify status and set the admin password interactively:
+Inside the container, verify effective settings. Set the admin password only on
+first installation or for deliberate rotation:
 
 ```sh
 pihole status
@@ -166,6 +203,7 @@ pihole setpassword
 printenv FTLCONF_dns_upstreams FTLCONF_dns_listeningMode
 pihole-FTL --config dns.upstreams
 pihole-FTL --config dns.listeningMode
+pihole-FTL --config dns.revServers
 ```
 
 Expected environment values are `1.1.1.1` and `ALL`. Effective
@@ -180,7 +218,7 @@ blocklist, blocking enabled and no startup errors. HTTP redirects to HTTPS. The 
 certificate is self-signed; install the wildcard certificate as described in
 [TLS and renewal](tls.md). Use `pihole.home.antonu.org` for trusted HTTPS.
 
-## Verify DNS and switch the forwarder
+## Verification and DNAT cutover
 
 From a Home computer, before file22:
 
@@ -197,6 +235,20 @@ On RouterOS also check `:put [:resolve "example.com" server=172.31.254.2]`.
 An error stops deployment before upstream DNS changes. Confirm router output
 is allowed and input established replies are accepted.
 
+Before file22, verify UDP/TCP public and local answers directly from Pi-hole:
+
+```sh
+dig @172.31.254.2 pulsar.home.antonu.org A
+dig +tcp @172.31.254.2 k8s.home.antonu.org A
+dig @172.31.254.2 pihole.home.antonu.org A
+```
+
+Require `.40.5`, `.40.20` and `.254.2` respectively. Inspect effective
+`dns.revServers` inside Pi-hole if these fail. File22 requires the independent
+RouterOS upstream and successful public, NAS and API VIP DNS probes before
+enabling the eight gateway DNAT rules. Initial file20 imports leave them disabled;
+repeat imports preserve their enabled state. Imports are not transactional.
+
 After these checks pass, apply the DNS configuration:
 
 ```routeros
@@ -207,27 +259,23 @@ After these checks pass, apply the DNS configuration:
 /ip dns print
 ```
 
-File22 verifies container identity and direct UDP recursion
-succeeds before changing WAN DHCP peer DNS or router DNS. It clears any DoH
-URL to avoid bypassing Pi-hole, enables remote requests under existing input
-filtering, sets the sole upstream to `.254.2` and flushes the router cache.
-No health-watch fallback silently disables blocking. Importing file22 again
-rechecks DNS, reapplies those settings and flushes cache.
+Test UDP/TCP public, blocked and infrastructure names through each client VLAN's
+usual router resolver. Pi-hole must show the originating client IP, not
+`172.31.254.1`. Compare NAT/filter counters and confirm Guest/IoT admin access
+remains denied. Existing tracked DNS connections keep their previous translation
+until they expire; use fresh queries/connections rather than flushing the entire
+connection table. DHCP leases, reservations, DNS option and PXE fields do not change.
 
-Test public DNS over both transports through each used VLAN's router `.1`,
-and resolve `pulsar.home.antonu.org`, `k8s.home.antonu.org` and an existing
-ExternalDNS-managed service via RouterOS. Expect Pi-hole name `.254.2`.
-Confirm no unwanted dynamic DNS servers/DoH and that Guest/IoT cannot open
-Pi-hole admin or query the container directly. Check Pi-hole query counters.
-During a maintenance window, verify public DNS with the NAS unavailable.
-NAS-hosted services still depend on the NAS for their runtime. Also verify
-configuration persistence and container startup after a restart.
+Application DNS stays under ExternalDNS ownership on RouterOS. Verify an existing
+HTTPRoute hostname through Pi-hole and through the VLAN gateway resolver; both
+must return the RouterOS-managed A record. No provider, API credential or
+Kubernetes policy change is required.
 
 ## Rollback and maintenance (live changes)
 
 For immediate DNS rollback independent of Synology, upload and import the
-reviewed `pihole/rollback-dns.rsc`. It first probes public DNS, disables WAN
-peer DNS and explicitly selects `1.1.1.1` with no DoH. This restores
+reviewed `pihole/rollback-dns.rsc`. It first probes public DNS, disables the eight
+gateway DNAT rules and WAN peer DNS, then explicitly selects `1.1.1.1` with no DoH. This restores
 unfiltered recursion while preserving local RouterOS records:
 
 ```routeros
@@ -236,7 +284,8 @@ unfiltered recursion while preserving local RouterOS records:
 /ip dns print
 ```
 
-Verify UDP/TCP public and local DNS through the router before stopping Pi-hole.
+Existing tracked DNS flows may still target Pi-hole until they expire. Verify
+fresh UDP/TCP public and local DNS through the router before stopping Pi-hole.
 Then, if required:
 
 ```routeros
@@ -246,7 +295,7 @@ Then, if required:
 
 Preserve flash data, mount, bridge and firewall objects for recovery; no deletion
 or formatting is needed. The Pi-hole static frontend record can remain while
-stopped. File22 re-enables Pi-hole forwarding on import, so don't re-import
+stopped. File22 re-enables gateway DNAT on import, so don't re-import
 it during rollback. File21 restores start-on-boot on import.
 For an image upgrade, pin/review the new release in source and use a separately
 reviewed container replacement procedure with a private `/etc/pihole` backup;
@@ -267,6 +316,6 @@ wildcard certificate with Pi-hole. File21 sets `80r,443s` and the persistent
 - [Pi-hole environment settings](https://docs.pi-hole.net/docker/configuration/)
 - [Pinned release](https://github.com/pi-hole/docker-pi-hole/releases/tag/2026.09.0)
 
-Offline checks cover object identity, balanced source structure, firewall order,
-paths, pinned image and absence of router-upstream loops. No RouterOS parser,
-registry pull, live import, DNS probe, blocking or boot test has been verified.
+DNS and TLS operation were confirmed on 2026-10-12 before this topology change.
+DNAT and conditional forwarding require live acceptance; offline checks do
+not validate RouterOS runtime syntax, packet flow or effective conditional forwarding.

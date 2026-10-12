@@ -876,9 +876,12 @@ See [PIM runbook](ssdp-pim.md) for evidence, destination-port limitation and che
 [Pi-hole deployment](pihole/README.md) uses files20/21/22; file23 adds
 [Synology acme.sh certificate delivery](pihole/tls.md) and renewal. File20 reconciles
 an isolated container subnet and scoped firewall rules; file21 installs the
-upstream Pi-hole image directly onto built-in flash; file22 switches recursion to
-Pi-hole after a DNS check. Import these after the core configuration. File09
+upstream Pi-hole image directly onto built-in flash; file22 enables gateway DNS DNAT
+to Pi-hole after public/local DNS checks. Import these after the core configuration. File09
 preserves firewall ordering on subsequent imports; file14 owns
 `pihole.home.antonu.org`. DHCP clients continue using their router DNS.
-Pi-hole uses public upstreams directly, so DNS recursion is independent of
+DNAT preserves client source addresses without SNAT. RouterOS retains infrastructure
+records; ExternalDNS retains application records on RouterOS; Pi-hole forwards
+`home.antonu.org` to the router transit address.
+Both resolvers use `1.1.1.1` for public recursion, independently of
 Synology. The runbook covers prerequisites, imports, verification and rollback.

@@ -1,6 +1,7 @@
 # Pi-hole isolated container subnet: 172.31.254.0/30. Check for overlap before import.
 # File20 owns these objects; file09 preserves optional rule ordering.
-# No DNS cutover, physical ports, VLAN membership or container startup here.
+# Gateway DNS DNAT is created disabled; file22 owns activation. DHCP is unchanged.
+:if ([:len [/ip firewall filter find where comment="input default deny"]] != 1) do={ :error "Import file09 first" }
 :if ([:len [/ip firewall filter find where comment="forward default deny"]] != 1) do={ :error "Import file09 first" }
 :if ([:len [/ip firewall nat find where comment="WAN Internet masquerade" and disabled=no]] != 1) do={ :error "Existing WAN masquerade required" }
 :foreach identity in={"bridge-pihole";"veth-pihole"} do={
@@ -158,4 +159,199 @@
     } else={
         /ip firewall address-list set $existing list=LOCAL-NETWORKS address=172.31.254.0/30 disabled=no comment="Pi-hole container transit"
     }
+}
+
+# Client DNS keeps its source address. No internal SNAT.
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole Guest DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole Guest DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole Guest DNS UDP"
+        :set row [/ip firewall filter find where comment="Pi-hole Guest DNS UDP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=GUEST src-address-list=GUEST-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=udp dst-port=53 disabled=no log=no comment="Pi-hole Guest DNS UDP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole Guest DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole Guest DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole Guest DNS TCP"
+        :set row [/ip firewall filter find where comment="Pi-hole Guest DNS TCP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=GUEST src-address-list=GUEST-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=tcp dst-port=53 disabled=no log=no comment="Pi-hole Guest DNS TCP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole IoT DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole IoT DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole IoT DNS UDP"
+        :set row [/ip firewall filter find where comment="Pi-hole IoT DNS UDP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=IOT src-address-list=IOT-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=udp dst-port=53 disabled=no log=no comment="Pi-hole IoT DNS UDP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole IoT DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole IoT DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole IoT DNS TCP"
+        :set row [/ip firewall filter find where comment="Pi-hole IoT DNS TCP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=IOT src-address-list=IOT-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=tcp dst-port=53 disabled=no log=no comment="Pi-hole IoT DNS TCP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole Cloud DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole Cloud DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole Cloud DNS UDP"
+        :set row [/ip firewall filter find where comment="Pi-hole Cloud DNS UDP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address-list=CLOUD-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=udp dst-port=53 disabled=no log=no comment="Pi-hole Cloud DNS UDP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole Cloud DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole Cloud DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=forward disabled=yes comment="Pi-hole Cloud DNS TCP"
+        :set row [/ip firewall filter find where comment="Pi-hole Cloud DNS TCP"]
+    }
+    /ip firewall filter set $row !src-address !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address-list=CLOUD-NETWORKS out-interface=bridge-pihole dst-address=172.31.254.2 protocol=tcp dst-port=53 disabled=no log=no comment="Pi-hole Cloud DNS TCP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="forward default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole local DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole local DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=input disabled=yes comment="Pi-hole local DNS UDP"
+        :set row [/ip firewall filter find where comment="Pi-hole local DNS UDP"]
+    }
+    /ip firewall filter set $row !src-address-list !dst-address-list !in-interface-list !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface=bridge-pihole src-address=172.31.254.2 dst-address=172.31.254.1 protocol=udp dst-port=53 disabled=no log=no comment="Pi-hole local DNS UDP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="input default deny"]
+}
+
+:do {
+    :local row [/ip firewall filter find where comment="Pi-hole local DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate firewall identity: Pi-hole local DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall filter add chain=input disabled=yes comment="Pi-hole local DNS TCP"
+        :set row [/ip firewall filter find where comment="Pi-hole local DNS TCP"]
+    }
+    /ip firewall filter set $row !src-address-list !dst-address-list !in-interface-list !out-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface=bridge-pihole src-address=172.31.254.2 dst-address=172.31.254.1 protocol=tcp dst-port=53 disabled=no log=no comment="Pi-hole local DNS TCP"
+    /ip firewall filter move $row destination=[/ip firewall filter find where comment="input default deny"]
+}
+
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Home gateway DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Home gateway DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Home gateway DNS UDP"
+        :set row [/ip firewall nat find where comment="Pi-hole Home gateway DNS UDP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=HOME src-address=192.168.100.0/24 dst-address=192.168.100.1 protocol=udp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Home gateway DNS UDP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Home gateway DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Home gateway DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Home gateway DNS TCP"
+        :set row [/ip firewall nat find where comment="Pi-hole Home gateway DNS TCP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=HOME src-address=192.168.100.0/24 dst-address=192.168.100.1 protocol=tcp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Home gateway DNS TCP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Guest gateway DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Guest gateway DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Guest gateway DNS UDP"
+        :set row [/ip firewall nat find where comment="Pi-hole Guest gateway DNS UDP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=GUEST src-address=192.168.200.0/24 dst-address=192.168.200.1 protocol=udp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Guest gateway DNS UDP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Guest gateway DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Guest gateway DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Guest gateway DNS TCP"
+        :set row [/ip firewall nat find where comment="Pi-hole Guest gateway DNS TCP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=GUEST src-address=192.168.200.0/24 dst-address=192.168.200.1 protocol=tcp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Guest gateway DNS TCP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole IoT gateway DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole IoT gateway DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole IoT gateway DNS UDP"
+        :set row [/ip firewall nat find where comment="Pi-hole IoT gateway DNS UDP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=IOT src-address=192.168.30.0/24 dst-address=192.168.30.1 protocol=udp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole IoT gateway DNS UDP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole IoT gateway DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole IoT gateway DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole IoT gateway DNS TCP"
+        :set row [/ip firewall nat find where comment="Pi-hole IoT gateway DNS TCP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=IOT src-address=192.168.30.0/24 dst-address=192.168.30.1 protocol=tcp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole IoT gateway DNS TCP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Cloud gateway DNS UDP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Cloud gateway DNS UDP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Cloud gateway DNS UDP"
+        :set row [/ip firewall nat find where comment="Pi-hole Cloud gateway DNS UDP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=CLOUD src-address=192.168.40.0/24 dst-address=192.168.40.1 protocol=udp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Cloud gateway DNS UDP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+:do {
+    :local row [/ip firewall nat find where comment="Pi-hole Cloud gateway DNS TCP"]
+    :if ([:len $row] > 1) do={ :error "Duplicate DNS NAT identity: Pi-hole Cloud gateway DNS TCP" }
+    :if ([:len $row] = 0) do={
+        /ip firewall nat add chain=dstnat disabled=yes comment="Pi-hole Cloud gateway DNS TCP"
+        :set row [/ip firewall nat find where comment="Pi-hole Cloud gateway DNS TCP"]
+    }
+    # Preserve enabled state; file22 owns activation after readiness checks.
+    /ip firewall nat set $row !src-address-list !dst-address-list !in-interface !out-interface !out-interface-list !src-port !connection-mark !ipsec-policy chain=dstnat action=dst-nat in-interface-list=CLOUD src-address=192.168.40.0/24 dst-address=192.168.40.1 protocol=tcp dst-port=53 to-addresses=172.31.254.2 to-ports=53 log=no comment="Pi-hole Cloud gateway DNS TCP"
+    :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+    :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
 }

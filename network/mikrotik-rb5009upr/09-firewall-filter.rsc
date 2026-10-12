@@ -597,6 +597,12 @@
         "Pi-hole upstream DNS UDP";
         "Pi-hole Home DNS TCP";
         "Pi-hole Home DNS UDP";
+        "Pi-hole Guest DNS UDP";
+        "Pi-hole Guest DNS TCP";
+        "Pi-hole IoT DNS UDP";
+        "Pi-hole IoT DNS TCP";
+        "Pi-hole Cloud DNS UDP";
+        "Pi-hole Cloud DNS TCP";
         "Pi-hole Home administration";
         "Tailscale container Internet";
         "Tailscale advertised subnet access";
@@ -647,6 +653,8 @@
         "DHCP client requests incl 0.0.0.0";
         "Home router diagnostics";
         "Home router management";
+        "Pi-hole local DNS UDP";
+        "Pi-hole local DNS TCP";
         "Pi-hole ACME SSH";
         "input invalid";
         "input established related";

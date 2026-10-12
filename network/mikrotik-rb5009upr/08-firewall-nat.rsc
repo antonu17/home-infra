@@ -17,7 +17,7 @@
 }
 
 # Preserve other NAT rules; audit internal masquerades and published services.
-# No NAT is created between VLANs or for BGP-routed LoadBalancer addresses.
+# No inter-VLAN SNAT or NAT for BGP-routed LoadBalancer addresses.
 
 # Samsung SSDP source-subnet compatibility workaround.
 # libupnp replies use ephemeral source ports: do not match UDP source1900.
@@ -28,4 +28,14 @@
     /ip firewall nat set $row !dst-address !src-address-list !in-interface !in-interface-list !out-interface-list !src-port !connection-mark !ipsec-policy chain=srcnat action=src-nat src-address=192.168.40.5 dst-address-list=SSDP-SUBNET-CLIENTS out-interface=vlan300-iot protocol=udp dst-port=3942 to-addresses=192.168.30.1 disabled=no comment="Pulsar SSDP replies to subnet-sensitive clients"
     :local first [:pick [/ip firewall nat find where dynamic=no] 0]
     :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+}
+
+# File20 owns optional gateway DNS DNAT; preserve its state and ordering.
+:foreach identity in={"Pi-hole Home gateway DNS UDP";"Pi-hole Home gateway DNS TCP";"Pi-hole Guest gateway DNS UDP";"Pi-hole Guest gateway DNS TCP";"Pi-hole IoT gateway DNS UDP";"Pi-hole IoT gateway DNS TCP";"Pi-hole Cloud gateway DNS UDP";"Pi-hole Cloud gateway DNS TCP"} do={
+    :local row [/ip firewall nat find where comment=$identity]
+    :if ([:len $row] > 1) do={ :error "Duplicate Pi-hole DNS NAT identity" }
+    :if ([:len $row] = 1) do={
+        :local first [:pick [/ip firewall nat find where dynamic=no] 0]
+        :if ($row != $first) do={ /ip firewall nat move $row destination=$first }
+    }
 }
