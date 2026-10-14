@@ -1252,3 +1252,103 @@ Live import and synchronization remain unverified.
 
 - [RouterOS NTP](https://help.mikrotik.com/docs/spaces/ROS/pages/40992869/NTP)
 - [Cloudflare time service](https://developers.cloudflare.com/time-services/ntp/usage/)
+
+## VLAN300 IPv6 infrastructure ULA
+
+`25-ipv6-iot.rsc` owns gateway `fdb5:841f:2eb7:300::1/64` on
+`vlan300-iot` and its interface-specific ND profile. It adopts an existing exact
+address/interface and an existing unique ND profile; duplicate identities or a
+gateway on another interface stop before mutation. Import after file05.
+RA advertises the address prefix for SLAAC, with a 30-minute router lifetime and
+no DNS advertisement. The existing VLAN400 prefix is `fdb5:841f:2eb7:400::/64`.
+
+Live readback on 2026-10-13 confirmed the VLAN300 gateway, SLAAC prefix and
+connected route. Tado acquired a VLAN300 ULA. All seven Matter nodes recovered
+after routing `fd2f:feb4:bf84:0::/64` through tado in VLAN300. File25 now persists
+that route with distance 1 and a HomePod route with distance 2. HomePod reached one
+Thread node through a diagnostic /128; full-fabric standby acceptance and import
+of the final file25 remain unverified. Static preference alone does not provide
+health-based failover. IPv6 filter policy is independent of IPv4 IoT isolation;
+this file does not establish parity.
+
+### Deployment
+
+Read-only preflight: confirm the prefix is free, IPv6 forwarding is enabled,
+and retain the current gateway/ND settings privately for rollback.
+
+```routeros
+/ipv6 settings print
+/ipv6 address print detail
+/ipv6 nd print detail
+/ipv6 route print detail
+```
+
+Upload and syntax-check the file. Live change: import only file25; a full package
+reimport is unnecessary for this change.
+
+```sh
+scp network/mikrotik-rb5009upr/25-ipv6-iot.rsc admin@192.168.100.1:25-ipv6-iot.rsc
+```
+
+```routeros
+/import file-name=25-ipv6-iot.rsc verbose=yes dry-run
+/import file-name=25-ipv6-iot.rsc
+```
+
+### Verification
+
+```routeros
+/ipv6 address print detail where interface=vlan300-iot
+/ipv6 nd print detail where interface=vlan300-iot
+/ipv6 nd prefix print detail where interface=vlan300-iot
+/ipv6 route print detail where dst-address="fdb5:841f:2eb7:300::/64"
+/ipv6 neighbor print detail where interface=vlan300-iot
+```
+
+Require an active connected route and a dynamic advertised prefix with
+`on-link=yes autonomous=yes`. Confirm clients acquire the VLAN300 ULA prefix.
+Connected routes alone do not prove Matter sessions or Thread reachability.
+
+### Rollback
+
+If the address and ND profile were absent before import, remove only these exact
+objects after checking each selector returns one object:
+
+```routeros
+/ipv6 nd remove [find where interface="vlan300-iot"]
+/ipv6 address remove [find where address="fdb5:841f:2eb7:300::1/64" and interface="vlan300-iot"]
+```
+
+For adopted objects, restore their recorded settings instead of removing them.
+Clients may retain advertised addresses until their lifetimes expire. The existing
+`interface=all` ND profile resumes applying when the specific profile is removed.
+
+### Thread route ownership
+
+File25 reconciles exact route comments in the main table:
+
+| Destination | Next hop | Distance | Identity |
+|---|---|---:|---|
+| `fd2f:feb4:bf84:0::/64` | `fe80::4a27:e2ff:fed2:9e08%vlan300-iot` | 1 | `Thread fd2f via tado VLAN300` |
+| `fd2f:feb4:bf84:0::/64` | `fe80::1821:9359:33fb:fa36%vlan300-iot` | 2 | `Thread fd2f via HomePod VLAN300` |
+
+It removes only the two recorded old `fd97:72fc:f25f:1::/64` route identities
+and three exact temporary diagnostic identities. Unrelated routes remain.
+A full file25 reimport re-enables both desired routes and reconciles ULA/ND too.
+
+Read-only acceptance:
+
+```routeros
+/ipv6 route print detail where dst-address="fd2f:feb4:bf84:0::/64"
+/ipv6 neighbor print detail where interface=vlan300-iot
+```
+
+Require all seven nodes available in HA and successful Matter subscriptions;
+route Active flags and ICMP alone are insufficient. To test standby, disable
+only `Thread fd2f via tado VLAN300`, check all seven nodes, then enable it again.
+Automatic failure detection is not configured (`check-gateway=none`).
+
+To roll back only the standby addition, disable `Thread fd2f via HomePod VLAN300`.
+Disabling the primary without a working standby causes Matter unavailability.
+Preserve the working prefix route when reverting ULA/ND independently.
+See [Matter outage postmortem](../../incidents/postmortems/2026-10-13-matter-thread-vlan-migration.md).
