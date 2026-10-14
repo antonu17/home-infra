@@ -65,11 +65,11 @@ def run_tunnel(chat_id):
             if notified or not match:
                 continue
             host, port = match.groups()
-            command = (f"ssh -o ForwardAgent=no -o HostKeyAlias=pinggy-bastion "
+            command = (f"ssh -D 127.0.0.1:1080 -o ForwardAgent=no -o HostKeyAlias=pinggy-bastion "
                        f"-p {port} tunnel@{host}")
             for attempt in range(3):
                 try:
-                    send_telegram(chat_id, f"SSH tunnel ready: {host}:{port}\n{command}")
+                    send_telegram(chat_id, command)
                     notified = True
                     print("Tunnel endpoint delivered to Telegram", flush=True)
                     break
