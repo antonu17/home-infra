@@ -111,12 +111,12 @@
 :if ([:len [/ip firewall mangle find where comment="Cloud multicast TTL one hop"]] = 0) do={ /ip firewall mangle add chain=prerouting action=change-ttl in-interface=vlan400-home-cloud dst-address=224.0.0.0/4 protocol=!igmp ttl=equal:1 new-ttl=set:2 passthrough=yes comment="Cloud multicast TTL one hop" }
 /ip firewall mangle set [find where comment="Cloud multicast TTL one hop"] chain=prerouting action=change-ttl in-interface=vlan400-home-cloud dst-address=224.0.0.0/4 protocol=!igmp ttl=equal:1 new-ttl=set:2 passthrough=yes disabled=no
 :do {
-    :local rule [/ip firewall filter find where comment="Cloud SSDP unicast response to Home"]
+    :local rule [/ip firewall filter find where comment="IoT SSDP unicast response to Home"]
     :local first [:pick [/ip firewall filter find where dynamic=no] 0]
     :if ($rule != $first) do={ /ip firewall filter move $rule destination=$first }
 }
 :do {
-    :local rule [/ip firewall filter find where comment="IoT SSDP unicast response to Home"]
+    :local rule [/ip firewall filter find where comment="Cloud SSDP unicast response to Home"]
     :local first [:pick [/ip firewall filter find where dynamic=no] 0]
     :if ($rule != $first) do={ /ip firewall filter move $rule destination=$first }
 }

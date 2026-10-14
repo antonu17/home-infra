@@ -26,11 +26,19 @@
     :local rule [/ip firewall filter find where comment="Pi-hole ACME SSH"]
     :if ([:len $rule] = 0) do={ /ip firewall filter add chain=input disabled=yes comment="Pi-hole ACME SSH"; :set rule [/ip firewall filter find where comment="Pi-hole ACME SSH"] }
     /ip firewall filter set $rule !out-interface !src-address-list !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=input action=accept in-interface-list=CLOUD src-address=192.168.40.5 dst-address=192.168.40.1 protocol=tcp dst-port=22 disabled=no log=no
-    /ip firewall filter move $rule destination=[/ip firewall filter find where comment="input default deny"]
+    # Preserve the running rule order when the optional Pi-hole network is present.
+    :local inputAnchor [/ip firewall filter find where comment="Pi-hole local DNS UDP"]
+    :if ([:len $inputAnchor] > 1) do={ :error "Duplicate Pi-hole ordering anchor" }
+    :if ([:len $inputAnchor] = 0) do={ :set inputAnchor [/ip firewall filter find where comment="input default deny"] }
+    /ip firewall filter move $rule destination=$inputAnchor
     :set rule [/ip firewall filter find where comment="Pi-hole ACME HTTPS verification"]
     :if ([:len $rule] = 0) do={ /ip firewall filter add chain=forward disabled=yes comment="Pi-hole ACME HTTPS verification"; :set rule [/ip firewall filter find where comment="Pi-hole ACME HTTPS verification"] }
     /ip firewall filter set $rule !src-address-list !dst-address-list !in-interface !out-interface-list !src-port !connection-state !connection-mark !connection-nat-state !ipsec-policy !routing-mark !tcp-flags !icmp-options !limit !dst-limit !time chain=forward action=accept in-interface-list=CLOUD src-address=192.168.40.5 out-interface=bridge-pihole dst-address=172.31.254.2 protocol=tcp dst-port=443 disabled=no log=no
-    /ip firewall filter move $rule destination=[/ip firewall filter find where comment="forward default deny"]
+    # Preserve the running rule order when the optional Pi-hole network is present.
+    :local forwardAnchor [/ip firewall filter find where comment="Pi-hole Home administration"]
+    :if ([:len $forwardAnchor] > 1) do={ :error "Duplicate Pi-hole ordering anchor" }
+    :if ([:len $forwardAnchor] = 0) do={ :set forwardAnchor [/ip firewall filter find where comment="forward default deny"] }
+    /ip firewall filter move $rule destination=$forwardAnchor
     :local installer [/system script find where name="pihole-install-cert"]
     :if ([:len $installer] = 0) do={ /system script add name=pihole-install-cert policy=ftp,read,write,test; :set installer [/system script find where name="pihole-install-cert"] }
     /system script set $installer policy=ftp,read,write,test dont-require-permissions=no source={

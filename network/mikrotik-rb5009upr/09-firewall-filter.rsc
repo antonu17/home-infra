@@ -592,18 +592,19 @@
 :do {
     :foreach ruleComment in={
         "forward default deny";
+        "Pi-hole Cloud DNS TCP";
+        "Pi-hole Cloud DNS UDP";
+        "Pi-hole IoT DNS TCP";
+        "Pi-hole IoT DNS UDP";
+        "Pi-hole Guest DNS TCP";
+        "Pi-hole Guest DNS UDP";
         "Pi-hole blocklist downloads";
         "Pi-hole upstream DNS TCP";
         "Pi-hole upstream DNS UDP";
         "Pi-hole Home DNS TCP";
         "Pi-hole Home DNS UDP";
-        "Pi-hole Guest DNS UDP";
-        "Pi-hole Guest DNS TCP";
-        "Pi-hole IoT DNS UDP";
-        "Pi-hole IoT DNS TCP";
-        "Pi-hole Cloud DNS UDP";
-        "Pi-hole Cloud DNS TCP";
         "Pi-hole Home administration";
+        "Pi-hole ACME HTTPS verification";
         "Tailscale container Internet";
         "Tailscale advertised subnet access";
         "Cloud to routed cloud web services";
@@ -630,8 +631,10 @@
         "forward established related";
         "WAN FastTrack";
         "forward invalid";
-        "Pi-hole ACME HTTPS verification";
         "input default deny";
+        "Pi-hole local DNS TCP";
+        "Pi-hole local DNS UDP";
+        "Pi-hole ACME SSH";
         "Tailscale advertised router access";
         "Tailscale transit DNS TCP";
         "Tailscale transit DNS UDP";
@@ -653,9 +656,6 @@
         "DHCP client requests incl 0.0.0.0";
         "Home router diagnostics";
         "Home router management";
-        "Pi-hole local DNS UDP";
-        "Pi-hole local DNS TCP";
-        "Pi-hole ACME SSH";
         "input invalid";
         "input established related";
         "Cloud other routed multicast deny";

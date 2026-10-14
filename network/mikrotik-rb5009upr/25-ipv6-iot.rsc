@@ -21,7 +21,7 @@
         :error "Duplicate managed Thread route comment"
     }
     :foreach row in=[/ipv6 route find where comment=$identity] do={
-        :if (([/ipv6 route get $row dst-address] != "fd2f:feb4:bf84:0::/64") || ([/ipv6 route get $row routing-table] != "main")) do={
+        :if (([/ipv6 route get $row dst-address] != "fd2f:feb4:bf84::/64") || ([/ipv6 route get $row routing-table] != "main")) do={
             :error "Managed Thread route has unexpected destination or table"
         }
     }
@@ -46,18 +46,18 @@
 :do {
     :local existing [/ipv6 route find where comment="Thread fd2f via tado VLAN300"]
     :if ([:len $existing] = 0) do={
-        /ipv6 route add dst-address=fd2f:feb4:bf84:0::/64 gateway=fe80::4a27:e2ff:fed2:9e08%vlan300-iot routing-table=main distance=1 check-gateway=none disabled=no comment="Thread fd2f via tado VLAN300"
+        /ipv6 route add dst-address=fd2f:feb4:bf84::/64 gateway=fe80::4a27:e2ff:fed2:9e08%vlan300-iot routing-table=main distance=1 check-gateway=none disabled=no comment="Thread fd2f via tado VLAN300"
     } else={
-        /ipv6 route set $existing dst-address=fd2f:feb4:bf84:0::/64 gateway=fe80::4a27:e2ff:fed2:9e08%vlan300-iot routing-table=main distance=1 check-gateway=none disabled=no
+        /ipv6 route set $existing dst-address=fd2f:feb4:bf84::/64 gateway=fe80::4a27:e2ff:fed2:9e08%vlan300-iot routing-table=main distance=1 check-gateway=none disabled=no
     }
 }
 
 :do {
     :local existing [/ipv6 route find where comment="Thread fd2f via HomePod VLAN300"]
     :if ([:len $existing] = 0) do={
-        /ipv6 route add dst-address=fd2f:feb4:bf84:0::/64 gateway=fe80::1821:9359:33fb:fa36%vlan300-iot routing-table=main distance=2 check-gateway=none disabled=no comment="Thread fd2f via HomePod VLAN300"
+        /ipv6 route add dst-address=fd2f:feb4:bf84::/64 gateway=fe80::1821:9359:33fb:fa36%vlan300-iot routing-table=main distance=2 check-gateway=none disabled=no comment="Thread fd2f via HomePod VLAN300"
     } else={
-        /ipv6 route set $existing dst-address=fd2f:feb4:bf84:0::/64 gateway=fe80::1821:9359:33fb:fa36%vlan300-iot routing-table=main distance=2 check-gateway=none disabled=no
+        /ipv6 route set $existing dst-address=fd2f:feb4:bf84::/64 gateway=fe80::1821:9359:33fb:fa36%vlan300-iot routing-table=main distance=2 check-gateway=none disabled=no
     }
 }
 
@@ -66,4 +66,4 @@
 /ipv6 route remove [find where comment="Thread via HomePod Mini" and dst-address="fd97:72fc:f25f:1::/64"]
 /ipv6 route remove [find where comment="TEMP tado IPv6 diagnostic" and dst-address="fd2f:feb4:bf84:0:5e56:1089:1d24:fffb/128"]
 /ipv6 route remove [find where comment="TEMP Thread via HomePod diagnostic" and dst-address="fd2f:feb4:bf84:0:d2f1:c87c:9d61:26a8/128"]
-/ipv6 route remove [find where comment="TEMP Thread prefix via tado VLAN300" and dst-address="fd2f:feb4:bf84:0::/64"]
+/ipv6 route remove [find where comment="TEMP Thread prefix via tado VLAN300" and dst-address="fd2f:feb4:bf84::/64"]
