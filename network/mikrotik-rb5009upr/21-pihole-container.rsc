@@ -98,10 +98,10 @@
             :set phase "registry configuration"
             /container/config set registry-url=https://registry-1.docker.io tmpdir=$tmp
             :set phase "container creation"
-            /container add name=pihole remote-image=pihole/pihole:2026.09.0 interface=veth-pihole root-dir=$root mountlists=pihole-data envlists=pihole-env dns=1.1.1.1 user=0:0 start-on-boot=yes logging=no memory-high=268435456 memory-max=402653184 comment="Router-local Pi-hole DNS"
+            /container add name=pihole remote-image=pihole/pihole:2026.10.0 interface=veth-pihole root-dir=$root mountlists=pihole-data envlists=pihole-env dns=1.1.1.1 user=0:0 start-on-boot=yes logging=no memory-high=268435456 memory-max=402653184 comment="Router-local Pi-hole DNS"
         } else={
             :set phase "container reconciliation"
-            /container set $existing interface=veth-pihole mountlists=pihole-data envlists=pihole-env dns=1.1.1.1 user=0:0 start-on-boot=yes logging=no memory-high=268435456 memory-max=402653184 comment="Router-local Pi-hole DNS"
+            /container set $existing remote-image=pihole/pihole:2026.10.0 interface=veth-pihole mountlists=pihole-data envlists=pihole-env dns=1.1.1.1 user=0:0 start-on-boot=yes logging=no memory-high=268435456 memory-max=402653184 comment="Router-local Pi-hole DNS"
         }
         :set phase "environment attachment verification"
         :local configured [/container find where name="pihole"]
