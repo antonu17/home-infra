@@ -12,8 +12,8 @@ remaining work. They are historical evidence, not current health reports.
 | 2026-10-10 | [Home Assistant and Matter storage mounts failed](2026-10-10-synology-csi-dns-startup.md) | I verified recovery; original DNS timeout cause remains unknown |
 | 2026-10-10 | [ExternalDNS could not reach router REST](2026-10-10-external-dns-router-rest.md) | Empty allow-list confirmed; remediation prepared, recovery unconfirmed |
 | 2026-10-12 | [Samsung cross-subnet SSDP discovery](2026-10-12-samsung-ssdp-source-subnet.md) | SNAT restores wired/Wi-Fi discovery; wired playback/seek confirmed; permanent configuration imported |
-
 | 2026-10-13 | [Matter nodes unavailable after Thread border-router VLAN migration](2026-10-13-matter-thread-vlan-migration.md) | All seven nodes recovered through the corrected tado prefix route; full HomePod standby validation pending |
+| 2026-10-19 | [FlightAware feed stopped after USB-controller failure](2026-10-19-piaware-usb-controller-capabilities.md) | USB recovered after reboot; PiAware capability fix deployed and forwarding verified |
 
 For future records, record service impact, evidence, cause, recovery, validation,
 contributing factors and follow-up work. Use local times with the timezone stated;
