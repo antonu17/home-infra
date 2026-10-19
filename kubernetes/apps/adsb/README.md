@@ -38,7 +38,10 @@ recorded in `talos/patches/worker-02.yaml` and must exist before sync.
 
 `dump1090-fa` preserves the old Compose stack's privileged mode and mounts
 `/dev/bus/usb`. This gives that container access to every USB device visible on
-the node, not only the receiver. PiAware and `fr24feed` are not privileged. A
+the node, not only the receiver. PiAware and `fr24feed` are not privileged.
+PiAware retains only `SETGID` and `SETUID`, which its `faup1090` droproot helper
+requires to switch to `nobody`; its probes require both PiAware and `faup1090` so
+an authenticated but non-forwarding feeder is not reported Ready. A
 vendor/product-aware device plugin is the intended future reduction in privilege.
 
 No persistent volume is required. Runtime JSON and `fr24feed` logs use memory-backed
@@ -98,8 +101,13 @@ All live commands are operator-run:
    kubectl -n adsb wait --for=condition=Ready --timeout=180s externalsecret/adsb-config
    kubectl -n adsb rollout status deployment/adsb --timeout=300s
    kubectl -n adsb get pods,services,httproutes
+   kubectl -n adsb logs deployment/adsb -c piaware --tail=100
    kubectl get node talos-worker-02 -L hardware.home.antonu.org/rtl-sdr
    ```
+
+   Require the PiAware log to report a FlightAware session, a running `faup1090`
+   connection and increasing received/sent message counts. A running `piaware`
+   process alone does not establish that ADS-B data is being forwarded.
 
 Before changing DNS, verify the new interfaces through temporary port-forwards:
 

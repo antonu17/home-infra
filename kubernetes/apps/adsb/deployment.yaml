@@ -125,15 +125,24 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+              # faup1090 starts as root and uses FlightAware's droproot helper
+              # to switch to nobody before processing the Beast feed.
+              add: [SETGID, SETUID]
           startupProbe:
             exec:
-              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null"]
+              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null && pgrep -x faup1090 >/dev/null"]
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 24
+          readinessProbe:
+            exec:
+              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null && pgrep -x faup1090 >/dev/null"]
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           livenessProbe:
             exec:
-              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null"]
+              command: [/bin/sh, -ec, "pgrep -x piaware >/dev/null && pgrep -x faup1090 >/dev/null"]
             periodSeconds: 30
             timeoutSeconds: 2
             failureThreshold: 3
