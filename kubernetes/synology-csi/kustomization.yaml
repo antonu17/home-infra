@@ -13,7 +13,14 @@ resources:
 transformers:
   - retention.yaml
 
+configMapGenerator:
+  - name: synology-csi-startup-gate
+    namespace: synology-csi
+    files:
+      - wait.rb=startup-gate/wait.rb
+
 patches:
+  - path: startup-gate/patch.yaml
   # Credential resources reconcile at wave 0 before driver workloads at wave 1.
   - target:
       group: apps

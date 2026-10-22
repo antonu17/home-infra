@@ -6,8 +6,8 @@ onboarding is prepared; no cluster changes have been executed here.
 
 The package includes Namespace, CSIDriver, controller StatefulSet, node DaemonSet,
 their ServiceAccounts/RBAC, `synology-block` StorageClass, and ESO login/store/secret
-resources. Driver and sidecar versions, pod specifications, selectors, and storage
-settings are preserved. Vendor manifests remain pinned and unmodified.
+resources. Driver and sidecar versions, selectors, and storage settings are preserved.
+The node pod template adds the startup gate described below. Vendor manifests remain pinned and unmodified.
 
 The operator's 2026-10-09 network target places Synology at
 `192.168.40.5/24` in VLAN400 / Home Cloud, gateway `192.168.40.1`, replacing
@@ -137,3 +137,104 @@ StorageClass, CSIDriver, PVCs/PVs, Secrets or NAS LUNs as rollback.
 
 References: [Argo retention and server-side apply](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
 and [non-cascading Application deletion](https://argo-cd.readthedocs.io/en/stable/user-guide/app_deletion/).
+
+## Node startup gate
+
+The node DaemonSet runs `wait-for-dsm` before either CSI container starts.
+`startup-gate/patch.yaml` mounts the existing `client-info` Secret volume read-only
+and a generated, hash-suffixed ConfigMap containing `startup-gate/wait.rb`.
+Changes to the script change the pod template and trigger a DaemonSet rollout.
+Vendor manifests and controller startup remain unchanged.
+
+The gate reads every `clients` entry from `/etc/synology/client-info.yml` and uses
+its `host`, `port`, `https`, `tlsCACert`, `tlsServerName` and
+`insecureSkipVerify` settings. It uses the node pod's host network and
+`ClusterFirstWithHostNet` DNS policy. Each pass must resolve every configured
+host and receive HTTP 200 with a successful `SYNO.API.Info` response advertising
+`SYNO.API.Auth` from `/webapi/query.cgi`. Redirects, login HTML, API errors and
+TLS failures keep the gate closed. No DSM login or credentials are sent.
+The HTTP Host header retains the configured host; certificate verification is
+enabled unless the existing configuration explicitly disables it. Proxy environment
+variables are ignored.
+
+DNS resolution is bounded to five seconds; the HTTP/TLS request has a fifteen-second
+overall bound and five-second connection/read/write limits. Failed passes retry
+after five seconds indefinitely, re-reading the projected configuration. Logs
+contain only generic failure categories. An unavailable DSM leaves new node pods
+in Init rather than starting a plugin with missing DSM registration. All configured
+DSMs must pass, so one unavailable DSM blocks the entire node plugin.
+
+This mitigates the observed reboot startup race. The dependency can still fail
+between the query and driver registration; API availability does not prove valid
+credentials, SAN permissions, LUN health or successful mounts. An init container
+does not rerun when only the CSI plugin container restarts inside an existing pod.
+The new Ruby image must be available during recovery; pre-cache it before planned
+node maintenance. No new firewall permissions or storage changes are required.
+
+### Local validation
+
+These commands use synthetic fixtures and loopback servers inside an isolated
+container. The first run may download the pinned image; no cluster API is used.
+
+```sh
+docker run --rm --network none --read-only \
+  --tmpfs /tmp:rw,nosuid,noexec,size=16m \
+  -v "$PWD/kubernetes/synology-csi/startup-gate:/tests:ro" \
+  ruby:3.3.6-alpine3.20 ruby /tests/test.rb
+kustomize build kubernetes/synology-csi | ruby kubernetes/synology-csi/startup-gate/verify.rb
+```
+
+### Deployment and acceptance
+
+Read-only preflight, after loading the project direnv environment:
+
+```sh
+kubectl config current-context
+kubectl -n synology-csi get daemonset synology-csi-node
+kubectl -n synology-csi get pods -o wide
+kubectl get pvc -A
+argocd app get synology-csi
+```
+
+Review the local Git diff and commit/push through the normal workflow. Argo reads
+remote Git. Review the Argo diff privately; do not publish credential-bearing
+output. Expect only the generated ConfigMap and node pod-template gate changes;
+stop on PVC/PV, Secret payload, StorageClass, selector or vendor image changes.
+
+```sh
+argocd app diff synology-csi
+```
+
+**Operator-run live change:** this sync rolls the node DaemonSet and temporarily
+interrupts CSI node operations. Schedule it while storage is healthy and avoid
+concurrent node maintenance. Keep pruning disabled.
+
+```sh
+argocd app sync synology-csi
+```
+
+Read-only readiness and acceptance:
+
+```sh
+kubectl -n synology-csi rollout status daemonset/synology-csi-node --timeout=300s
+kubectl -n synology-csi get pods -o wide
+kubectl -n synology-csi logs -l app=synology-csi-node -c wait-for-dsm --prefix
+kubectl get pvc -A
+```
+
+Require the gate-ready message on each node, unchanged Bound claims and working
+existing application mounts. Review CSI startup logs privately for successful DSM
+registration and absence of login failures; Ready/VolumeAttachment status alone
+is insufficient. During a later planned single-worker reboot, confirm that the
+gate waits through unavailable dependencies and existing workloads recover without
+manual CSI pod recreation. Stop further maintenance if registration or mounts fail.
+No reboot or write-capable storage test is part of local validation.
+
+### Rollback
+
+Revert only the startup-gate additions in Git, preserving unrelated changes, then
+review the Argo diff. **Operator-run live rollback:** sync `synology-csi` with
+pruning disabled using the command above and repeat readiness/mount checks.
+This rolls the node pods back to their previous startup behavior. Generated
+ConfigMaps remain retained by policy; their removal is unnecessary for rollback.
+Do not delete credentials, PVCs/PVs, VolumeAttachments or NAS LUNs.

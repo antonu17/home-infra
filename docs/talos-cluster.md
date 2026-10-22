@@ -315,6 +315,12 @@ initial DNS timeout cause and exact recovery commands remain unknown.
 See the [CSI postmortem](../incidents/postmortems/2026-10-10-synology-csi-dns-startup.md).
 Inspect startup logs, name resolution and DSM registration before altering LUNs.
 
+The repository now includes a node init-container gate that waits for DNS and the
+configured DSM API before starting CSI. See the [startup gate deployment and
+acceptance procedure](../kubernetes/synology-csi/README.md#node-startup-gate).
+Local validation does not establish reboot recovery; rollout and live mount
+acceptance remain pending.
+
 ## Remaining work and limitations
 
 Argo, Gateway, cert-manager, ESO and application adoption are deployed according

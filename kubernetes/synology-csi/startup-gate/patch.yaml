@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: synology-csi-node
+  namespace: synology-csi
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: wait-for-dsm
+          image: ruby:3.3.6-alpine3.20
+          imagePullPolicy: IfNotPresent
+          command: [ruby, /startup-gate/wait.rb]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: client-info
+              mountPath: /etc/synology
+              readOnly: true
+            - name: startup-gate
+              mountPath: /startup-gate
+              readOnly: true
+      volumes:
+        - name: startup-gate
+          configMap:
+            name: synology-csi-startup-gate
+            defaultMode: 0444

@@ -79,3 +79,13 @@ that was a tooling limitation, unrelated to the storage failure.
 References: [repository CSI configuration](../../kubernetes/synology-csi/README.md),
 [storage runbook](../../docs/talos-cluster.md), and
 [driver v1.3.1 lookup before iSCSI login](https://github.com/SynologyOpenSource/synology-csi/blob/v1.3.1/pkg/driver/nodeserver.go#L252).
+
+## Follow-up: 2026-10-22
+
+I confirmed that recreating the CSI node pod after reboot restored DSM
+registration. This later confirmation supplements the original incomplete
+recovery transcript; the underlying DNS timeout cause remains unknown.
+
+The repository adds a DNS/DSM API startup gate to the node DaemonSet overlay.
+See the [configuration and acceptance procedure](../../kubernetes/synology-csi/README.md#node-startup-gate).
+Deployment and reboot acceptance remain pending; no live changes were executed.
