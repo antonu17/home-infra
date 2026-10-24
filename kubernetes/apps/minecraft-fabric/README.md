@@ -2,7 +2,7 @@
 
 Argo CD Application/AppProject `minecraft-fabric` renders this Kustomize package
 into namespace `minecraft`. Sync is manual, without automated pruning or a
-cascading Application finalizer. Crafty Controller is pinned to4.10.8;
+cascading Application finalizer. Crafty Controller is pinned to 4.11.0;
 Minecraft Java26.3, Fabric Loader0.20.1 and Java25 are the configured targets.
 Game settings and files are managed in Crafty, not through Deployment annotations.
 
@@ -151,3 +151,17 @@ Keep the local PV/PVC and Talos kubelet mount. Game-version rollback needs a
 compatible pre-upgrade world backup; reverting the image alone does not undo
 world changes. Do not delete namespace, PVC/PV, local files or storage finalizers
 to recover a failed rollout.
+
+## Crafty 4.11.0 upgrade
+
+Source pins both the init container and panel to4.11.0; live rollout is not yet
+verified. Before syncing, stop the game and preserve a consistent copy of Crafty
+configuration/database and server data. Publish reviewed source to main and run
+the normal manual workload sync above with pruning disabled. Require both
+containers Ready, version4.11.0 in the panel, and successful login, console,
+server start and mod/world verification. The local PV/PVC and Minecraft/Fabric
+versions are unchanged. If rollback is necessary, stop the game and restore the
+pre-upgrade panel backup before reverting the image pin when database compatibility
+requires it; do not delete or recreate the PVC.
+
+Release notes: https://gitlab.com/crafty-controller/crafty-4/-/blob/v4.11.0/CHANGELOG.md

@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: prepare-crafty-storage
-          image: registry.gitlab.com/crafty-controller/crafty-4:4.10.8
+          image: registry.gitlab.com/crafty-controller/crafty-4:4.11.0
           command: [python3, -c]
           args:
             - |
@@ -62,7 +62,7 @@ spec:
               mountPath: /persistent
       containers:
         - name: crafty
-          image: registry.gitlab.com/crafty-controller/crafty-4:4.10.8
+          image: registry.gitlab.com/crafty-controller/crafty-4:4.11.0
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
