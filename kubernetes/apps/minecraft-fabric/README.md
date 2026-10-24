@@ -277,3 +277,28 @@ to ClusterIP and remove `minecraft` from the shared Gateway HTTP/HTTPS listener
 namespace lists, then sync `minecraft-fabric` and `gateway`; retain the
 localhost8443 forward for panel access. DNS may
 remain stale during rollback; do not delete namespaces or data to remove exposure.
+
+## Proxy startup failure — 2026-10-24
+
+Read-only cluster diagnostics identified `crafty-proxy` exiting with code1:
+`mkdir() "/var/cache/nginx/fastcgi_temp" failed (30: Read-only file system)`.
+Crafty itself was Ready with zero restarts. nginx initializes FastCGI/uWSGI/SCGI
+temporary directories even when the proxy does not use those protocols.
+`crafty-proxy.conf` now places all five nginx temp directories under the existing
+writable `/tmp` emptyDir; the root filesystem stays read-only. Kustomize changes
+the generated ConfigMap hash and pod template when this file changes.
+
+Publish the reviewed fix and manually sync `minecraft-fabric`, without pruning.
+Recreate replaces the entire pod, including Crafty; stop any running game through
+the recovery localhost8443 forward first and wait for its save to finish.
+
+```sh
+argocd app diff minecraft-fabric --grpc-web
+argocd app sync minecraft-fabric --grpc-web
+kubectl -n minecraft rollout status deployment/minecraft-fabric --timeout=15m
+kubectl -n minecraft get pods -l app.kubernetes.io/name=minecraft-fabric
+```
+
+Require both containers Ready and no proxy restarts. Verify UI login and console
+through `https://crafty.home.antonu.org`. Source validation is complete; the fix
+requires this manual sync and subsequent live acceptance.
