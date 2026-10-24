@@ -38,8 +38,9 @@ unchanged. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/
 for EULA acceptance, manual root/child sync, verification and data-safe rollback.
 
 `playit` is prepared as a separate manually synced child Application in namespace
-`playit`. It uses Vault/ESO credentials and exposes only Minecraft/voice through
-provider-managed tunnels. Follow the [Playit runbook](../kubernetes/apps/playit/README.md)
+`playit`. It uses Vault/ESO credentials and forwards provider-managed Java and
+voice tunnels to reserved LoadBalancer IP `10.40.0.20`, on TCP25565 and UDP24454.
+Crafty remains private. Follow the [Playit runbook](../kubernetes/apps/playit/README.md)
 for account setup, scoped Vault role, tunnel mappings and external acceptance.
 
 ## Sources, ownership and access boundaries

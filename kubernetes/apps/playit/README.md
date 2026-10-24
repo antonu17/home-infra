@@ -1,6 +1,7 @@
 # Playit Minecraft tunnels
 
-Prepared source; no Vault changes, Argo sync or public tunnels have been created.
+Source is prepared; live agent/tunnel provisioning and external access have not
+been verified.
 Argo Application/AppProject `playit` renders this directory into namespace
 `playit`, with manual sync and no automated pruning. One non-root Recreate
 Deployment runs official agent1.0.10 pinned by digest. Account identity persists
@@ -13,6 +14,17 @@ Private/local destinations are excluded from that Internet rule. Crafty's
 TCP8080/8443 and other homelab services are excluded. Public relay addresses and
 ports are dynamic, so Internet egress is not limited to a fixed provider IP list.
 Only IPv4 egress is prepared; an IPv6-only origin needs a separately tested policy.
+
+## Traffic path
+
+```text
+Friends → Playit public Java endpoint → agent → 10.40.0.20:25565/TCP
+Friends → Playit public voice endpoint → agent → 10.40.0.20:24454/UDP
+```
+
+The two public endpoints may have different hostnames and ports. Both use the
+same reserved internal LoadBalancer IP. Crafty is accessed separately through
+the private HTTPS Gateway and is never a tunnel target.
 
 ## 1. Register the agent and store its key
 
@@ -63,22 +75,34 @@ entry or role prevents startup; do not create a second unmanaged Kubernetes Secr
 
 ## 3. Create two tunnels in the Playit dashboard
 
-Obtain the stable internal Service address, not a Pod IP:
+Use the reserved LoadBalancer address `10.40.0.20` as Local Address in both
+tunnels. This allocation is declared in the Minecraft Service manifest. Confirm
+that its live LoadBalancer status has that address:
+
+```sh
+kubectl -n minecraft get service minecraft-fabric -o wide
+```
+
+| Tunnel | Agent | Local address | Local port |
+|---|---|---|---|
+| Minecraft Java, free network | homelab-minecraft | 10.40.0.20 | 25565/TCP |
+| Simple Voice Chat / UDP, free network | same agent | 10.40.0.20 | 24454/UDP |
+
+Using a LoadBalancer address from an in-cluster agent is valid. This path remains
+unverified. The Service's source ranges permit Home/Cloud subnets; whether Cilium
+applies that filtering to this connection and which source address it sees must
+be established by testing. The agent's NetworkPolicy explicitly permits traffic
+to the Minecraft pods on these two ports; policy enforcement through the VIP also
+needs acceptance. If access fails, inspect the actual routing/policy drops before
+changing source ranges; do not broaden access speculatively.
+
+Do not use localhost: the game runs in another pod. The Service ClusterIP is an
+alternative diagnostic target, available with the command below. It remains stable
+across pod rollouts but can change if the Service is deleted and recreated.
 
 ```sh
 kubectl -n minecraft get service minecraft-fabric -o jsonpath='{.spec.clusterIP}{"\n"}'
 ```
-
-Use that numeric ClusterIP as Local Address in both tunnels. This avoids assuming
-the Playit dashboard supports DNS as a local address. The ClusterIP remains
-stable across game/agent pod rollouts; update these mappings if the Service is
-recreated. Do not use localhost: the game runs in another pod. Do not use the
-LoadBalancer VIP10.40.0.20, whose source restrictions are for LAN clients.
-
-| Tunnel | Agent | Local address | Local port |
-|---|---|---|---|
-| Minecraft Java, free network | homelab-minecraft | Minecraft Service ClusterIP | 25565/TCP |
-| Simple Voice Chat / UDP, free network | same agent | Same ClusterIP | 24454/UDP |
 
 Create the Java preset and the Simple Voice Chat/UDP preset, keeping PROXY
 protocol disabled for the direct Fabric server. Record both assigned public

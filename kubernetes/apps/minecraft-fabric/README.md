@@ -305,7 +305,20 @@ requires this manual sync and subsequent live acceptance.
 
 ## Friends outside the home network
 
-The separate [Playit application](../playit/README.md) forwards public Java TCP
-and Simple Voice Chat UDP endpoints to this Service's ClusterIP. Its network
-policy excludes Crafty ports. Local DNS, Gateway UI and LAN LoadBalancer remain
-independent of the public tunnel. The Playit agent key belongs in Vault/ESO.
+The separate [Playit application](../playit/README.md) forwards its public
+Minecraft Java endpoint to `10.40.0.20:25565/TCP` and its public Simple Voice Chat
+endpoint to `10.40.0.20:24454/UDP`. Both tunnel Local Address fields use the
+reserved LoadBalancer IP `10.40.0.20`, not a Pod IP or localhost. The ClusterIP is
+an alternative diagnostic target, not the configured tunnel target.
+
+LAN players continue using `minecraft.home.antonu.org`; friends use Playit's
+assigned public Java hostname/port. With Playit enabled, set `voice_host` to its
+assigned public UDP hostname/port while retaining internal `port=24454`.
+Crafty remains private at `https://crafty.home.antonu.org`. The agent's network
+policy excludes Crafty ports, and its key belongs in Vault/ESO.
+
+Confirm the Service's live LoadBalancer address and test game/voice access from
+outside the home network. See the Playit runbook for the unverified VIP routing
+and source-policy acceptance checks. Disabling the provider tunnels leaves LAN
+access available; changing the game Service to ClusterIP also removes the VIP
+used by Playit and therefore interrupts public access.
