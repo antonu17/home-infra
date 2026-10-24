@@ -56,6 +56,7 @@ with a second configuration path.
 | `talos/patches/worker-01.yaml` | Worker hostname |
 | `talos/patches/worker-02.yaml` | Physical Raspberry Pi worker hostname and persistent hardware/workload labels |
 | `talos/patches/worker-03.yaml` | Quantum hostname and storage/RaspBee labels |
+| `talos/patches/worker-03-local-storage.yaml` | Worker-03 kubelet read-write `/var/mnt` bind mount for the local Crafty PV; include during future config regeneration |
 | `talos/custom-rpi5/` | Custom AXI kernel and boot/installer lineage; stock upgrades can remove support |
 | `talos/patches/worker-02-install.yaml`, `worker-03-install.yaml` | Destructive fresh-install disk selectors; not ordinary config/upgrade patches |
 | `talos/secrets/home-cloud.yaml` | Persistent, sensitive cluster identity input |
@@ -333,3 +334,15 @@ Inventory/API automation and independent storage remain future work. Do not
 build nominally replicated Ceph from disks all hosted on this NAS and describe
 it as independent fault tolerance. The operator reconfirmed Quantum is SD-dependent on 2026-10-10; standalone
 NVMe boot remains unresolved. Fan follow-up remains subject to its build history.
+
+## Worker-03 Crafty local-storage mount
+
+The existing NVMe-backed `/var` has space for a static local PV, but kubelet's
+container requires an explicit read-write `/var/mnt` extraMount. Use only
+`talos/patches/worker-03-local-storage.yaml` on worker-03; retain this additional
+patch during future machine-config regeneration. The patch removes the standalone KubeletConfig and preserves its current kubelet
+v1.37.1 image/default seccomp settings in machine.kubelet, because Talos1.14
+rejects both forms together. Reconcile its image pin during future Kubernetes
+upgrades. This is a kubelet configuration/mount change, not disk provisioning. Follow the [migration runbook](../kubernetes/apps/minecraft-fabric/migration/README.md)
+for the node-scoped no-reboot patch, impact and acceptance sequence. Do not use
+fresh-install, wipe or boot-media procedures for this mount issue.

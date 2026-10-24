@@ -33,7 +33,8 @@ termination grace. CPU/memory settings are unchanged: 500m/3 GiB requests and
 Local files share the system NVMe filesystem with runtime data and persist across
 ordinary reboots/rollouts. Talos EPHEMERAL reset/wipe or disk loss can destroy them;
 this workload cannot relocate to another worker. Monitor free space and limit
-local backup retention. No Talos installation or disk configuration is changed.
+local backup retention. A worker-03-only kubelet extraMount is required; see the migration runbook.
+No Talos installation, disk layout or boot configuration is changed.
 
 ## Deployment
 

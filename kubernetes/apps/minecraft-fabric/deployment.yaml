@@ -7,8 +7,7 @@ metadata:
     minecraft.home.antonu.org/game-version: "26.3"
     minecraft.home.antonu.org/fabric-loader-version: "0.20.1"
 spec:
-  # Migration stop point: set to 1 in Git only after verified local data copy.
-  replicas: 0
+  replicas: 1
   revisionHistoryLimit: 3
   strategy:
     type: Recreate

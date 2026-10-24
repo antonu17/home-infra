@@ -9,8 +9,9 @@ without scheduling downtime and completing the steps below.
 Read-only observation on 2026-10-24: worker-03 (`192.168.40.42`) has Talos
 EPHEMERAL on `/dev/nvme0n1p6`, approximately248 GB, mounted at `/var`; approximately
 235 GB available. The NVMe is also the system disk. Use existing free filesystem
-space, not a new partition. No Talos configuration change, wipe, format, reinstall,
-boot-media change or node restart is needed. Preserve the SD boot dependency.
+space, not a new partition. A worker-03-only Talos kubelet extraMount is required
+so kubelet can create/use directories under `/var/mnt`. No wipe, format,
+reinstall or boot-media change is needed. Preserve the SD boot dependency.
 
 Local PV `minecraft-crafty-worker-03` exposes `/var/mnt/minecraft-crafty`, reserves
 PVC `minecraft/crafty-local-data`, and has Retain plus worker-03 node affinity.
@@ -46,7 +47,51 @@ Require desired/ready replicas0 and no Crafty pods before copying. The panel and
 all game servers must remain stopped, not just the game. Inspect any other pod
 using the source PVC and stop on another writer. Keep both NAS PVCs and local PV.
 
-## 2. Prepare one local directory
+## 2. Enable the kubelet mount, then prepare one local directory
+
+The initial preparation failed before container start with
+`mkdir /var/mnt/minecraft-crafty: read-only file system`. On 2026-10-24,
+read-only inspection confirmed worker-03 has no kubelet extraMounts. `/var` is
+writable on the host, but that does not make its subtree writable in kubelet's
+container. The preparation container's security context cannot fix this boundary.
+
+`talos/patches/worker-03-local-storage.yaml` bind-mounts the existing `/var/mnt`
+subtree read-write into kubelet on worker-03. The parent exists already, so no
+host directory creation must precede this patch. It does not make `/var` or the
+host root writable to kubelet. Keep this patch when regenerating worker-03 config. Talos1.14 KubeletConfig lacks
+extraMounts and conflicts with machine.kubelet. The patch deletes that standalone
+document and preserves its observed image `ghcr.io/siderolabs/kubelet:v1.37.1`
+and enabled default runtime seccomp profile in machine.kubelet; its observed
+config map was empty and it had no clusterDNS/extraArgs overrides. If kubelet
+settings or version change later, reconcile this patch before applying it.
+The corrected patch was merged with live worker-03 configuration entirely in
+memory and passed local `talosctl validate --mode metal`; it has not been applied.
+
+Operator-run live node configuration change, targeting only **192.168.40.42**
+through the existing control-plane endpoint **192.168.40.21**:
+
+```sh
+talosctl -e 192.168.40.21 -n 192.168.40.42 patch machineconfig \
+  --patch @talos/patches/worker-03-local-storage.yaml --mode no-reboot
+```
+
+This can restart kubelet on worker-03 and briefly affect node readiness. Keep
+Crafty stopped and account for other workloads on that node. `no-reboot` refuses
+a change requiring a reboot; stop and inspect a rejection rather than switching
+to auto/reboot. Do not apply the destructive worker-03-install patch.
+
+Read-only acceptance:
+
+```sh
+talosctl -e 192.168.40.21 -n 192.168.40.42 service kubelet
+kubectl wait --for=condition=Ready node/talos-worker-03 --timeout=180s
+```
+
+The existing Pending preparation pod should retry its mount automatically after
+kubelet reconciles. Continue with the apply/wait below; reapplying the identical
+Pod is safe. Require its successful completion before the data copy. Do not
+format storage, change PVCs or remove the readOnlyRootFilesystem setting.
+
 
 Operator-run live change: creates `/var/mnt/minecraft-crafty` on **talos-worker-03**
 and sets only that empty directory's owner/group1000 and mode0750. No disks are
@@ -117,3 +162,8 @@ Keep current PVC/PV resource declarations and do not prune either data copy.
 Completed migration Pods and the dedicated preparation namespace can be removed
 later through an explicitly reviewed cleanup. Do not use namespace/PVC/PV deletion
 as rollback. Keep the source claim until local acceptance is complete.
+
+The worker-03 kubelet extraMount must remain while this local PV is used. Remove
+it only after no pod uses any local storage under `/var/mnt`, with a separately
+reviewed node configuration rollback; removing it does not delete files but can
+prevent kubelet from mounting them.

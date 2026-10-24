@@ -1,0 +1,18 @@
+# Worker-03 only. Talos 1.14 disallows KubeletConfig with machine.kubelet.
+# Preserve the observed image/seccomp settings while enabling extraMounts.
+apiVersion: v1alpha1
+kind: KubeletConfig
+$patch: delete
+---
+machine:
+  kubelet:
+    image: ghcr.io/siderolabs/kubelet:v1.37.1
+    defaultRuntimeSeccompProfileEnabled: true
+    extraMounts:
+      - destination: /var/mnt
+        type: bind
+        source: /var/mnt
+        options:
+          - bind
+          - rshared
+          - rw
