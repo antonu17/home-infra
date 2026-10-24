@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minecraft-crafty-worker-03
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: minecraft
+    name: crafty-local-data
+  local:
+    path: /var/mnt/minecraft-crafty
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [talos-worker-03]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: crafty-local-data
+  namespace: minecraft
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  storageClassName: ""
+  volumeName: minecraft-crafty-worker-03
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi

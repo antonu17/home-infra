@@ -1,0 +1,53 @@
+# Operator-run, outside Argo/Kustomize. Only this dedicated namespace allows hostPath.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minecraft-storage-migration
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prepare-crafty-directory
+  namespace: minecraft-storage-migration
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: talos-worker-03
+  automountServiceAccountToken: false
+  containers:
+    - name: prepare
+      image: registry.gitlab.com/crafty-controller/crafty-4:4.10.8
+      command: [python3, -c]
+      args:
+        - |
+          from pathlib import Path
+          import os
+          p = Path("/target")
+          if any(p.iterdir()):
+              raise SystemExit("Target is not empty; refusing to change existing data")
+          os.chown(p, 1000, 1000)
+          os.chmod(p, 0o750)
+          print("Empty local directory prepared for UID/GID 1000")
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        seccompProfile:
+          type: RuntimeDefault
+        capabilities:
+          drop: [ALL]
+          add: [CHOWN, FOWNER, DAC_OVERRIDE]
+      resources:
+        requests: {cpu: 10m, memory: 32Mi}
+        limits: {memory: 128Mi}
+      volumeMounts:
+        - name: local-directory
+          mountPath: /target
+  volumes:
+    - name: local-directory
+      hostPath:
+        path: /var/mnt/minecraft-crafty
+        type: DirectoryOrCreate

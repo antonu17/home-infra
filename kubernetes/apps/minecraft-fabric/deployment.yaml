@@ -7,7 +7,8 @@ metadata:
     minecraft.home.antonu.org/game-version: "26.3"
     minecraft.home.antonu.org/fabric-loader-version: "0.20.1"
 spec:
-  replicas: 1
+  # Migration stop point: set to 1 in Git only after verified local data copy.
+  replicas: 0
   revisionHistoryLimit: 3
   strategy:
     type: Recreate
@@ -22,7 +23,7 @@ spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 180
       nodeSelector:
-        storage.home.antonu.org/synology-iscsi: "true"
+        kubernetes.io/hostname: talos-worker-03
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -39,6 +40,13 @@ spec:
             - |
               from pathlib import Path
               import subprocess
+              import json
+              marker = Path("/persistent/.migration-complete.json")
+              if not marker.is_file():
+                  raise SystemExit("Local data migration has not been verified; see migration/README.md")
+              state = json.loads(marker.read_text())
+              if state.get("source") != "minecraft/crafty-data" or state.get("target") != "minecraft/crafty-local-data":
+                  raise SystemExit("Unexpected local data migration marker")
               for name in ("config", "servers", "backups", "logs", "import"):
                   Path("/persistent", name).mkdir(exist_ok=True)
               runtimes = list(Path("/usr/lib/jvm").glob("java-25-openjdk-*/bin/java"))
@@ -158,4 +166,4 @@ spec:
             sizeLimit: 256Mi
         - name: crafty-data
           persistentVolumeClaim:
-            claimName: crafty-data
+            claimName: crafty-local-data

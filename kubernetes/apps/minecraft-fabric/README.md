@@ -14,30 +14,31 @@ Mods use browser upload and file editing; no searchable mod catalog is promised.
 
 ## Storage and scheduling
 
-One replica, Recreate, 180-second termination grace. Non-root UID/GID 1000,
-restricted Pod Security, no host paths, Docker socket, cluster credentials or
-privileged containers. The upstream launcher supports a non-root start; the init
-container creates writable volume subdirectories and verifies Java 25 exists.
-The stock image includes Java 25 for amd64/arm64. Placement requires
-`storage.home.antonu.org/synology-iscsi=true` and sufficient allocatable memory.
-Requests: 500m CPU/3 GiB RAM; limits: 2 CPU/4 GiB RAM, shared by panel and game.
-Start with 1 GiB initial/2 GiB maximum game heap; increase pod memory before
-increasing the game heap. Configure only one game server on TCP/25565.
+Source is prepared to move active Crafty data from Synology to local NVMe on
+`talos-worker-03`; live migration has not been executed.
+The static PV uses `/var/mnt/minecraft-crafty` on the existing NVMe-backed `/var`,
+with no repartitioning. PVC `crafty-local-data` holds all five Crafty directories;
+PV node affinity and Deployment nodeSelector pin the workload to worker-03.
+The PV/PVC are retained, with nominal 20 GiB capacity but no directory quota.
+The original NAS `crafty-data` and `minecraft-data` claims remain unchanged.
 
-`crafty-data`: 20 GiB RWO `synology-block`, subdirectories mounted at
-`/crafty/app/config`, `/crafty/servers`, `/crafty/backups`, `/crafty/logs`,
-`/crafty/import`. The original `minecraft-data` claim remains in source, unmounted,
-for data preservation and rollback. A fresh deployment creates both 20 GiB claims;
-only Crafty's claim is consumed. WaitForFirstConsumer can leave the unused old
-claim Pending. Do not remove it as part of this change.
+**Migration stop point:** Deployment replicas are 0 until the stopped NAS data is
+copied and verified. Follow [local storage migration](migration/README.md), then
+set replicas to 1 in Git and manually sync. The init container requires a verified
+copy marker before starting Crafty. Do not use the ordinary deployment sequence
+below to bypass migration. Workload remains non-root with Recreate and 180-second
+termination grace. CPU/memory settings are unchanged: 500m/3 GiB requests and
+2 CPU/4 GiB limits for panel/game, plus the proxy's resources.
 
-Both claims and the namespace carry `Prune=false,Delete=false`; the StorageClass
-uses Retain. Never force-delete a pod on an unreachable node without fencing the
-old writer; RWO does not prevent simultaneous writers on the same node.
-Live image pull, admission, volume permissions, panel startup and game creation
-remain unverified; local rendering is not runtime acceptance.
+Local files share the system NVMe filesystem with runtime data and persist across
+ordinary reboots/rollouts. Talos EPHEMERAL reset/wipe or disk loss can destroy them;
+this workload cannot relocate to another worker. Monitor free space and limit
+local backup retention. No Talos installation or disk configuration is changed.
 
 ## Deployment
+
+For the existing NAS-backed installation, complete [local storage migration](migration/README.md)
+instead of directly following this general application-sync sequence.
 
 From `/Users/anton/projects/home-infra`, load the repository direnv environment.
 Local rendering does not contact the cluster:
@@ -52,7 +53,7 @@ Read-only preflight:
 : "${KUBECONFIG:?Load the repository direnv environment}"
 kubectl config current-context
 kubectl get storageclass synology-block
-kubectl get nodes -l storage.home.antonu.org/synology-iscsi=true
+kubectl get node talos-worker-03
 kubectl -n minecraft get deployments,pods,pvc,services
 argocd app list --grpc-web
 ```
@@ -158,14 +159,16 @@ Do not print full Crafty logs/configuration files that may contain credentials.
 Export a consistent backup of world, mods, server configuration and Crafty panel
 configuration/database. Stop the game for consistent world backup; quiesce the
 panel for a consistent panel database backup. Crafty's backups on the same PVC
-are convenient recovery copies, not independent backups. Keep copies off the NAS
-and limit backup retention to avoid filling the shared 20 GiB claim.
+are convenient recovery copies, not independent backups. Keep independent copies
+and limit local retention to avoid filling the node filesystem. The declared
+20 GiB local PV capacity is not a filesystem quota.
 
 To migrate an existing itzg world, use its independently stored, stopped-server
 backup and Crafty's ZIP import; retain the original PVC untouched. Test the
 import separately before relying on it. Minecraft 26.3 upgrades older world data;
 rollback requires a pre-upgrade world backup, not just an old container image.
 
+For the NAS-to-local storage rollback, follow [the migration runbook](migration/README.md#rollback).
 For panel/configuration rollback, stop the game, restore the compatible Crafty
 backup if its database changed, revert source in Git, publish and manually sync
 `minecraft-fabric` with pruning disabled. To return to the previous itzg package,

@@ -1,4 +1,4 @@
-# Retain the original claim for import/rollback; Crafty uses its own claim.
+# Retain both NAS claims for migration/rollback; active local storage is in local-storage.yaml.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

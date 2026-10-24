@@ -4,7 +4,7 @@ metadata:
   name: minecraft-fabric
   namespace: argocd
 spec:
-  description: Crafty panel for Fabric Minecraft 26.3 with retained Synology storage
+  description: Crafty panel for Fabric Minecraft 26.3 with local NVMe storage on worker-03
   sourceRepos:
     - https://github.com/antonu17/home-infra.git
   destinations:
@@ -13,6 +13,8 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: ""
+      kind: PersistentVolume
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
