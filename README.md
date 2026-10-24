@@ -19,7 +19,7 @@ See the runbook for recorded application health and remaining acceptance checks.
 - [deCONZ / RaspBee II Kubernetes deployment](kubernetes/apps/deconz/README.md)
 - [Grocy Kubernetes migration](kubernetes/apps/grocy/README.md)
 - [Mealie Kubernetes migration](kubernetes/apps/mealie/README.md)
-- [Fabric Minecraft Kubernetes deployment](kubernetes/apps/minecraft-fabric/README.md)
+- [Crafty panel and Fabric Minecraft 26.3 deployment](kubernetes/apps/minecraft-fabric/README.md)
 - [ExternalDNS activation and ownership tests](docs/external-dns.md)
 - [cert-manager / Route53 Argo CD onboarding](docs/cert-manager.md)
 - [Current Gateway TLS termination / Argo bootstrap](docs/gateway-bootstrap.md)

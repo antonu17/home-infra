@@ -2,6 +2,7 @@ fullnameOverride: external-dns
 replicaCount: 1
 sources:
   - gateway-httproute
+  - service
 domainFilters:
   - home.antonu.org
 registry: txt
@@ -17,6 +18,7 @@ service:
 extraArgs:
   # Normal write-enabled reconciliation. This webhook does not enforce dry-run.
   dry-run: false
+  service-type-filter: LoadBalancer
   gateway-name: home-cloud
   gateway-namespace: gateway
   # Regex overrides domainFilters; exact single-label application names only.

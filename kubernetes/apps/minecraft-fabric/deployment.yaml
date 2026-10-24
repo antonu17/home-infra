@@ -3,10 +3,12 @@ kind: Deployment
 metadata:
   name: minecraft-fabric
   namespace: minecraft
+  annotations:
+    minecraft.home.antonu.org/game-version: "26.3"
+    minecraft.home.antonu.org/fabric-loader-version: "0.20.1"
 spec:
   replicas: 1
   revisionHistoryLimit: 3
-  # Stop the old server before starting another process on the same world.
   strategy:
     type: Recreate
   selector:
@@ -18,7 +20,7 @@ spec:
         app.kubernetes.io/name: minecraft-fabric
     spec:
       automountServiceAccountToken: false
-      terminationGracePeriodSeconds: 120
+      terminationGracePeriodSeconds: 180
       nodeSelector:
         storage.home.antonu.org/synology-iscsi: "true"
       securityContext:
@@ -29,76 +31,131 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: prepare-crafty-storage
+          image: registry.gitlab.com/crafty-controller/crafty-4:4.10.8
+          command: [python3, -c]
+          args:
+            - |
+              from pathlib import Path
+              import subprocess
+              for name in ("config", "servers", "backups", "logs", "import"):
+                  Path("/persistent", name).mkdir(exist_ok=True)
+              runtimes = list(Path("/usr/lib/jvm").glob("java-25-openjdk-*/bin/java"))
+              if len(runtimes) != 1:
+                  raise SystemExit("Expected one Java 25 runtime for Minecraft 26.3")
+              subprocess.run([str(runtimes[0]), "-version"], check=True)
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: crafty-data
+              mountPath: /persistent
       containers:
-        - name: minecraft
-          image: itzg/minecraft-server:2026.9.2-java21
+        - name: crafty
+          image: registry.gitlab.com/crafty-controller/crafty-4:4.10.8
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
           env:
-            # Applying this manifest accepts https://aka.ms/MinecraftEULA.
-            # Apply only after reviewing and agreeing to the EULA.
-            - name: EULA
-              value: "TRUE"
-            - name: TYPE
-              value: FABRIC
-            # Keep game, loader, mods and Java versions compatible.
-            - name: VERSION
-              value: "1.21.1"
-            - name: FABRIC_LOADER_VERSION
-              value: "0.16.14"
-            - name: FABRIC_LAUNCHER_VERSION
-              value: "1.0.3"
-            - name: INIT_MEMORY
-              value: 1G
-            - name: MAX_MEMORY
-              value: 2G
-            - name: ONLINE_MODE
-              value: "TRUE"
-            - name: ENABLE_RCON
-              value: "FALSE"
-            - name: ENABLE_QUERY
-              value: "FALSE"
-            - name: MAX_PLAYERS
-              value: "10"
-            - name: VIEW_DISTANCE
-              value: "8"
-            - name: SIMULATION_DISTANCE
-              value: "6"
-            - name: MOTD
-              value: Homelab Fabric
             - name: TZ
               value: Europe/Berlin
           ports:
+            - name: panel-https
+              containerPort: 8443
+              protocol: TCP
             - name: minecraft
               containerPort: 25565
               protocol: TCP
+            - name: voicechat
+              containerPort: 24454
+              protocol: UDP
+          # Probe the panel: stopping Minecraft in the UI must not unready the pod.
           startupProbe:
-            tcpSocket:
-              port: minecraft
+            httpGet:
+              path: /login
+              port: panel-https
+              scheme: HTTPS
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 90
+            timeoutSeconds: 5
+            failureThreshold: 60
           readinessProbe:
-            tcpSocket:
-              port: minecraft
+            httpGet:
+              path: /login
+              port: panel-https
+              scheme: HTTPS
             periodSeconds: 10
-            timeoutSeconds: 3
-          # No liveness restart loop during long world saves or GC pauses.
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 500m
-              memory: 2Gi
+              memory: 3Gi
             limits:
               cpu: "2"
-              # JVM heap must leave room for native memory and libraries.
-              memory: 3Gi
+              # Includes panel + JVM; set game heap to 2 GiB initially in Crafty.
+              memory: 4Gi
           volumeMounts:
-            - name: data
-              mountPath: /data
+            - name: crafty-data
+              mountPath: /crafty/app/config
+              subPath: config
+            - name: crafty-data
+              mountPath: /crafty/servers
+              subPath: servers
+            - name: crafty-data
+              mountPath: /crafty/backups
+              subPath: backups
+            - name: crafty-data
+              mountPath: /crafty/logs
+              subPath: logs
+            - name: crafty-data
+              mountPath: /crafty/import
+              subPath: import
+        - name: crafty-proxy
+          image: nginxinc/nginx-unprivileged:1.30-trixie@sha256:679387908ea95d6d8de12952cd15d6b351258054a992d2106d3b6aa12659d87d
+          command: [nginx]
+          args: [-c, /etc/crafty-proxy/nginx.conf, -g, "daemon off;"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: panel-http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: panel-http
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: crafty-proxy
+              mountPath: /etc/crafty-proxy
+              readOnly: true
+            - name: proxy-tmp
+              mountPath: /tmp
       volumes:
-        - name: data
+        - name: crafty-proxy
+          configMap:
+            name: crafty-proxy
+        - name: proxy-tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: crafty-data
           persistentVolumeClaim:
-            claimName: minecraft-data
+            claimName: crafty-data

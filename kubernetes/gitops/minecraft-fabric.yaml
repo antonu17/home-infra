@@ -4,7 +4,7 @@ metadata:
   name: minecraft-fabric
   namespace: argocd
 spec:
-  description: Fabric Minecraft Java server with retained Synology storage
+  description: Crafty panel for Fabric Minecraft 26.3 with retained Synology storage
   sourceRepos:
     - https://github.com/antonu17/home-infra.git
   destinations:

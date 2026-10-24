@@ -1,7 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: minecraft
 resources:
   - namespace.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - httproute.yaml
+configMapGenerator:
+  - name: crafty-proxy
+    files:
+      - nginx.conf=crafty-proxy.conf

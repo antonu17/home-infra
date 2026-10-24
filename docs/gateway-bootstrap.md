@@ -122,3 +122,22 @@ The source also declares HTTPS port8443 for deCONZ WebSocket traffic, terminatin
 at the same wildcard Secret and admitting only the `deconz` namespace. Ports80
 and443 admit the explicitly listed application namespaces. This listener does
 not change Argo's HTTP backend or introduce a second Gateway/Application.
+
+## Crafty UI — prepared 2026-10-24
+
+The `minecraft-fabric` Application owns HTTPRoutes for
+`crafty.home.antonu.org` on the existing HTTP/HTTPS listeners. Both listeners now
+admit namespace `minecraft`; the existing wildcard frontend Certificate is
+unchanged. HTTPS terminates at `gateway/home-cloud`, then HTTP8080 reaches a
+same-pod nginx proxy that forwards to Crafty's HTTPS8443 loopback listener.
+The proxy handles WebSocket console upgrades and streaming uploads up to 1 GiB.
+Only the loopback self-signed certificate check is disabled; browser TLS uses the
+existing cert-manager certificate. No new backend TLS policy or credential
+ownership is introduced.
+
+Minecraft TCP25565 and voice UDP24454 use a separate Cilium LoadBalancer VIP
+`10.40.0.20`, not an HTTPRoute. ExternalDNS discovers the UI through HTTPRoute and
+the game name through the added LoadBalancer Service source. Follow the
+[application runbook](../kubernetes/apps/minecraft-fabric/README.md#exposure) for
+IP/DNS ownership checks, manual sync ordering, acceptance and isolation rollback.
+This source preparation does not establish live reachability or DNS health.

@@ -15,7 +15,8 @@ abort 'wrong webhook URL' unless args.include?('--webhook-provider-url=http://12
 %w[--source=gateway-httproute --policy=upsert-only --registry=txt --txt-owner-id=home-cloud --txt-prefix=external-dns-].each do |arg|
   abort "missing safety flag #{arg}" unless args.include?(arg)
 end
-abort 'unexpected source' unless args.grep(/^--source=/) == ['--source=gateway-httproute']
+abort 'unexpected source' unless args.grep(/^--source=/).sort == %w[--source=gateway-httproute --source=service]
+abort 'missing Service type filter' unless args.include?('--service-type-filter=LoadBalancer')
 abort 'wrong image' unless webhook['image'].end_with?(':v1.6.3')
 env = webhook.fetch('env').to_h { |e| [e['name'], e] }
 abort 'webhook not loopback' unless env.dig('SERVER_HOST', 'value') == '127.0.0.1'

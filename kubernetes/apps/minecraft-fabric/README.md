@@ -1,62 +1,71 @@
-# Fabric Minecraft Java server
+# Crafty panel and Fabric Minecraft 26.3
 
-Argo CD Application and AppProject: `minecraft-fabric`, namespace: `minecraft`.
-The root `gitops` Application discovers `kubernetes/gitops/minecraft-fabric.yaml`;
-the child renders this directory with Kustomize. Sync remains manual, without
-automated pruning or a cascading Application finalizer. Namespace and PVC carry
-`Prune=false,Delete=false`. Prepared source only; no cluster sync performed.
+Argo CD Application/AppProject `minecraft-fabric` renders this Kustomize package
+into namespace `minecraft`. Crafty Controller 4.10.8 replaces the itzg container
+and owns Minecraft process control, console, server configuration and mods.
+Minecraft Java **26.3**, Fabric Loader **0.20.1**, Java **25** are the target.
+The game version is selected during panel setup; the Deployment annotation records
+intent and does not configure Crafty's database. No older game is provisioned.
 
-One replica with
-`Recreate`, a 120-second graceful shutdown window and a 20 GiB RWO PVC mounted
-at `/data`. No host paths, privileged containers or Talos changes are required.
-Do not scale above one or force-delete a pod on an unreachable node; fence the
-old writer before recovery. RWO does not prevent two writers on the same node.
+Argo owns Kubernetes resources and the panel image/resources. Crafty owns game
+versions, JVM arguments, server files and user accounts on the PVC. Do not update
+Crafty itself from its UI; change the image pin in Git and manually sync Argo.
+Mods use browser upload and file editing; no searchable mod catalog is promised.
 
-## Configuration
+## Storage and scheduling
 
-`deployment.yaml` pins the container, Minecraft, Fabric loader and launcher.
-Defaults: Minecraft 1.21.1, Java 21, 1–2 GiB heap, 2 GiB memory request, 3 GiB
-memory limit, 500m CPU request and 2 CPU limit. Edit these together for the mod
-pack and player count. Match the client game version. Fabric API and other mods
-are not bundled; install compatible server mods in `/data/mods` before use.
+One replica, Recreate, 180-second termination grace. Non-root UID/GID 1000,
+restricted Pod Security, no host paths, Docker socket, cluster credentials or
+privileged containers. The upstream launcher supports a non-root start; the init
+container creates writable volume subdirectories and verifies Java 25 exists.
+The stock image includes Java 25 for amd64/arm64. Placement requires
+`storage.home.antonu.org/synology-iscsi=true` and sufficient allocatable memory.
+Requests: 500m CPU/3 GiB RAM; limits: 2 CPU/4 GiB RAM, shared by panel and game.
+Start with 1 GiB initial/2 GiB maximum game heap; increase pod memory before
+increasing the game heap. Configure only one game server on TCP/25565.
 
-`EULA: "TRUE"` explicitly accepts https://aka.ms/MinecraftEULA. Review and agree
-before applying. Online authentication stays enabled; RCON and query are disabled.
+`crafty-data`: 20 GiB RWO `synology-block`, subdirectories mounted at
+`/crafty/app/config`, `/crafty/servers`, `/crafty/backups`, `/crafty/logs`,
+`/crafty/import`. The original `minecraft-data` claim remains in source, unmounted,
+for data preservation and rollback. A fresh deployment creates both 20 GiB claims;
+only Crafty's claim is consumed. WaitForFirstConsumer can leave the unused old
+claim Pending. Do not remove it as part of this change.
 
-Prerequisites: repository direnv environment loaded, working Synology CSI,
-`storage.home.antonu.org/synology-iscsi=true` on an eligible node with sufficient
-capacity, and DNS/HTTPS egress for image/game/Fabric downloads plus Minecraft
-authentication. The StorageClass uses WaitForFirstConsumer and Retain. Pending
-storage before pod scheduling can be normal. Live admission, downloads, volume
-permissions and application startup remain unverified.
+Both claims and the namespace carry `Prune=false,Delete=false`; the StorageClass
+uses Retain. Never force-delete a pod on an unreachable node without fencing the
+old writer; RWO does not prevent simultaneous writers on the same node.
+Live image pull, admission, volume permissions, panel startup and game creation
+remain unverified; local rendering is not runtime acceptance.
 
 ## Deployment
 
-Run from `/Users/anton/projects/home-infra` with repository direnv loaded.
-Review and agree to the EULA before syncing: `EULA: "TRUE"` is explicit acceptance.
-Argo CD reads published GitHub `main`, not the local working tree.
-
-Local validation, without cluster access:
+From `/Users/anton/projects/home-infra`, load the repository direnv environment.
+Local rendering does not contact the cluster:
 
 ```sh
 kustomize build kubernetes/apps/minecraft-fabric
 ```
 
-Read-only preflight: confirm target context, storage/node eligibility, available
-capacity and that the namespace and resource names have no conflicting owner.
+Read-only preflight:
 
 ```sh
 : "${KUBECONFIG:?Load the repository direnv environment}"
 kubectl config current-context
 kubectl get storageclass synology-block
 kubectl get nodes -l storage.home.antonu.org/synology-iscsi=true
-argocd app list
+kubectl -n minecraft get deployments,pods,pvc,services
+argocd app list --grpc-web
 ```
 
-Review and publish only the intended source changes to `main`. The following
-live changes register the AppProject/Application, then create the namespace,
-PVC, Deployment and Service. Review the Argo diff and keep pruning disabled.
-Do not apply the workload directory directly with kubectl.
+A missing namespace is expected for a fresh installation. If the previous itzg
+server is running, first stop player activity, back up all of its `/data` to
+independent storage, and record its version. Review the diff: this replaces the
+container in the same Deployment, stopping the old writer before Crafty starts;
+it does not import or upgrade the previous world automatically. Preserve the
+`minecraft-data` claim. Stop here if backup or current ownership is uncertain.
+
+Review and publish intended changes to GitHub `main`; Argo reads remote Git.
+Live changes, manual sync with pruning disabled:
 
 ```sh
 argocd app diff gitops --grpc-web
@@ -66,31 +75,205 @@ argocd app diff minecraft-fabric --grpc-web
 argocd app sync minecraft-fabric --grpc-web
 argocd app wait minecraft-fabric --sync --health --timeout 900 --grpc-web
 kubectl -n minecraft rollout status deployment/minecraft-fabric --timeout=15m
-kubectl -n minecraft get pods,pvc,svc
-kubectl -n minecraft logs deployment/minecraft-fabric --tail=100
+kubectl -n minecraft get pods,pvc,services
+kubectl -n minecraft port-forward service/crafty 8443:8443
+```
+
+Open https://localhost:8443. Crafty initially presents a self-signed certificate;
+verify access is through the localhost forward. Retrieve the generated admin
+credentials privately from `/crafty/app/config/default-creds.txt` inside the pod,
+using a local trusted terminal; do not paste credentials or that file into chat,
+Git or shared logs. Change the password immediately and enable TOTP.
+
+Normal UI access is https://crafty.home.antonu.org through the shared Gateway.
+The localhost forward remains recovery access. See Exposure below for DNS,
+networking, sync order and acceptance checks.
+
+## Create the 26.3 server in Crafty
+
+1. Create a Minecraft Java server using Fabric and explicitly select **26.3**;
+   do not choose Latest, a snapshot or 1.21.1. Choose Loader **0.20.1** if the
+   builder exposes the loader setting. If the builder does not offer this exact
+   combination, use the explicit ZIP-import procedure below.
+2. Set Java to the installed Java 25 executable, not the default `java` command:
+   `/usr/lib/jvm/java-25-openjdk-amd64/bin/java` on amd64 or
+   `/usr/lib/jvm/java-25-openjdk-arm64/bin/java` on arm64. Set min/max heap to
+   1024/2048 MiB and port to **25565**, binding to `0.0.0.0`/all interfaces.
+3. Review https://aka.ms/MinecraftEULA and accept through the panel or set
+   `eula=true` in this server's `eula.txt` only after agreeing. Crafty does not use
+   the itzg `EULA` environment variable; deployment alone does not accept it.
+4. Keep `online-mode=true`, `enable-rcon=false`, `enable-query=false` and
+   `white-list=true` in `server.properties`. Add intended players to the whitelist
+   through the console. Start the server and require the console to identify
+   Minecraft **26.3**, Fabric Loader **0.20.1** and successful world startup.
+5. Stop the server before adding mods. In Files, upload Fabric **26.3** compatible
+   JARs to `mods/`, including the compatible Fabric API and dependencies when
+   required. Start once to generate configuration, stop, edit `config/` in the
+   browser, then start and inspect the console. Client content mods must match.
+   Back up before updating/removing mods; do not assume 1.21 mods work on 26.3.
+6. Enable Crafty's start-on-boot for this server after successful acceptance.
+   Kubernetes readiness checks the panel, so an intentionally stopped game does
+   not restart the pod or remove access to the panel.
+
+### Explicit Fabric ZIP import
+
+If Fabric/26.3 is missing from Crafty's builder, prepare an archive locally using
+Java 25 and Fabric's pinned official installer. These write only a new directory
+under the local temporary directory; no cluster or existing world is changed.
+
+```sh
+fabric_dir=$(mktemp -d "${TMPDIR:-/tmp}/fabric-26.3.XXXXXX")
+curl --fail --location --output "$fabric_dir/fabric-installer.jar" \
+  https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.2/fabric-installer-1.1.2.jar
+java -version
+# Require Java 25 before the next command.
+java -jar "$fabric_dir/fabric-installer.jar" server \
+  -mcversion 26.3 -loader 0.20.1 -downloadMinecraft -dir "$fabric_dir/server"
+(cd "$fabric_dir/server" && zip -r "$fabric_dir/fabric-26.3.zip" .)
+```
+
+Upload that ZIP through Crafty's Create Server → Import ZIP. Select the archive's
+server root and `fabric-server-launch.jar` as executable. Set the Java 25 path
+and JVM heap as above; the launch command is the selected Java executable followed
+by `-Xms1G -Xmx2G -jar fabric-server-launch.jar nogui`. Complete EULA, whitelist
+and game acceptance checks before enabling start-on-boot. Import is a UI step;
+the manifests do not silently create a Crafty server record.
+
+## Verification
+
+In a second terminal, forward the game port after starting the server:
+
+```sh
 kubectl -n minecraft port-forward service/minecraft-fabric 25565:25565
 ```
 
-Connect the Java client to `localhost:25565` while the forward runs. The Service
-is cluster-internal; port-forward binds to localhost. TCP readiness proves a
-listening socket; confirm the server's Done message and a successful client join.
-LAN access would require a separately reviewed Cilium LoadBalancer allocation and
-routing/firewall policy for trusted clients to TCP/25565; no Gateway HTTP route
-or WAN exposure is configured here.
+Join `localhost:25565` with a Minecraft Java **26.3** client and compatible mods.
+Verify console commands, stop/start, a mod configuration edit, and a backup from
+the UI. A Ready panel is not proof the game is running. Before any subsequent
+Argo rollout, stop Minecraft in the panel and wait for its save/shutdown to finish.
+Do not print full Crafty logs/configuration files that may contain credentials.
 
-## Backup and rollback
+## Backup, migration and rollback
 
-Back up all of `/data`, including world, mods and configuration, before changing
-game/mod versions. Stop the server cleanly for a consistent storage backup and
-keep an independently stored copy. A retained PV or NAS snapshot shares the NAS
-failure domain and is not an independent backup.
+Export a consistent backup of world, mods, server configuration and Crafty panel
+configuration/database. Stop the game for consistent world backup; quiesce the
+panel for a consistent panel database backup. Crafty's backups on the same PVC
+are convenient recovery copies, not independent backups. Keep copies off the NAS
+and limit backup retention to avoid filling the shared 20 GiB claim.
 
-For a configuration-only rollback, restore the prior source values in Git, publish them,
-review the Argo diff and manually sync `minecraft-fabric` again. Changes under the pod template trigger Recreate and cause downtime.
-Game upgrades can migrate the world; reverting the image alone does not roll
-back data. Restore a compatible pre-upgrade backup before starting an older
-version. Keep the PVC, namespace and retained PV/LUN during rollback; do not delete or prune
-these resources as a rollback procedure.
+To migrate an existing itzg world, use its independently stored, stopped-server
+backup and Crafty's ZIP import; retain the original PVC untouched. Test the
+import separately before relying on it. Minecraft 26.3 upgrades older world data;
+rollback requires a pre-upgrade world backup, not just an old container image.
 
-Upstream: https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/server-types/fabric/
-Image release: https://github.com/itzg/docker-minecraft-server/releases/tag/2026.9.2
+For panel/configuration rollback, stop the game, restore the compatible Crafty
+backup if its database changed, revert source in Git, publish and manually sync
+`minecraft-fabric` with pruning disabled. To return to the previous itzg package,
+stop Crafty's game first and restore the previous package revision pointing to
+`minecraft-data`. That claim contains only its previous data, not subsequent
+Crafty writes; reconcile/export those before switching. Never attach both writers
+to the same world or delete the namespace, PVCs, retained PVs or NAS LUNs.
+
+## References
+
+- https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3
+- https://www.fabricmc.net/2026/09/15/263.html
+- https://meta.fabricmc.net/v2/versions/installer
+- https://docs.craftycontrol.com/pages/getting-started/installation/docker/
+- https://docs.craftycontrol.com/pages/getting-started/access/
+- https://docs.craftycontrol.com/pages/user-guide/file-manager/
+- https://gitlab.com/crafty-controller/crafty-4/-/blob/v4.10.8/Dockerfile
+
+## Exposure
+
+| Endpoint | Destination | Protocol |
+|---|---|---|
+| `https://crafty.home.antonu.org` | Gateway `10.40.0.10` → crafty:8080 → pod loopback8443 | HTTPS443, WebSocket console, uploads up to 1 GiB |
+| `http://crafty.home.antonu.org` | Shared Gateway | HTTP80 redirects to HTTPS |
+| `minecraft.home.antonu.org:25565` | Game Service `10.40.0.20` | TCP25565 |
+| `minecraft.home.antonu.org:24454` | Same game Service | UDP24454, Simple Voice Chat |
+
+No Minecraft HTTPRoute is used: game TCP and voice UDP go directly through a
+Cilium LoadBalancer. Both ports share one IP; NodePorts are disabled. Source
+ranges restrict game/voice traffic to Home `192.168.100.0/24` and Cloud
+`192.168.40.0/24`. Source addresses seen through VPN/NAT require explicit review
+before adding remote access. This is internal routed exposure, with no WAN NAT.
+Existing RouterOS source permits Home and Cloud to routed `10.40.0.0/24`; no
+router source changes are needed. Live firewall/BGP state still needs acceptance.
+
+The Gateway's HTTP/HTTPS listener namespace lists now include `minecraft`.
+Its existing wildcard certificate covers the UI hostname. The same-pod nginx
+proxy accepts HTTP8080 from the Gateway and forwards WebSockets/uploads to
+Crafty's self-signed HTTPS listener on 127.0.0.1:8443. Certificate verification is
+disabled only for this loopback hop. Gateway-to-proxy HTTP matches existing app
+routing; this does not provide encrypted transport across the cluster. No new
+certificate, private key, ReferenceGrant, DNS credentials or controller is added.
+The generated proxy ConfigMap name changes on edits and triggers a pod rollout.
+The proxy adds a 10m CPU/32 MiB memory request and a 128 MiB memory limit.
+
+ExternalDNS retains `home-cloud` TXT ownership, `external-dns-` TXT prefix,
+upsert-only behavior and existing domain filters. The Service source is added
+alongside HTTPRoute discovery, filtered to LoadBalancer Services. Crafty's name
+comes from the route; Minecraft's comes from the Service hostname annotation.
+The documented ExternalDNS crash loop is a deployment blocker for automatic DNS;
+follow `docs/external-dns.md` if it persists. Do not treat Argo health as DNS proof.
+
+### Exposure deployment and acceptance
+
+Before publishing source, use the loaded repository direnv for read-only checks:
+
+```sh
+kubectl get services -A -o wide
+kubectl -n gateway get gateway home-cloud
+kubectl -n gateway get certificate home-antonu-org
+kubectl -n external-dns get pods
+```
+
+Require no allocation collision for `10.40.0.20`; review live LoadBalancer hostname
+annotations before enabling Service discovery. Check that neither new hostname
+has an existing manual DNS record or conflicting TXT owner; do not overwrite one.
+Before replacing a running pod, stop Minecraft in Crafty and complete its save.
+Publish reviewed source to main. These are live changes, manually run without
+pruning after reviewing each application's diff:
+
+```sh
+argocd app diff gateway --grpc-web
+argocd app sync gateway --grpc-web
+argocd app diff minecraft-fabric --grpc-web
+argocd app sync minecraft-fabric --grpc-web
+argocd app wait minecraft-fabric --sync --health --timeout 900 --grpc-web
+argocd app diff external-dns --grpc-web
+argocd app sync external-dns --grpc-web
+```
+
+Read-only acceptance from a trusted Home client:
+
+```sh
+kubectl -n minecraft get services,httproutes
+kubectl -n minecraft get httproute crafty crafty-redirect -o yaml
+curl --fail --resolve crafty.home.antonu.org:443:10.40.0.10 https://crafty.home.antonu.org/login -o /dev/null
+curl -I --resolve crafty.home.antonu.org:80:10.40.0.10 http://crafty.home.antonu.org/
+dig +short crafty.home.antonu.org A
+dig +short minecraft.home.antonu.org A
+```
+
+Require current-generation Accepted/ResolvedRefs on both HTTPRoutes, LB status
+`10.40.0.20`, valid frontend TLS and HTTPS redirect. Log in, use the WebSocket
+console and upload a mod to verify the full UI path. Expected DNS targets are
+`10.40.0.10` and `10.40.0.20` respectively. DNS resolution must use the home
+resolver; these are private addresses, not public Internet endpoints.
+
+In Crafty keep game port25565, bind to all interfaces, and configure
+`config/voicechat/voicechat-server.properties` with `port=24454`, blank
+`bind_address` and `voice_host=minecraft.home.antonu.org:24454`, then restart only
+the game through the panel. Join Minecraft at `minecraft.home.antonu.org` and
+verify actual voice audio between clients. A UDP port probe alone is not proof.
+
+For exposure rollback, restore the prior networking source, publish and manually
+sync affected Applications without pruning; preserve both PVCs. Because Argo
+pruning is disabled, removed HTTPRoutes and upsert-only DNS records remain until
+an explicitly reviewed cleanup. For immediate isolation, revert the game Service
+to ClusterIP and remove `minecraft` from the shared Gateway HTTP/HTTPS listener
+namespace lists, then sync `minecraft-fabric` and `gateway`; retain the
+localhost8443 forward for panel access. DNS may
+remain stale during rollback; do not delete namespaces or data to remove exposure.

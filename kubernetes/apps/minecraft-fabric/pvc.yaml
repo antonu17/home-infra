@@ -1,7 +1,22 @@
+# Retain the original claim for import/rollback; Crafty uses its own claim.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: minecraft-data
+  namespace: minecraft
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  storageClassName: synology-block
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: crafty-data
   namespace: minecraft
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false

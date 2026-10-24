@@ -30,6 +30,9 @@ The former `home-cloud-gateway` Application name is obsolete.
 `minecraft-fabric` is registered in source through
 `kubernetes/gitops/minecraft-fabric.yaml`, rendering
 `kubernetes/apps/minecraft-fabric` with Kustomize into namespace `minecraft`.
+The package now runs Crafty Controller for Fabric Minecraft Java 26.3 with Java 25.
+Prepared exposure uses the shared Gateway for Crafty and Cilium VIP `10.40.0.20`
+for Minecraft/voice chat; ExternalDNS watches HTTPRoutes and LoadBalancer Services.
 It is prepared, not confirmed deployed; the recorded deployment table above is
 unchanged. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
 for EULA acceptance, manual root/child sync, verification and data-safe rollback.

@@ -89,6 +89,17 @@ This is routed service space, not a new VLAN/subnet interface on the router.
 No permanent BGP /24 aggregate is introduced. See [GitOps](gitops.md) for the
 deployed Gateway's configured stable VIP, DNS and separate Tailscale prerequisites.
 
+## Minecraft service reservation — prepared 2026-10-24
+
+| Name | Address | Ports / owner |
+|---|---|---|
+| `crafty.home.antonu.org` | `10.40.0.10` | Shared Gateway HTTPS443, HTTP80 redirect; minecraft-fabric HTTPRoutes |
+| `minecraft.home.antonu.org` | `10.40.0.20` | Cilium LoadBalancer, TCP25565 and UDP24454; minecraft-fabric Service |
+
+`10.40.0.20` is reserved in source; check live Service allocations before sync.
+It is distinct from Kubernetes API VIP `192.168.40.20`. ExternalDNS owns the new
+A/TXT records after the ownership/collision checks in the application runbook.
+
 ## Common DHCP — operator export 2026-10-10
 
 `network/mikrotik-rb5009upr/10-dhcp.rsc` now covers Home100, Guests200, IoT300

@@ -36,8 +36,14 @@ webhook does not enforce ExternalDNS dry-run; **dry-run is not a no-write guaran
 provider updates may involve delete/create operations. Do not switch to `sync`
 or change owner/prefix while diagnosing the current failure.
 
-Only `gateway-httproute` is watched, for Gateway `home-cloud` in namespace
-`gateway`. HTTPRoute hostnames and Gateway status provide names/targets. The
+Sources are `gateway-httproute`, for Gateway `home-cloud` in namespace
+`gateway`, and `service`, filtered to LoadBalancer Services. HTTPRoute hostnames
+and Gateway status provide UI names/targets. Annotated LoadBalancer Services use
+their assigned status IP. The Minecraft Service uses the v0.22 annotation
+`external-dns.kubernetes.io/hostname` for `minecraft.home.antonu.org`; Crafty's
+HTTPRoute provides `crafty.home.antonu.org`. No other annotated LoadBalancer
+Services were found in repository source; inspect live Services before enabling
+the added source. Existing domain filters and TXT ownership remain unchanged. The
 regex permits a single label under `home.antonu.org`, rejecting wildcards,
 zone apex and nested subdomains. A wildcard Gateway listener is not a wildcard
 DNS record.
