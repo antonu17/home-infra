@@ -39,13 +39,8 @@ spec:
             - |
               from pathlib import Path
               import subprocess
-              import json
-              marker = Path("/persistent/.migration-complete.json")
-              if not marker.is_file():
-                  raise SystemExit("Local data migration has not been verified; see migration/README.md")
-              state = json.loads(marker.read_text())
-              if state.get("source") != "minecraft/crafty-data" or state.get("target") != "minecraft/crafty-local-data":
-                  raise SystemExit("Unexpected local data migration marker")
+              if not Path("/persistent/config/db/crafty.sqlite").is_file():
+                  raise SystemExit("Expected existing Crafty database on crafty-local-data; refusing empty storage")
               for name in ("config", "servers", "backups", "logs", "import"):
                   Path("/persistent", name).mkdir(exist_ok=True)
               runtimes = list(Path("/usr/lib/jvm").glob("java-25-openjdk-*/bin/java"))

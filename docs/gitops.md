@@ -31,12 +31,14 @@ The former `home-cloud-gateway` Application name is obsolete.
 `kubernetes/gitops/minecraft-fabric.yaml`, rendering
 `kubernetes/apps/minecraft-fabric` with Kustomize into namespace `minecraft`.
 The package now runs Crafty Controller for Fabric Minecraft Java 26.3 with Java 25.
-Local NVMe migration is prepared for worker-03; replicas0 gates the verified
-copy from retained NAS PVC to `crafty-local-data`. Follow the migration runbook.
+Read-only checks on 2026-10-24 confirmed local NVMe migration completed on
+worker-03: Crafty 2/2 Ready, replicas 1, claim `crafty-local-data`, and 438 copied
+entries verified. The package manages only local storage; earlier NAS claims
+remain retained outside current source. See the application runbook for operation.
 Prepared exposure uses the shared Gateway for Crafty and Cilium VIP `10.40.0.20`
 for Minecraft/voice chat; ExternalDNS watches HTTPRoutes and LoadBalancer Services.
-It is prepared, not confirmed deployed; the recorded deployment table above is
-unchanged. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
+This later storage/process verification does not change the historical deployment
+table above. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
 for EULA acceptance, manual root/child sync, verification and data-safe rollback.
 
 `playit` is prepared as a separate manually synced child Application in namespace

@@ -343,6 +343,6 @@ container requires an explicit read-write `/var/mnt` extraMount. Use only
 patch during future machine-config regeneration. The patch removes the standalone KubeletConfig and preserves its current kubelet
 v1.37.1 image/default seccomp settings in machine.kubelet, because Talos1.14
 rejects both forms together. Reconcile its image pin during future Kubernetes
-upgrades. This is a kubelet configuration/mount change, not disk provisioning. Follow the [migration runbook](../kubernetes/apps/minecraft-fabric/migration/README.md)
-for the node-scoped no-reboot patch, impact and acceptance sequence. Do not use
+upgrades. This is a kubelet configuration/mount change, not disk provisioning. See the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
+for current local-storage dependencies and operation. Do not use
 fresh-install, wipe or boot-media procedures for this mount issue.
