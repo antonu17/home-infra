@@ -25,6 +25,15 @@ acceptance check.
 `home-cloud` also remains the Vault KV mount/TXT owner/cluster identifier.
 The former `home-cloud-gateway` Application name is obsolete.
 
+## Prepared applications
+
+`minecraft-fabric` is registered in source through
+`kubernetes/gitops/minecraft-fabric.yaml`, rendering
+`kubernetes/apps/minecraft-fabric` with Kustomize into namespace `minecraft`.
+It is prepared, not confirmed deployed; the recorded deployment table above is
+unchanged. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
+for EULA acceptance, manual root/child sync, verification and data-safe rollback.
+
 ## Sources, ownership and access boundaries
 
 `kubernetes/argocd/gitops.yaml` bootstraps the root AppProject and Application.
