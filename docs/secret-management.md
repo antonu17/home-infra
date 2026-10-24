@@ -143,3 +143,12 @@ These metadata checks do not print Secret payloads. Stop on ownership conflicts;
 do not delete or replace a Secret. Detaching ownership via `creationPolicy:
 Orphan` is a separate reviewed live change, not a generic rollback command.
 Preserve CSI credentials during every storage recovery.
+
+## Playit agent — prepared
+
+`kubernetes/apps/playit` consumes `home-cloud/playit/agent`, field `SECRET_KEY`,
+through the `playit/home-cloud-vault` SecretStore and `playit/playit-agent`
+ExternalSecret. The target Secret is `playit/playit-agent`, key `SECRET_KEY`.
+Terraform adds role/policy `eso-playit`, bound to `playit/vault-eso`, with reads
+limited to `home-cloud/playit/*`. Existing credentials and roles are preserved.
+Provisioning and key storage remain operator-run; follow the application runbook.

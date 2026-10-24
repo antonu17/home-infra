@@ -18,6 +18,7 @@ have not yet been applied.
 | `eso-external-dns` | `external-dns/vault-eso` | `home-cloud/external-dns/*` |
 | `eso-synology-csi` | `synology-csi/vault-eso` | `home-cloud/synology-csi/*` |
 | `eso-home-assistant` | `home-assistant/vault-eso` | `home-cloud/home-assistant/*` |
+| `eso-playit` (prepared) | `playit/vault-eso` | `home-cloud/playit/*` |
 
 Both roles use login audience `vault`, a 15-minute token TTL, and a one-hour
 maximum TTL. Policies allow scoped reads/metadata discovery and management of

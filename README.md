@@ -20,6 +20,7 @@ See the runbook for recorded application health and remaining acceptance checks.
 - [Grocy Kubernetes migration](kubernetes/apps/grocy/README.md)
 - [Mealie Kubernetes migration](kubernetes/apps/mealie/README.md)
 - [Crafty panel and Fabric Minecraft 26.3 deployment](kubernetes/apps/minecraft-fabric/README.md)
+- [Playit public Minecraft and voice tunnels](kubernetes/apps/playit/README.md)
 - [ExternalDNS activation and ownership tests](docs/external-dns.md)
 - [cert-manager / Route53 Argo CD onboarding](docs/cert-manager.md)
 - [Current Gateway TLS termination / Argo bootstrap](docs/gateway-bootstrap.md)

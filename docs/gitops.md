@@ -37,6 +37,11 @@ It is prepared, not confirmed deployed; the recorded deployment table above is
 unchanged. Follow the [application runbook](../kubernetes/apps/minecraft-fabric/README.md)
 for EULA acceptance, manual root/child sync, verification and data-safe rollback.
 
+`playit` is prepared as a separate manually synced child Application in namespace
+`playit`. It uses Vault/ESO credentials and exposes only Minecraft/voice through
+provider-managed tunnels. Follow the [Playit runbook](../kubernetes/apps/playit/README.md)
+for account setup, scoped Vault role, tunnel mappings and external acceptance.
+
 ## Sources, ownership and access boundaries
 
 `kubernetes/argocd/gitops.yaml` bootstraps the root AppProject and Application.

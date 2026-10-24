@@ -302,3 +302,10 @@ kubectl -n minecraft get pods -l app.kubernetes.io/name=minecraft-fabric
 Require both containers Ready and no proxy restarts. Verify UI login and console
 through `https://crafty.home.antonu.org`. Source validation is complete; the fix
 requires this manual sync and subsequent live acceptance.
+
+## Friends outside the home network
+
+The separate [Playit application](../playit/README.md) forwards public Java TCP
+and Simple Voice Chat UDP endpoints to this Service's ClusterIP. Its network
+policy excludes Crafty ports. Local DNS, Gateway UI and LAN LoadBalancer remain
+independent of the public tunnel. The Playit agent key belongs in Vault/ESO.

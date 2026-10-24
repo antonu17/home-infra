@@ -74,6 +74,11 @@ variable "eso_roles" {
     secret_prefix   = string
   }))
   default = {
+    playit = {
+      namespace       = "playit"
+      service_account = "vault-eso"
+      secret_prefix   = "playit"
+    }
     adsb = {
       namespace       = "adsb"
       service_account = "vault-eso"
