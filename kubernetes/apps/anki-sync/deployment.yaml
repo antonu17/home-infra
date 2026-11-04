@@ -1,13 +1,14 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: anki-sync
   namespace: anki-sync
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  serviceName: anki-sync
-  replicas: 1
+  strategy:
+    type: Recreate
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: anki-sync
@@ -16,15 +17,6 @@ spec:
       labels:
         app.kubernetes.io/name: anki-sync
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: storage.home.antonu.org/synology-iscsi
-                    operator: In
-                    values:
-                      - "true"
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
       securityContext:
@@ -87,4 +79,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: anki-sync-data
+            claimName: anki-sync-local-data
