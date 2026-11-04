@@ -11,8 +11,8 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: grocy
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

@@ -11,10 +11,8 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: mealie
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: ""
-      kind: PersistentVolume
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
