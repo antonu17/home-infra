@@ -17,14 +17,6 @@ spec:
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: storage.home.antonu.org/synology-iscsi
-                    operator: In
-                    values: ["true"]
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
@@ -114,4 +106,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: mealie-data
+            claimName: mealie-local-data
