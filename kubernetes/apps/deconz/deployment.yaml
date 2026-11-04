@@ -4,7 +4,7 @@ metadata:
   name: deconz
   namespace: deconz
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -15,19 +15,6 @@ spec:
       labels:
         app.kubernetes.io/name: deconz
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: hardware.home.antonu.org/raspbee2
-                    operator: In
-                    values:
-                      - "true"
-                  - key: storage.home.antonu.org/synology-iscsi
-                    operator: In
-                    values:
-                      - "true"
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
       containers:
@@ -102,7 +89,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: deconz-data
+            claimName: deconz-local-data
         - name: raspbee-uart
           hostPath:
             path: /dev/ttyAMA0
