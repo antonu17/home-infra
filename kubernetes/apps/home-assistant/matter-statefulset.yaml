@@ -5,7 +5,7 @@ metadata:
   namespace: home-assistant
 spec:
   serviceName: matter-server
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: matter-server
@@ -92,4 +92,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: matter-server-data
+            claimName: matter-server-local-data

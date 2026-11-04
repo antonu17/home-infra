@@ -5,7 +5,7 @@ metadata:
   namespace: home-assistant
 spec:
   serviceName: home-assistant
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: home-assistant
@@ -69,4 +69,4 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: home-assistant-config
+            claimName: home-assistant-local-data
