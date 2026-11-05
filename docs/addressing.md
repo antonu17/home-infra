@@ -19,6 +19,27 @@ the move on 2026-10-10. Its former VLAN100 address was `192.168.100.5`.
 | 300 | IoT | `192.168.30.0/24` | `192.168.30.1` | `192.168.30.100-199` | TV, printer and smart devices; router DNS `.30.1` |
 | 400 | Home Cloud | `192.168.40.0/24` | `192.168.40.1` | `192.168.40.100-199` | Talos, Kubernetes and RouterOS-native PXE |
 
+## IPv6 home ULA allocation
+
+The home allocation is `fdb5:841f:2eb7::/48`. The first three hextets identify
+the site. The fourth hextet uses the VLAN label as written, without decimal-to-hex
+conversion. Each routed LAN receives a /64 and the RB5009 gateway is ::1.
+The /48 is an address-plan allocation; interfaces and SLAAC use the individual /64s.
+
+| VLAN | Prefix | Gateway | State |
+|---|---|---|---|
+| 300 | `fdb5:841f:2eb7:300::/64` | `fdb5:841f:2eb7:300::1/64` | Confirmed 2026-11-05 |
+| 400 | `fdb5:841f:2eb7:400::/64` | `fdb5:841f:2eb7:400::1/64` | Confirmed 2026-11-05 |
+
+File25 owns these ULA addresses and ND profiles. VLAN100 currently uses a public
+/64, with no home ULA assigned. VLAN1 and VLAN200 have no configured home ULA.
+Additional VLAN allocations require an explicit configuration change.
+
+Thread prefixes are separate allocations advertised by border routers. On
+2026-11-05, thread-rio-sync installed `fd97:72fc:f25f:1::/64` through tado.
+The WAN-learned `fd0b:efcc:b448::/64` is outside the home allocation.
+The RIO container uses IPv4 `192.168.30.9/24` in VLAN300.
+
 ## VLAN 400 — Home Cloud
 
 | Range | Intended use |

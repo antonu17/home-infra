@@ -1262,14 +1262,10 @@ gateway on another interface stop before mutation. Import after file05.
 RA advertises the address prefix for SLAAC, with a 30-minute router lifetime and
 no DNS advertisement. The existing VLAN400 prefix is `fdb5:841f:2eb7:400::/64`.
 
-Live readback on 2026-10-13 confirmed the VLAN300 gateway, SLAAC prefix and
-connected route. Tado acquired a VLAN300 ULA. All seven Matter nodes recovered
-after routing `fd2f:feb4:bf84:0::/64` through tado in VLAN300. File25 now persists
-that route with distance 1 and a HomePod route with distance 2. HomePod reached one
-Thread node through a diagnostic /128; full-fabric standby acceptance and import
-of the final file25 remain unverified. Static preference alone does not provide
-health-based failover. IPv6 filter policy is independent of IPv4 IoT isolation;
-this file does not establish parity.
+Live readback on 2026-11-05 confirmed VLAN300 and VLAN400 ULA addresses,
+SLAAC prefixes and active connected routes. File25 owns both /64s under
+`fdb5:841f:2eb7::/48`. Thread routes belong to thread-rio-sync, documented below.
+IPv6 firewall isolation requires a separate policy review.
 
 ### Deployment
 
@@ -1325,30 +1321,15 @@ Clients may retain advertised addresses until their lifetimes expire. The existi
 
 ### Thread route ownership
 
-File25 reconciles exact route comments in the main table:
+As of 2026-11-05, thread-rio-sync owns routes marked `thread-rio-sync/v1 `.
+It installs ULA /64 RIOs through the allowlisted border routers, with distances
+10 (tado) and 20 (HomePod). Current tado prefix is `fd97:72fc:f25f:1::/64`;
+prefixes follow advertisements rather than a fixed source allocation.
+File25 now owns only home ULA addresses and ND for VLAN300/400. It neither
+creates fixed Thread routes nor removes historical Thread route identities.
+Review obsolete manual routes separately before disabling them.
+See [container deployment](thread-rio-sync/README.md) for operation and rollback.
 
-| Destination | Next hop | Distance | Identity |
-|---|---|---:|---|
-| `fd2f:feb4:bf84:0::/64` | `fe80::4a27:e2ff:fed2:9e08%vlan300-iot` | 1 | `Thread fd2f via tado VLAN300` |
-| `fd2f:feb4:bf84:0::/64` | `fe80::1821:9359:33fb:fa36%vlan300-iot` | 2 | `Thread fd2f via HomePod VLAN300` |
-
-It removes only the two recorded old `fd97:72fc:f25f:1::/64` route identities
-and three exact temporary diagnostic identities. Unrelated routes remain.
-A full file25 reimport re-enables both desired routes and reconciles ULA/ND too.
-
-Read-only acceptance:
-
-```routeros
-/ipv6 route print detail where dst-address="fd2f:feb4:bf84:0::/64"
-/ipv6 neighbor print detail where interface=vlan300-iot
-```
-
-Require all seven nodes available in HA and successful Matter subscriptions;
-route Active flags and ICMP alone are insufficient. To test standby, disable
-only `Thread fd2f via tado VLAN300`, check all seven nodes, then enable it again.
-Automatic failure detection is not configured (`check-gateway=none`).
-
-To roll back only the standby addition, disable `Thread fd2f via HomePod VLAN300`.
-Disabling the primary without a working standby causes Matter unavailability.
-Preserve the working prefix route when reverting ULA/ND independently.
-See [Matter outage postmortem](../../incidents/postmortems/2026-10-13-matter-thread-vlan-migration.md).
+Both ULA /64s belong to `fdb5:841f:2eb7::/48`, recorded in
+[addressing](../../docs/addressing.md). File25 preserves VLAN400 DNS advertisement
+and configures VLAN300 without RDNSS. Its updated source has not been imported.
