@@ -632,6 +632,7 @@
         "WAN FastTrack";
         "forward invalid";
         "input default deny";
+        "Thread RIO HTTPS";
         "Pi-hole local DNS TCP";
         "Pi-hole local DNS UDP";
         "Pi-hole ACME SSH";

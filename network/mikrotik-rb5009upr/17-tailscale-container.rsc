@@ -1,5 +1,6 @@
+:do {
 # OPTIONAL: upload ARM64 tailscale-home.tar, import16, then import this file.
-# Stop an existing container before re-importing. No auto-start, repull or auth keys.
+# Repeat imports validate an existing running container without stopping it.
 :if ([:len [/system package find where name="container" and disabled=no]] != 1) do={ :error "Container package required" }
 :if ([/system device-mode get container] != true) do={ :error "Container device mode required" }
 :if ([:len [/interface veth find where name="veth-tailscale"]] != 1) do={ :error "Import file16 first" }
@@ -25,6 +26,23 @@
     :local existingRoot [/container get $existing root-dir]
     :if (($existingRoot != $root) && ($existingRoot != ("/" . $root))) do={ :error "Unexpected container root; preserve identity/state" }
 }
+:local preserveRunning false
+# Preserve live Tailscale sessions and identity on an unchanged repeat import.
+:if ([:len $existing] = 1) do={
+    :local live false
+    :foreach match in=[/container find where running] do={ :if ([:tostr $match] = [:tostr $existing]) do={ :set live true } }
+    :foreach match in=[/container find where healthy] do={ :if ([:tostr $match] = [:tostr $existing]) do={ :set live true } }
+    :if ($live = true) do={
+        :if ([:len $mount] != 1) do={ :error "Tailscale state mount missing" }
+        :if ([/container get $existing dns] != "172.31.255.1") do={ :error "Tailscale DNS drift; stop before reconciliation" }
+        :put "Tailscale running configuration preserved"
+        :set preserveRunning true
+    }
+    :local stopped false
+    :foreach match in=[/container find where stopped] do={ :if ([:tostr $match] = [:tostr $existing]) do={ :set stopped true } }
+    :if (($stopped != true) && ($preserveRunning != true)) do={ :error "Wait for Tailscale extraction or state transition" }
+}
+:if ($preserveRunning != true) do={
 :if ([:len $mount] = 0) do={
     /container mounts add list=tailscale-state src=$state dst=/var/lib/tailscale
 }
@@ -32,4 +50,6 @@
     /container add name=tailscale-home file=($prefix . "tailscale-home.tar") interface=veth-tailscale root-dir=$root mountlists=tailscale-state dns=172.31.255.1 privileged=yes user=0:0 start-on-boot=yes logging=no restart-policy=on-failure memory-high=134217728 memory-max=268435456 comment="Home Tailscale subnet router"
 } else={
     /container set $existing interface=veth-tailscale mountlists=tailscale-state dns=172.31.255.1 privileged=yes user=0:0 start-on-boot=yes logging=no restart-policy=on-failure memory-high=134217728 memory-max=268435456 comment="Home Tailscale subnet router"
+}
+}
 }

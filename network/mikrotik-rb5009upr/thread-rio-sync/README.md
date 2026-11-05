@@ -45,7 +45,7 @@ routes until the service runs again. Only one writer may run.
 
 ## RouterOS deployment
 
-The initial installer is ../26-thread-rio-container.rsc. It creates veth-thread-rio,
+The reconciler is ../26-thread-rio-container.rsc. It creates veth-thread-rio,
 an access port on bridge with PVID 300, the container, observation-mode environment
 and a source/destination-scoped HTTPS input rule. Dynamic PVID membership preserves
 the existing static VLAN300 row, including across file04 imports.
@@ -151,7 +151,7 @@ Stop the container and wait for stopped state. Retain its environment and mounts
 Build and upload a new versioned archive. Remove only the stopped container record,
 then create its replacement with the same interface, envlist, mountlists and runtime
 settings, using a new versioned root-dir. Retain the old root and image until
-acceptance. The initial installer intentionally rejects repeat installation.
+acceptance. Repeat file26 imports preserve the installed image, versioned root directory, mounts, credentials, RIO_APPLY and boot policy. Image replacement uses the explicit update procedure.
 
 ### Rollback — live changes
 
@@ -190,3 +190,14 @@ Matter application recovery and HomePod operation remain unconfirmed.
 Later source fixes (restart cleanup and route reconciliation) require a new build
 and manual deployment. Validate with `python3 -m unittest discover -s
 network/mikrotik-rb5009upr/thread-rio-sync -p 'test_*.py'` from repository root.
+
+File26 normalizes RIO_INTERFACE to veth-thread-rio. For legacy duplicate
+RIO_APPLY entries, any enabled value 1 preserves apply mode; otherwise observation
+mode 0 is selected. To select observation explicitly, retain one enabled value 0.
+Identical credential duplicates are collapsed; conflicting credential values stop
+preflight without printing their values.
+
+File26 owns the public REST settings ROS_URL=https://192.168.30.1,
+ROS_USER=thread-rio and SSL_CERT_FILE=/ca/ca.crt. Existing public duplicates
+are reconciled to these values. ROS_PASSWORD remains router-local; differing
+password duplicates require selecting the valid password privately.

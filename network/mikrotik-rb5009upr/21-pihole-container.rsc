@@ -47,7 +47,8 @@
             }
         } else={
             :set phase "Pi-hole stopped state"
-            :if ([$containerState id=$existing] != "stopped") do={ :error "Stop Pi-hole and wait before re-importing file21" }
+            :local currentState [$containerState id=$existing]
+            :if ($currentState = "busy") do={ :error "Wait for Pi-hole extraction or state transition" }
             :set phase "Pi-hole interface"
             :if ([/container get $existing interface] != "veth-pihole") do={ :error "Unexpected Pi-hole interface" }
             :set phase "Pi-hole mountlists"
@@ -71,14 +72,28 @@
         # RouterOS owns the host clock; disable container NTP client/server.
         # Disable on-disk query history and per-query text logs to reduce flash writes.
         :set phase "local DNS dependency"
-        :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import 20-pihole-prepare-dns.rsc before configuring conditional forwarding" }
-        :if ([/ip dns get use-doh-server] != "") do={ :error "Import 20-pihole-prepare-dns.rsc to clear RouterOS DoH" }
+        :if ([:tostr [/ip dns get servers]] != "1.1.1.1") do={ :error "Import 20-pihole-network.rsc before configuring conditional forwarding" }
+        :if ([/ip dns get use-doh-server] != "") do={ :error "Import 20-pihole-network.rsc to clear RouterOS DoH" }
         # RouterOS owns infrastructure, ExternalDNS application records and reverse DNS.
         :local settings {"TZ"="Europe/Berlin";"FTLCONF_ntp_sync_active"="false";"FTLCONF_ntp_ipv4_active"="false";"FTLCONF_ntp_ipv6_active"="false";"DNSMASQ_USER"="root";"FTLCONF_dns_listeningMode"="ALL";"FTLCONF_dns_upstreams"="1.1.1.1";"FTLCONF_dns_revServers"="true,192.168.100.0/24,172.31.254.1,home.antonu.org;true,192.168.200.0/24,172.31.254.1;true,192.168.30.0/24,172.31.254.1;true,192.168.40.0/24,172.31.254.1;true,192.168.88.0/24,172.31.254.1;true,10.40.0.0/24,172.31.254.1";"FTLCONF_dns_rateLimit_count"="1000";"FTLCONF_dns_rateLimit_interval"="60";"FTLCONF_webserver_domain"="pihole.home.antonu.org";"FTLCONF_webserver_port"="80r,443s";"FTLCONF_webserver_tls_cert"="/etc/pihole/tls.pem";"FTLCONF_webserver_tls_validity"="0";"FTLCONF_database_maxDBdays"="0";"FTLCONF_files_log_dnsmasq"="/dev/null"}
         :set phase "environment validation/reconciliation"
         :foreach envKey,envValue in=$settings do={
             :if ([:len [/container envs find where list="pihole-env" and key=$envKey]] > 1) do={ :error "Duplicate Pi-hole environment key" }
         }
+        :local preserveRunning false
+        :if ([:len $existing] = 1) do={
+            :if ([$containerState id=$existing] = "running") do={
+                :foreach envKey,envValue in=$settings do={
+                    :local env [/container envs find where list="pihole-env" and key=$envKey]
+                    :if ([:len $env] != 1) do={ :error "Pi-hole environment drift; stop before reconciliation" }
+                    :if ([/container envs get $env value] != $envValue) do={ :error "Pi-hole environment drift; stop before reconciliation" }
+                }
+                :if ([/container get $existing envlists] != "pihole-env") do={ :error "Pi-hole environment attachment drift" }
+                :put "Pi-hole running configuration preserved"
+                :set preserveRunning true
+            }
+        }
+        :if ($preserveRunning != true) do={
         :set phase "environment validation/reconciliation"
         :foreach envKey,envValue in=$settings do={
             :local env [/container envs find where list="pihole-env" and key=$envKey]
@@ -106,6 +121,7 @@
         :set phase "environment attachment verification"
         :local configured [/container find where name="pihole"]
         :if ([/container get $configured envlists] != "pihole-env") do={ :error "Pi-hole environment list is not attached" }
+        }
         # Start the container after extraction completes. Re-import preserves image and data.
     } do={ :error ("Pi-hole " . $phase . ": " . $failure) }
 }

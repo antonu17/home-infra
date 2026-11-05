@@ -1,7 +1,7 @@
 # MikroTik RB5009UPr+S+IN — idempotent RouterOS configuration
 
 Repository-prepared 2026-10-09. Operator reports all files imported on 2026-10-10.
-The agent has not changed or inspected the live router. The `.rsc` files
+Live readbacks and container acceptance are recorded in the relevant subsystem sections. The `.rsc` files
 apply the agreed **target** to an existing RouterOS 7 configuration. Importing
 unchanged files again updates the same objects instead of adding copies.
 There are no custom firewall chains, jump rules, comment prefixes, observation
@@ -25,7 +25,7 @@ Each object has a stable key:
 | Static DNS records | exact `name`; reject duplicates and ownership conflicts |
 | WAN masquerade | `WAN Internet masquerade`; also adopt the old `defconf: masquerade` comment |
 
-Every add is inside an absent-object check. Multiple matches stop with an error;
+Managed objects are added only when absent. Multiple matches stop with an error;
 these files do not delete arbitrary duplicates to guess which one you wanted.
 Correct a duplicate privately by reviewing the affected object or its source key,
 then rerun. Existing single objects keep their IDs. Comments are identity keys for
@@ -883,7 +883,7 @@ remains the DHCP-advertised resolver and local DNS authority.
 | `20-pihole-network.rsc` | `bridge-pihole`, `veth-pihole`, gateway, `PIHOLE-UPSTREAMS`, local-network classification, scoped DNS rules and disabled gateway DNAT |
 | `21-pihole-container.rsc` | `pihole`, `pihole-env`, `pihole-data` mount; pull upstream image once, reconcile settings on later imports |
 | `23-pihole-tls.rsc` | Dedicated NAS-only SSH delivery user, renewal script and HTTPS verification access |
-| `20-pihole-prepare-dns.rsc` | Independent RouterOS upstream `1.1.1.1`, no DoH, no WAN peer DNS |
+| `20-pihole-network.rsc` | Independent RouterOS upstream `1.1.1.1`, no DoH, no WAN peer DNS |
 | `22-pihole-dns.rsc` | Readiness-gated gateway DNAT activation; DHCP unchanged |
 | `08-firewall-nat.rsc` | Preserve optional DNS DNAT ordering and enabled state on core re-import |
 | `09-firewall-filter.rsc` | Preserve optional Pi-hole rules before default deny on core re-import |
@@ -1011,7 +1011,7 @@ the Pi-hole frontend address.
 
 ### Upload configuration
 
-Upload files09,14,20,21,22 and `20-pihole-prepare-dns.rsc` to RouterOS.
+Upload files09,14,20,21,22 and `20-pihole-network.rsc` to RouterOS.
 The router downloads the official image directly; no local Docker build,
 image export or image upload is required.
 
@@ -1048,8 +1048,8 @@ DNS resolution rather than container flags. Inspect state with:
 /import file-name=09-firewall-filter.rsc
 /import file-name=20-pihole-network.rsc verbose=yes dry-run
 /import file-name=20-pihole-network.rsc
-/import file-name=20-pihole-prepare-dns.rsc verbose=yes dry-run
-/import file-name=20-pihole-prepare-dns.rsc
+/import file-name=20-pihole-network.rsc verbose=yes dry-run
+/import file-name=20-pihole-network.rsc
 ## For an existing container: stop and wait for the S flag before file21.
 /container stop [find where name="pihole"]
 /container print detail where name="pihole"
@@ -1333,3 +1333,42 @@ See [container deployment](thread-rio-sync/README.md) for operation and rollback
 Both ULA /64s belong to `fdb5:841f:2eb7::/48`, recorded in
 [addressing](../../docs/addressing.md). File25 preserves VLAN400 DNS advertisement
 and configures VLAN300 without RDNSS. Its updated source has not been imported.
+
+## Repeat-import contract (2026-11-05)
+
+Import the numbered source files in filename order. File20 includes both the Pi-hole network and router DNS preparation. File15 requires existing PXE assets.
+Container packages/device mode and first-install archives remain prerequisites.
+The full router export rb5009-config.rsc is a reference snapshot, excluded from
+the managed import set.
+
+File17 and file21 preserve existing running containers after identity and
+configuration checks. Drift requiring runtime changes stops with an error before
+container replacement or restart. Stopped containers can be reconciled. File26
+reconciles its VETH, bridge attachment and HTTPS rule, adds missing environment
+keys and preserves credentials, apply mode, installed root and image. Existing
+containers require no uploaded image archive. No import upgrades a running image.
+
+File09 includes Thread RIO HTTPS in its deterministic input ordering. File18
+preserves the enabled PIM instance while reconciling its settings. File20 DNS
+preparation no longer flushes the DNS cache on every import.
+
+Re-importing identical source does not require stopping healthy Pi-hole,
+Tailscale or RIO containers. New desired network values can still interrupt
+traffic. Duplicate identities, address conflicts, missing assets and transient
+container states stop execution. Resolve the reported condition and repeat.
+A failed import can have applied earlier commands. RouterOS provides no transaction
+covering this file set. Local source checks do not establish runtime acceptance.
+
+### Verification and rollback
+
+Before importing, retain a private router backup/export and an independent local
+management path. Review the diff and use RouterOS dry-run on the exact uploaded
+files before live imports. Import one file at a time and stop at the first error.
+After repeating, compare managed object counts, enabled states and rule order.
+Confirm DNS through Pi-hole, Tailscale connectivity, multicast discovery, VLAN
+gateways and Matter subscriptions. Preserve exported credentials privately.
+
+For a regression, stop the sequence and restore the previous source for the
+affected subsystem, then follow its rollback procedure. Network changes that
+interrupt management may require local access. Do not automatically remove
+containers, persistent roots, mounts or credentials during rollback.

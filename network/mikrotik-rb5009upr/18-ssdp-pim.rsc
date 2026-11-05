@@ -170,7 +170,7 @@
 :do {
     :local obj [/routing pimsm instance find where name="ssdp-pim"]
     :if ([:len $obj] = 0) do={ /routing pimsm instance add name=ssdp-pim afi=ip vrf=main disabled=yes; :set obj [/routing pimsm instance find where name="ssdp-pim"] }
-    /routing pimsm instance set $obj afi=ip vrf=main switch-to-spt=yes disabled=yes
+    /routing pimsm instance set $obj afi=ip vrf=main switch-to-spt=yes
 }
 :do {
     :local obj [/routing pimsm interface-template find where instance="ssdp-pim"]
